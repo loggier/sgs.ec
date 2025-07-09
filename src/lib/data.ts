@@ -20,7 +20,7 @@ export let clients: Client[] = [
     placaVehiculo: 'ABC-123',
     tipoPlan: 'total cc',
     usuario: 'api_user',
-    estado: 'al día',
+    estado: 'al dia',
   },
   {
     id: '2',

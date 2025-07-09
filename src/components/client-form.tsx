@@ -70,7 +70,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           placaVehiculo: '',
           tipoPlan: 'estandar sc',
           usuario: '',
-          estado: 'al día',
+          estado: 'al dia',
         },
   });
 
@@ -193,8 +193,8 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                         </Trigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="C">C</SelectItem>
-                        <SelectItem value="R">R</SelectItem>
+                        <SelectItem value="C">Cédula</SelectItem>
+                        <SelectItem value="R">RUC</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -413,7 +413,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                         </Trigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="al día">Al día</SelectItem>
+                        <SelectItem value="al dia">Al día</SelectItem>
                         <SelectItem value="adeuda">Adeuda</SelectItem>
                         <SelectItem value="retirado">Retirado</SelectItem>
                       </SelectContent>

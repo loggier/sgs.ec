@@ -20,7 +20,7 @@ export const ClientSchema = z.object({
     { required_error: 'Tipo de plan es requerido.' }
   ),
   usuario: z.string().min(1, 'Usuario es requerido.'),
-  estado: z.enum(['al día', 'adeuda', 'retirado'], {
+  estado: z.enum(['al dia', 'adeuda', 'retirado'], {
     required_error: 'Estado es requerido.',
   }),
 });
