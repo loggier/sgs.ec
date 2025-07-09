@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 
 import type { Client } from '@/lib/schema';
 import { Button } from '@/components/ui/button';
@@ -39,6 +40,11 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isRiskDialogOpen, setIsRiskDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
   const [assessmentResult, setAssessmentResult] = React.useState<AssessCreditRiskOutput | null>(null);
+
+  const [hasMounted, setHasMounted] = React.useState(false);
+  React.useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   React.useEffect(() => {
     setClients(initialClients);
@@ -132,7 +138,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(client.valOperacion)}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {new Date(client.fecVencimiento).toLocaleDateString()}
+                      {hasMounted ? format(new Date(client.fecVencimiento), 'P') : null}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
