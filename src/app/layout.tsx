@@ -32,7 +32,7 @@ export default function RootLayout({
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Banknote className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <span className="text-lg font-semibold">SGC</span>
+                <span className="text-lg font-semibold overflow-hidden transition-all duration-300 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0">SGC</span>
               </div>
             </SidebarHeader>
             <SidebarContent>
