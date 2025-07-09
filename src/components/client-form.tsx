@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,7 +16,6 @@ import type { AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
 import { Button } from '@/components/ui/button';
 import {
-  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -103,7 +102,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
   }
 
   return (
-    <Form {...form}>
+    <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4 py-4">
@@ -190,7 +189,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un tipo" />
-                        </Trigger>
+                        </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="C">Cédula</SelectItem>
@@ -384,7 +383,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un plan" />
-                        </Trigger>
+                        </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="estandar sc">Estándar SC</SelectItem>
@@ -410,7 +409,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un estado" />
-                        </Trigger>
+                        </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="al dia">Al día</SelectItem>
@@ -435,6 +434,6 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           </Button>
         </div>
       </form>
-    </Form>
+    </FormProvider>
   );
 }
