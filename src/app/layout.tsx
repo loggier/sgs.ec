@@ -5,8 +5,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { Banknote, Users } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'ClientVerse',
-  description: 'A modern CRM for client management.',
+  title: 'SGC',
+  description: 'Sistema de gestion de cliente.',
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Banknote className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <span className="text-lg font-semibold">ClientVerse</span>
+                <span className="text-lg font-semibold">SGC</span>
               </div>
             </SidebarHeader>
             <SidebarMenu>
