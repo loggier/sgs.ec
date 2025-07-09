@@ -190,7 +190,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un tipo" />
-                        </SelectTrigger>
+                        </Trigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="C">C</SelectItem>
@@ -334,7 +334,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                     name="valorPago"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Valor de Pago</FormLabel>
+                        <FormLabel>Valor del Pago</FormLabel>
                         <FormControl>
                           <Input type="number" placeholder="5000" {...field} />
                         </FormControl>
