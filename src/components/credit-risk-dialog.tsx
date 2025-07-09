@@ -38,6 +38,12 @@ export default function CreditRiskDialog({
         return 'default';
     }
   };
+
+  const riskLevelText = {
+    low: 'Bajo',
+    medium: 'Medio',
+    high: 'Alto',
+  };
   
     // Custom variants for Badge
   const badgeVariants = {
@@ -51,27 +57,27 @@ export default function CreditRiskDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>AI Credit Risk Assessment</DialogTitle>
+          <DialogTitle>Evaluación de Riesgo Crediticio con IA</DialogTitle>
           <DialogDescription>
-            The AI has analyzed the new client's information. Here is the result:
+            La IA ha analizado la información del nuevo cliente. Aquí está el resultado:
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="flex items-center gap-4">
-            <span className="font-semibold">Risk Level:</span>
+            <span className="font-semibold">Nivel de Riesgo:</span>
              <Badge variant="outline" className={badgeVariants[getRiskVariant(assessment.riskLevel)]}>
-              {assessment.riskLevel.charAt(0).toUpperCase() + assessment.riskLevel.slice(1)}
+              {riskLevelText[assessment.riskLevel]}
             </Badge>
           </div>
           <div>
-            <h4 className="font-semibold mb-2">Assessment Details:</h4>
+            <h4 className="font-semibold mb-2">Detalles de la Evaluación:</h4>
             <p className="text-sm text-muted-foreground bg-secondary p-3 rounded-md">
                 {assessment.creditRiskAssessment}
             </p>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
+          <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

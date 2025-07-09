@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 import type { Client } from '@/lib/schema';
 import { Button } from '@/components/ui/button';
@@ -99,10 +100,10 @@ export default function ClientList({ initialClients }: ClientListProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Client Management</CardTitle>
+          <CardTitle>Gestión de Clientes</CardTitle>
           <Button onClick={handleAddClient} size="sm">
             <PlusCircle className="mr-2 h-4 w-4" />
-            New Client
+            Nuevo Cliente
           </Button>
         </div>
       </CardHeader>
@@ -111,14 +112,14 @@ export default function ClientList({ initialClients }: ClientListProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>City</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Plan Type</TableHead>
-                <TableHead className="hidden md:table-cell">Operation Value</TableHead>
-                <TableHead className="hidden lg:table-cell">Due Date</TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Ciudad</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="hidden md:table-cell">Tipo de Plan</TableHead>
+                <TableHead className="hidden md:table-cell">Valor de Operación</TableHead>
+                <TableHead className="hidden lg:table-cell">Fecha de Vencimiento</TableHead>
                 <TableHead>
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">Acciones</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -135,25 +136,25 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{client.tipoPlan}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(client.valOperacion)}
+                      {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(client.valOperacion)}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {hasMounted ? format(new Date(client.fecVencimiento), 'P') : null}
+                      {hasMounted ? format(new Date(client.fecVencimiento), 'P', { locale: es }) : null}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
                             <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
+                            <span className="sr-only">Alternar menú</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
+                            <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -163,7 +164,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center">
-                    No clients found.
+                    No se encontraron clientes.
                   </TableCell>
                 </TableRow>
               )}
@@ -175,7 +176,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-2xl w-full">
           <SheetHeader>
-            <SheetTitle>{selectedClient ? 'Edit Client' : 'Add New Client'}</SheetTitle>
+            <SheetTitle>{selectedClient ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}</SheetTitle>
           </SheetHeader>
           <ClientForm
             client={selectedClient}

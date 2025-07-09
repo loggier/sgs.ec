@@ -41,7 +41,7 @@ export default function DeleteClientDialog({
       const result = await deleteClient(client.id!);
       if (result.success) {
         toast({
-          title: 'Success',
+          title: 'Éxito',
           description: result.message,
         });
         onDelete();
@@ -55,7 +55,7 @@ export default function DeleteClientDialog({
     } catch (error) {
        toast({
         title: 'Error',
-        description: 'An unexpected error occurred.',
+        description: 'Ocurrió un error inesperado.',
         variant: 'destructive',
       });
     } finally {
@@ -68,14 +68,14 @@ export default function DeleteClientDialog({
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the client record for{' '}
+            Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del cliente{' '}
             <span className="font-semibold">{client?.nomSujeto}</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button
                 variant="destructive"
@@ -83,7 +83,7 @@ export default function DeleteClientDialog({
                 disabled={isDeleting}
             >
                 {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isDeleting ? "Deleting..." : "Delete"}
+                {isDeleting ? "Eliminando..." : "Eliminar"}
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>

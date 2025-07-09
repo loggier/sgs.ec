@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -79,7 +80,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
       const result = await saveClient(values, client?.id);
       if (result.success) {
         toast({
-          title: 'Success',
+          title: 'Éxito',
           description: result.message,
         });
         onSave({ client: result.client, assessment: result.assessment });
@@ -93,7 +94,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'An unexpected error occurred.',
+        description: 'Ocurrió un error inesperado.',
         variant: 'destructive',
       });
     } finally {
@@ -114,7 +115,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   <FormItem>
                     <FormLabel>Nombre (Cliente)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Juan Perez" {...field} />
+                      <Input placeholder="Juan Pérez" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -125,9 +126,9 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                 name="codIdSujeto"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Código de Sujeto</FormLabel>
+                    <FormLabel>Cédula o RUC</FormLabel>
                     <FormControl>
-                      <Input placeholder="123456789" {...field} />
+                      <Input placeholder="1712345678" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -142,7 +143,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                 <FormItem>
                   <FormLabel>Dirección</FormLabel>
                   <FormControl>
-                    <Input placeholder="Calle Falsa 123" {...field} />
+                    <Input placeholder="Av. Amazonas N34-451 y Av. Atahualpa" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -157,7 +158,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   <FormItem>
                     <FormLabel>Ciudad</FormLabel>
                     <FormControl>
-                      <Input placeholder="Springfield" {...field} />
+                      <Input placeholder="Quito" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -170,7 +171,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   <FormItem>
                     <FormLabel>Teléfono</FormLabel>
                     <FormControl>
-                      <Input placeholder="555-1234" {...field} />
+                      <Input placeholder="0991234567" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -207,7 +208,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   <FormItem>
                     <FormLabel>Placa del Vehículo</FormLabel>
                     <FormControl>
-                      <Input placeholder="ABC-123" {...field} />
+                      <Input placeholder="PBA-1234" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -247,9 +248,9 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                               )}
                             >
                               {field.value ? (
-                                format(field.value, 'PPP')
+                                format(field.value, 'PPP', { locale: es })
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Elige una fecha</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -264,6 +265,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                               date > new Date() || date < new Date('1900-01-01')
                             }
                             initialFocus
+                            locale={es}
                           />
                         </PopoverContent>
                       </Popover>
@@ -289,9 +291,9 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                               )}
                             >
                               {field.value ? (
-                                format(field.value, 'PPP')
+                                format(field.value, 'PPP', { locale: es })
                               ) : (
-                                <span>Pick a date</span>
+                                <span>Elige una fecha</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -303,6 +305,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                             selected={field.value}
                             onSelect={field.onChange}
                             initialFocus
+                            locale={es}
                           />
                         </PopoverContent>
                       </Popover>
@@ -362,7 +365,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Usuario (API)</FormLabel>
                         <FormControl>
-                          <Input placeholder="api_user" {...field} />
+                          <Input placeholder="usuario_api" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -381,7 +384,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un plan" />
-                        </SelectTrigger>
+                        </Trigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="estandar sc">Estándar SC</SelectItem>
@@ -407,7 +410,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un estado" />
-                        </SelectTrigger>
+                        </Trigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="al día">Al día</SelectItem>
@@ -424,11 +427,11 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            Cancelar
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Saving...' : 'Save Client'}
+            {isSubmitting ? 'Guardando...' : 'Guardar Cliente'}
           </Button>
         </div>
       </form>

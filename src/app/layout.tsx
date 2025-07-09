@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -39,7 +39,7 @@ export default function RootLayout({
               <SidebarMenuItem>
                 <SidebarMenuButton href="#" isActive>
                   <Users />
-                  Clients
+                  Clientes
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

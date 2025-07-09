@@ -6,7 +6,7 @@ export default function Header() {
       <div className="md:hidden">
         <SidebarTrigger />
       </div>
-      <h1 className="text-xl font-semibold">Clients</h1>
+      <h1 className="text-xl font-semibold">Clientes</h1>
     </header>
   );
 }

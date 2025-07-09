@@ -26,7 +26,7 @@ export async function saveClient(
   const validation = ClientSchema.omit({ id: true }).safeParse(data);
 
   if (!validation.success) {
-    return { success: false, message: 'Invalid data provided.' };
+    return { success: false, message: 'Datos proporcionados no válidos.' };
   }
 
   const { ...clientData } = validation.data;
@@ -40,7 +40,7 @@ export async function saveClient(
       if (clientIndex > -1) {
         clients[clientIndex] = { ...clients[clientIndex], ...clientData };
       } else {
-        return { success: false, message: 'Client not found.' };
+        return { success: false, message: 'Cliente no encontrado.' };
       }
     } else {
       // Create new client
@@ -59,14 +59,14 @@ export async function saveClient(
     revalidatePath('/');
     return {
       success: true,
-      message: `Client ${id ? 'updated' : 'created'} successfully.`,
+      message: `Cliente ${id ? 'actualizado' : 'creado'} con éxito.`,
       client: await getClientById(id),
       assessment: assessmentResult,
     };
   } catch (error) {
     console.error(error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, message: `Failed to save client: ${errorMessage}` };
+    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+    return { success: false, message: `Error al guardar el cliente: ${errorMessage}` };
   }
 }
 
@@ -75,7 +75,7 @@ export async function deleteClient(id: string): Promise<{ success: boolean; mess
   if (clientIndex > -1) {
     clients.splice(clientIndex, 1);
     revalidatePath('/');
-    return { success: true, message: 'Client deleted successfully.' };
+    return { success: true, message: 'Cliente eliminado con éxito.' };
   }
-  return { success: false, message: 'Client not found.' };
+  return { success: false, message: 'Cliente no encontrado.' };
 }

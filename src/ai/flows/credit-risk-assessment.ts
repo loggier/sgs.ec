@@ -14,19 +14,19 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AssessCreditRiskInputSchema = z.object({
-  codTipoId: z.string().describe('Code of the ID type (e.g., C, R)'),
-  codIdSujeto: z.string().describe('Code of the subject ID'),
-  nomSujeto: z.string().describe('Name of the client'),
-  direccion: z.string().describe('Address of the client'),
-  ciudad: z.string().describe('City of the client'),
-  telefono: z.string().describe('Phone number of the client'),
-  numOperacion: z.string().describe('Operation number'),
-  fecConcesion: z.string().describe('Granting date of the operation'),
-  valOperacion: z.number().describe('Value of the operation'),
-  valorPago: z.number().describe('Payment value'),
-  fecVencimiento: z.string().describe('Due date'),
-  valorVencido: z.number().describe('Overdue value'),
-  placaVehiculo: z.string().describe('Vehicle plate number'),
+  codTipoId: z.string().describe('Código del tipo de ID (e.g., C, R)'),
+  codIdSujeto: z.string().describe('Código de identificación del sujeto'),
+  nomSujeto: z.string().describe('Nombre del cliente'),
+  direccion: z.string().describe('Dirección del cliente'),
+  ciudad: z.string().describe('Ciudad del cliente'),
+  telefono: z.string().describe('Número de teléfono del cliente'),
+  numOperacion: z.string().describe('Número de operación'),
+  fecConcesion: z.string().describe('Fecha de concesión de la operación'),
+  valOperacion: z.number().describe('Valor de la operación'),
+  valorPago: z.number().describe('Valor del pago'),
+  fecVencimiento: z.string().describe('Fecha de vencimiento'),
+  valorVencido: z.number().describe('Valor vencido'),
+  placaVehiculo: z.string().describe('Placa del vehículo'),
   tipoPlan: z
     .enum([
       'estandar sc',
@@ -36,16 +36,16 @@ const AssessCreditRiskInputSchema = z.object({
       'avanzado cc',
       'total cc',
     ])
-    .describe('Type of plan'),
-  usuario: z.string().describe('User (from API)'),
+    .describe('Tipo de plan'),
+  usuario: z.string().describe('Usuario (de la API)'),
 });
 export type AssessCreditRiskInput = z.infer<typeof AssessCreditRiskInputSchema>;
 
 const AssessCreditRiskOutputSchema = z.object({
   creditRiskAssessment: z
     .string()
-    .describe('The assessment of credit risk for the client.'),
-  riskLevel: z.enum(['low', 'medium', 'high']).describe('The risk level.'),
+    .describe('La evaluación del riesgo crediticio para el cliente.'),
+  riskLevel: z.enum(['low', 'medium', 'high']).describe('El nivel de riesgo.'),
 });
 export type AssessCreditRiskOutput = z.infer<typeof AssessCreditRiskOutputSchema>;
 
@@ -57,26 +57,26 @@ const prompt = ai.definePrompt({
   name: 'assessCreditRiskPrompt',
   input: {schema: AssessCreditRiskInputSchema},
   output: {schema: AssessCreditRiskOutputSchema},
-  prompt: `You are an expert credit risk analyst.
-  Assess the credit risk of a client based on the following information:
+  prompt: `Eres un analista experto en riesgo crediticio.
+  Evalúa el riesgo crediticio de un cliente basándose en la siguiente información:
 
-  Client Name: {{{nomSujeto}}}
-  Address: {{{direccion}}}, {{{ciudad}}}
-  Phone: {{{telefono}}}
-  Operation Number: {{{numOperacion}}}
-  Granting Date: {{{fecConcesion}}}
-  Operation Value: {{{valOperacion}}}
-  Payment Value: {{{valorPago}}}
-  Due Date: {{{fecVencimiento}}}
-  Overdue Value: {{{valorVencido}}}
-  Vehicle Plate: {{{placaVehiculo}}}
-  Plan Type: {{{tipoPlan}}}
-  User: {{{usuario}}}
-  ID Type Code: {{{codTipoId}}}
-  Subject ID Code: {{{codIdSujeto}}}
+  Nombre del Cliente: {{{nomSujeto}}}
+  Dirección: {{{direccion}}}, {{{ciudad}}}
+  Teléfono: {{{telefono}}}
+  Número de Operación: {{{numOperacion}}}
+  Fecha de Concesión: {{{fecConcesion}}}
+  Valor de la Operación: {{{valOperacion}}}
+  Valor del Pago: {{{valorPago}}}
+  Fecha de Vencimiento: {{{fecVencimiento}}}
+  Valor Vencido: {{{valorVencido}}}
+  Placa del Vehículo: {{{placaVehiculo}}}
+  Tipo de Plan: {{{tipoPlan}}}
+  Usuario: {{{usuario}}}
+  Código de Tipo de ID: {{{codTipoId}}}
+  Código de ID del Sujeto: {{{codIdSujeto}}}
 
-  Provide a detailed credit risk assessment and determine the risk level (low, medium, or high).
-  Return the riskLevel field as one of "low", "medium", or "high".
+  Proporciona una evaluación detallada del riesgo crediticio y determina el nivel de riesgo (low, medium, or high).
+  Devuelve el campo riskLevel como uno de "low", "medium", o "high".
   `,
 });
 
