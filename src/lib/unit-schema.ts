@@ -3,12 +3,16 @@ import { z } from 'zod';
 export const UnitPaymentFrequency = z.enum(['mensual', 'anual', 'contrato']);
 export type UnitPaymentFrequency = z.infer<typeof UnitPaymentFrequency>;
 
+export const UnitPlanType = z.enum(['basico', 'premium', 'corporativo']);
+export type UnitPlanType = z.infer<typeof UnitPlanType>;
+
 export const UnitSchema = z.object({
   id: z.string(),
   clientId: z.string(),
   imei: z.string().min(1, 'IMEI es requerido.'),
   placa: z.string().min(1, 'Placa es requerida.'),
   modelo: z.string().min(1, 'Modelo es requerido.'),
+  tipoPlan: UnitPlanType,
   frecuenciaPago: UnitPaymentFrequency,
   fechaInstalacion: z.date({ required_error: 'Fecha de instalación es requerida.' }),
   fechaVencimiento: z.date({ required_error: 'Fecha de vencimiento es requerida.' }),

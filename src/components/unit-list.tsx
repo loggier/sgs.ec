@@ -98,6 +98,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
               <TableRow>
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
+                <TableHead>Plan</TableHead>
                 <TableHead>Frecuencia Pago</TableHead>
                 <TableHead>Vencimiento</TableHead>
                 <TableHead>Monto</TableHead>
@@ -112,6 +113,9 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                   <TableRow key={unit.id}>
                     <TableCell className="font-medium">{unit.placa}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">{unit.tipoPlan}</Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="capitalize">{unit.frecuenciaPago}</Badge>
                     </TableCell>
@@ -143,7 +147,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     Este cliente no tiene unidades registradas.
                   </TableCell>
                 </TableRow>

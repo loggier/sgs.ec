@@ -61,6 +61,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           imei: '',
           placa: '',
           modelo: '',
+          tipoPlan: 'basico',
           frecuenciaPago: 'mensual',
           fechaInstalacion: new Date(),
           fechaVencimiento: new Date(),
@@ -149,6 +150,28 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <FormField
+                control={form.control}
+                name="tipoPlan"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Plan</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un plan" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="basico">Básico</SelectItem>
+                        <SelectItem value="premium">Premium</SelectItem>
+                        <SelectItem value="corporativo">Corporativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="frecuenciaPago"
@@ -171,7 +194,9 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
                   </FormItem>
                 )}
               />
-              <FormField
+            </div>
+            
+             <FormField
                 control={form.control}
                 name="monto"
                 render={({ field }) => (
@@ -184,7 +209,6 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
                   </FormItem>
                 )}
               />
-            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
