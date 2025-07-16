@@ -20,7 +20,7 @@ import { Loader2 } from 'lucide-react';
 type DeleteClientDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  client: Client | null;
+  client: Omit<Client, 'placaVehiculo'> | null;
   onDelete: () => void;
 };
 

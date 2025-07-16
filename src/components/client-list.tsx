@@ -69,13 +69,29 @@ export default function ClientList({ initialClients }: ClientListProps) {
   };
 
   const handleFormSave = (result: { client?: Omit<Client, 'placaVehiculo'>, assessment?: AssessCreditRiskOutput }) => {
+    if (result.client) {
+      setClients(currentClients => {
+        const existing = currentClients.find(c => c.id === result.client!.id);
+        if (existing) {
+          return currentClients.map(c => c.id === result.client!.id ? result.client! : c);
+        }
+        return [...currentClients, result.client!];
+      });
+    }
+    
     setIsSheetOpen(false);
     setSelectedClient(null);
+
     if (result.assessment) {
       setAssessmentResult(result.assessment);
       setIsRiskDialogOpen(true);
     }
   };
+
+  const onClientDeleted = (clientId: string) => {
+    setClients(currentClients => currentClients.filter(c => c.id !== clientId));
+    setIsDeleteDialogOpen(false);
+  }
 
   const getStatusVariant = (status: Client['estado']) => {
     switch (status) {
@@ -203,8 +219,9 @@ export default function ClientList({ initialClients }: ClientListProps) {
         onOpenChange={setIsDeleteDialogOpen}
         client={selectedClient}
         onDelete={() => {
-          setSelectedClient(null);
-          setIsDeleteDialogOpen(false);
+          if (selectedClient) {
+            onClientDeleted(selectedClient.id);
+          }
         }}
       />
       

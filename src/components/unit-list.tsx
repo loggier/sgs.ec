@@ -33,6 +33,15 @@ type UnitListProps = {
   clientId: string;
 };
 
+const planDisplayNames: Record<Unit['tipoPlan'], string> = {
+  'estandar-sc': 'Estándar SC',
+  'avanzado-sc': 'Avanzado SC',
+  'total-sc': 'Total SC',
+  'estandar-cc': 'Estándar CC',
+  'avanzado-cc': 'Avanzado CC',
+  'total-cc': 'Total CC',
+};
+
 export default function UnitList({ initialUnits, clientId }: UnitListProps) {
   const [units, setUnits] = React.useState(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -114,7 +123,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                     <TableCell className="font-medium">{unit.placa}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">{unit.tipoPlan}</Badge>
+                      <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="capitalize">{unit.frecuenciaPago}</Badge>

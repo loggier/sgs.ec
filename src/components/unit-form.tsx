@@ -41,6 +41,15 @@ type UnitFormProps = {
   onCancel: () => void;
 };
 
+const planDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoPlan'], string> = {
+  'estandar-sc': 'Estándar SC',
+  'avanzado-sc': 'Avanzado SC',
+  'total-sc': 'Total SC',
+  'estandar-cc': 'Estándar CC',
+  'avanzado-cc': 'Avanzado CC',
+  'total-cc': 'Total CC',
+};
+
 export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -61,7 +70,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           imei: '',
           placa: '',
           modelo: '',
-          tipoPlan: 'basico',
+          tipoPlan: 'estandar-sc',
           frecuenciaPago: 'mensual',
           fechaInstalacion: new Date(),
           fechaVencimiento: new Date(),
@@ -163,9 +172,9 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="basico">Básico</SelectItem>
-                        <SelectItem value="premium">Premium</SelectItem>
-                        <SelectItem value="corporativo">Corporativo</SelectItem>
+                        {Object.entries(planDisplayNames).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

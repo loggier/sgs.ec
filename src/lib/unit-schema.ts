@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const UnitPaymentFrequency = z.enum(['mensual', 'anual', 'contrato']);
 export type UnitPaymentFrequency = z.infer<typeof UnitPaymentFrequency>;
 
-export const UnitPlanType = z.enum(['basico', 'premium', 'corporativo']);
+export const UnitPlanType = z.enum(['estandar-sc', 'avanzado-sc', 'total-sc', 'estandar-cc', 'avanzado-cc', 'total-cc']);
 export type UnitPlanType = z.infer<typeof UnitPlanType>;
 
 export const UnitSchema = z.object({
