@@ -22,12 +22,11 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
 
   // Calculate summary data
   const totalUnits = units.length;
-  const totalAmount = units.reduce((sum, unit) => {
+  const totalMonthlyAmount = units.reduce((sum, unit) => {
     if (unit.tipoContrato === 'con_contrato') {
-      return sum + (unit.costoTotalContrato ?? 0);
+      const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
+      return sum + monthlyCost;
     }
-    // For now, let's assume 'sin_contrato' monthly cost contributes for one month to the summary.
-    // This could be changed to an annualized value if needed.
     return sum + (unit.costoMensual ?? 0);
   }, 0);
   
@@ -46,7 +45,7 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         <UnitSummary 
           totalUnits={totalUnits}
-          totalAmount={totalAmount}
+          totalAmount={totalMonthlyAmount}
           unitsByPlan={unitsByPlan}
         />
         <UnitList initialUnits={units} clientId={clientId} />
