@@ -27,7 +27,13 @@ export async function saveUnit(
       if (unitIndex === -1) {
         return { success: false, message: 'Unidad no encontrada.' };
       }
-      const updatedUnit = { ...units[unitIndex], ...validation.data };
+      // Preserve read-only fields
+      const updatedUnit = { 
+        ...units[unitIndex], 
+        ...validation.data,
+        ultimoPago: units[unitIndex].ultimoPago,
+        fechaSiguientePago: units[unitIndex].fechaSiguientePago,
+      };
       units[unitIndex] = updatedUnit;
       revalidatePath(`/clients/${clientId}/units`);
       return { success: true, message: 'Unidad actualizada con éxito.', unit: updatedUnit };

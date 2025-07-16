@@ -62,7 +62,6 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           ...unit,
           fechaInstalacion: new Date(unit.fechaInstalacion),
           fechaVencimiento: new Date(unit.fechaVencimiento),
-          ultimaRenovacion: unit.ultimaRenovacion ? new Date(unit.ultimaRenovacion) : null,
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: new Date(unit.fechaSiguientePago),
         }
@@ -75,7 +74,6 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           fechaInstalacion: new Date(),
           fechaVencimiento: new Date(),
           monto: 0,
-          ultimaRenovacion: null,
           ultimoPago: null,
           fechaSiguientePago: new Date(),
           observacion: '',
@@ -301,123 +299,41 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
-                  control={form.control}
-                  name="ultimaRenovacion"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Última Renovación</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha (opcional)</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <FormField
                   control={form.control}
                   name="ultimoPago"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Último Pago</FormLabel>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha (opcional)</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input
+                          readOnly
+                          value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                          className="bg-muted"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-            </div>
-            
-            <FormField
+                <FormField
                   control={form.control}
                   name="fechaSiguientePago"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Fecha de Siguiente Pago</FormLabel>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input
+                          readOnly
+                          value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                          className="bg-muted"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+            </div>
 
              <FormField
               control={form.control}

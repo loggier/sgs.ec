@@ -17,7 +17,6 @@ export const UnitSchema = z.object({
   fechaInstalacion: z.date({ required_error: 'Fecha de instalación es requerida.' }),
   fechaVencimiento: z.date({ required_error: 'Fecha de vencimiento es requerida.' }),
   monto: z.coerce.number().positive('El monto debe ser un número positivo.'),
-  ultimaRenovacion: z.date().nullable(),
   ultimoPago: z.date().nullable(),
   fechaSiguientePago: z.date({ required_error: 'Fecha de siguiente pago es requerida.' }),
   observacion: z.string().optional(),
