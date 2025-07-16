@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
-import { Banknote, Users } from 'lucide-react';
+import { Banknote, Users, UsersRound } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'SGC',
@@ -41,6 +41,12 @@ export default function RootLayout({
                   <SidebarMenuButton href="/" isActive tooltip="Clientes">
                     <Users />
                     Clientes
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton href="/users" tooltip="Usuarios">
+                    <UsersRound />
+                    Usuarios
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
