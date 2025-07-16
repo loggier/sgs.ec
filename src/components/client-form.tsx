@@ -105,16 +105,38 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4 py-4">
+            <FormField
+              control={form.control}
+              name="nomSujeto"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre (Cliente)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Juan Pérez" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="nomSujeto"
+                name="codTipoId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nombre (Cliente)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Juan Pérez" {...field} />
-                    </FormControl>
+                    <FormLabel>Tipo de ID</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="C">Cédula</SelectItem>
+                        <SelectItem value="R">RUC</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -180,33 +202,25 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <FormField
                 control={form.control}
-                name="codTipoId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de ID</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un tipo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="C">Cédula</SelectItem>
-                        <SelectItem value="R">RUC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
                 name="numOperacion"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Número de Operación</FormLabel>
                     <FormControl>
                       <Input placeholder="OP-001" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="usuario"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Usuario (API)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="usuario_api" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -344,69 +358,53 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   />
                   <FormField
                     control={form.control}
-                    name="usuario"
+                    name="tipoPlan"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Usuario (API)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="usuario_api" {...field} />
-                        </FormControl>
+                        <FormLabel>Tipo de Plan</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione un plan" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="estandar sc">Estándar SC</SelectItem>
+                            <SelectItem value="avanzado sc">Avanzado SC</SelectItem>
+                            <SelectItem value="total sc">Total SC</SelectItem>
+                            <SelectItem value="estandar cc">Estándar CC</SelectItem>
+                            <SelectItem value="avanzado cc">Avanzado CC</SelectItem>
+                            <SelectItem value="total cc">Total CC</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
               </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="tipoPlan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de Plan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un plan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="estandar sc">Estándar SC</SelectItem>
-                        <SelectItem value="avanzado sc">Avanzado SC</SelectItem>
-                        <SelectItem value="total sc">Total SC</SelectItem>
-                        <SelectItem value="estandar cc">Estándar CC</SelectItem>
-                        <SelectItem value="avanzado cc">Avanzado CC</SelectItem>
-                        <SelectItem value="total cc">Total CC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="estado"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un estado" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="al dia">Al día</SelectItem>
-                        <SelectItem value="adeuda">Adeuda</SelectItem>
-                        <SelectItem value="retirado">Retirado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="estado"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un estado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="al dia">Al día</SelectItem>
+                      <SelectItem value="adeuda">Adeuda</SelectItem>
+                      <SelectItem value="retirado">Retirado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
