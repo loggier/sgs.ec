@@ -123,7 +123,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Ciudad</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="hidden md:table-cell">Tipo de Plan</TableHead>
                 <TableHead className="hidden md:table-cell">Valor de Operación</TableHead>
                 <TableHead className="hidden lg:table-cell">Fecha de Vencimiento</TableHead>
                 <TableHead>
@@ -142,7 +141,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                         {displayStatus[client.estado]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{client.tipoPlan}</TableCell>
                     <TableCell className="hidden md:table-cell">
                       {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(client.valOperacion)}
                     </TableCell>
@@ -177,7 +175,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     No se encontraron clientes.
                   </TableCell>
                 </TableRow>

@@ -14,10 +14,6 @@ export const ClientSchema = z.object({
   valorPago: z.coerce.number({invalid_type_error: "Debe ser un número"}).nonnegative('El valor de pago no puede ser negativo.'),
   fecVencimiento: z.date({ required_error: 'Fecha de vencimiento es requerida.' }),
   valorVencido: z.coerce.number({invalid_type_error: "Debe ser un número"}).nonnegative('El valor vencido no puede ser negativo.'),
-  tipoPlan: z.enum(
-    ['estandar sc', 'avanzado sc', 'total sc', 'estandar cc', 'avanzado cc', 'total cc'],
-    { required_error: 'Tipo de plan es requerido.' }
-  ),
   usuario: z.string().min(1, 'Usuario es requerido.'),
   estado: z.enum(['al dia', 'adeuda', 'retirado'], {
     required_error: 'Estado es requerido.',

@@ -26,16 +26,6 @@ const AssessCreditRiskInputSchema = z.object({
   valorPago: z.number().describe('Valor del pago'),
   fecVencimiento: z.string().describe('Fecha de vencimiento'),
   valorVencido: z.number().describe('Valor vencido'),
-  tipoPlan: z
-    .enum([
-      'estandar sc',
-      'avanzado sc',
-      'total sc',
-      'estandar cc',
-      'avanzado cc',
-      'total cc',
-    ])
-    .describe('Tipo de plan'),
   usuario: z.string().describe('Usuario (de la API)'),
 });
 export type AssessCreditRiskInput = z.infer<typeof AssessCreditRiskInputSchema>;
@@ -68,7 +58,6 @@ const prompt = ai.definePrompt({
   Valor del Pago: {{{valorPago}}}
   Fecha de Vencimiento: {{{fecVencimiento}}}
   Valor Vencido: {{{valorVencido}}}
-  Tipo de Plan: {{{tipoPlan}}}
   Usuario: {{{usuario}}}
   Código de Tipo de ID: {{{codTipoId}}}
   Código de ID del Sujeto: {{{codIdSujeto}}}

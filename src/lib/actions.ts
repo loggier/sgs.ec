@@ -20,7 +20,7 @@ export async function getClientById(id: string): Promise<Omit<Client, 'placaVehi
 }
 
 export async function saveClient(
-  data: Omit<Client, 'id' | 'placaVehiculo'>,
+  data: Omit<Client, 'id'>,
   id?: string
 ): Promise<{ success: boolean; message: string; client?: Omit<Client, 'placaVehiculo'>; assessment?: AssessCreditRiskOutput }> {
   const validation = ClientSchema.omit({ id: true }).safeParse(data);
