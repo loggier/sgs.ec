@@ -6,14 +6,12 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
-import { CreateUserSchema, type CreateUserInput } from '@/lib/user-schema';
-import { createUser } from '@/lib/user-actions';
+import { UserFormSchema, type UserFormInput, type User } from '@/lib/user-schema';
+import { saveUser } from '@/lib/user-actions';
 import { useToast } from '@/hooks/use-toast';
-import type { User } from '@/lib/user-schema';
 
 import { Button } from '@/components/ui/button';
 import {
-  Form,
   FormControl,
   FormField,
   FormItem,
@@ -30,27 +28,29 @@ import {
 } from '@/components/ui/select';
 
 type UserFormProps = {
+  user: User | null;
   onSave: (user: User) => void;
   onCancel: () => void;
 };
 
-export default function UserForm({ onSave, onCancel }: UserFormProps) {
+export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isEditing = !!user;
 
-  const form = useForm<CreateUserInput>({
-    resolver: zodResolver(CreateUserSchema),
+  const form = useForm<UserFormInput>({
+    resolver: zodResolver(UserFormSchema(isEditing)),
     defaultValues: {
-      username: '',
+      username: user?.username || '',
       password: '',
-      role: 'usuario',
+      role: user?.role || 'usuario',
     },
   });
 
-  async function onSubmit(values: CreateUserInput) {
+  async function onSubmit(values: UserFormInput) {
     setIsSubmitting(true);
     try {
-      const result = await createUser(values);
+      const result = await saveUser(values, user?.id);
       if (result.success && result.user) {
         toast({
           title: 'Éxito',
@@ -98,7 +98,7 @@ export default function UserForm({ onSave, onCancel }: UserFormProps) {
             <FormItem>
               <FormLabel>Contraseña</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="******" {...field} />
+                <Input type="password" placeholder={isEditing ? 'Dejar en blanco para no cambiar' : '******'} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -132,7 +132,7 @@ export default function UserForm({ onSave, onCancel }: UserFormProps) {
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Creando...' : 'Crear Usuario'}
+            {isSubmitting ? (isEditing ? 'Guardando...' : 'Creando...') : (isEditing ? 'Guardar Cambios' : 'Crear Usuario')}
           </Button>
         </div>
       </form>
