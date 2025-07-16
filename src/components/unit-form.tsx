@@ -64,10 +64,10 @@ function UnitFormFields() {
 
   React.useEffect(() => {
     if (tipoContrato === 'sin_contrato') {
-      setValue('costoTotalContrato', undefined);
-      setValue('mesesContrato', undefined);
+      setValue('costoTotalContrato', '');
+      setValue('mesesContrato', '');
     } else if (tipoContrato === 'con_contrato') {
-      setValue('costoMensual', undefined);
+      setValue('costoMensual', '');
     }
   }, [tipoContrato, setValue]);
 
@@ -194,7 +194,7 @@ function UnitFormFields() {
             <FormItem>
               <FormLabel>Costo Mensual</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="25.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                <Input type="number" placeholder="25.00" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -211,7 +211,7 @@ function UnitFormFields() {
               <FormItem>
                 <FormLabel>Costo Total del Contrato</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="300.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                  <Input type="number" placeholder="300.00" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -224,7 +224,7 @@ function UnitFormFields() {
               <FormItem>
                 <FormLabel>Meses de Contrato</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="12" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))}/>
+                  <Input type="number" placeholder="12" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -252,7 +252,7 @@ function UnitFormFields() {
                         )}
                       >
                         {field.value ? (
-                          format(field.value, 'PPP', { locale: es })
+                          format(new Date(field.value), 'PPP', { locale: es })
                         ) : (
                           <span>Elige una fecha</span>
                         )}
@@ -263,7 +263,7 @@ function UnitFormFields() {
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value}
+                      selected={field.value as Date}
                       onSelect={field.onChange}
                       initialFocus
                       locale={es}
@@ -291,7 +291,7 @@ function UnitFormFields() {
                         )}
                       >
                         {field.value ? (
-                          format(field.value, 'PPP', { locale: es })
+                          format(new Date(field.value), 'PPP', { locale: es })
                         ) : (
                           <span>Elige una fecha</span>
                         )}
@@ -302,7 +302,7 @@ function UnitFormFields() {
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={field.value}
+                      selected={field.value as Date}
                       onSelect={field.onChange}
                       initialFocus
                       locale={es}
@@ -325,7 +325,7 @@ function UnitFormFields() {
                 <FormControl>
                   <Input
                     readOnly
-                    value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                    value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
                     className="bg-muted"
                   />
                 </FormControl>
@@ -342,7 +342,7 @@ function UnitFormFields() {
                 <FormControl>
                   <Input
                     readOnly
-                    value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                    value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
                     className="bg-muted"
                   />
                 </FormControl>
@@ -379,9 +379,9 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     defaultValues: unit
       ? { 
           ...unit,
-          costoMensual: unit.costoMensual ?? undefined,
-          costoTotalContrato: unit.costoTotalContrato ?? undefined,
-          mesesContrato: unit.mesesContrato ?? undefined,
+          costoMensual: unit.costoMensual ?? '',
+          costoTotalContrato: unit.costoTotalContrato ?? '',
+          mesesContrato: unit.mesesContrato ?? '',
           fechaInstalacion: new Date(unit.fechaInstalacion),
           fechaVencimiento: new Date(unit.fechaVencimiento),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
@@ -394,6 +394,9 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           tipoPlan: 'estandar-sc',
           frecuenciaPago: 'mensual',
           tipoContrato: 'sin_contrato',
+          costoMensual: '',
+          costoTotalContrato: '',
+          mesesContrato: '',
           fechaInstalacion: new Date(),
           fechaVencimiento: new Date(),
           ultimoPago: null,
