@@ -98,7 +98,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
               <TableRow>
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
-                <TableHead>Plan</TableHead>
+                <TableHead>Frecuencia Pago</TableHead>
                 <TableHead>Vencimiento</TableHead>
                 <TableHead>Monto</TableHead>
                 <TableHead>
@@ -113,7 +113,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                     <TableCell className="font-medium">{unit.placa}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{unit.tipoPlan}</Badge>
+                      <Badge variant="secondary" className="capitalize">{unit.frecuenciaPago}</Badge>
                     </TableCell>
                     <TableCell>
                       {hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}

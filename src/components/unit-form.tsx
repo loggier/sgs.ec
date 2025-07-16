@@ -61,7 +61,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           imei: '',
           placa: '',
           modelo: '',
-          tipoPlan: 'mensual',
+          frecuenciaPago: 'mensual',
           fechaInstalacion: new Date(),
           fechaVencimiento: new Date(),
           monto: 0,
@@ -151,14 +151,14 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="tipoPlan"
+                name="frecuenciaPago"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tipo de Plan</FormLabel>
+                    <FormLabel>Frecuencia de Pago</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un plan" />
+                          <SelectValue placeholder="Seleccione una frecuencia" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
