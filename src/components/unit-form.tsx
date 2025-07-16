@@ -4,7 +4,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 
@@ -56,11 +56,14 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 };
 
 function UnitFormFields() {
-  const { control, setValue } = useFormContext<UnitFormInput>();
+  const { control, setValue, watch } = useFormContext<UnitFormInput>();
   const tipoContrato = useWatch({
     control,
     name: 'tipoContrato',
   });
+
+  const fechaInicioContrato = watch('fechaInicioContrato');
+  const mesesContrato = watch('mesesContrato');
 
   React.useEffect(() => {
     if (tipoContrato === 'sin_contrato') {
@@ -70,6 +73,16 @@ function UnitFormFields() {
       setValue('costoMensual', '');
     }
   }, [tipoContrato, setValue]);
+  
+  React.useEffect(() => {
+    if (tipoContrato === 'con_contrato' && fechaInicioContrato && mesesContrato) {
+      const months = Number(mesesContrato);
+      if (!isNaN(months) && months > 0) {
+        const newVencimiento = addMonths(new Date(fechaInicioContrato), months);
+        setValue('fechaVencimiento', newVencimiento, { shouldValidate: true });
+      }
+    }
+  }, [fechaInicioContrato, mesesContrato, tipoContrato, setValue]);
 
   return (
     <div className="space-y-4 py-4">
@@ -214,10 +227,10 @@ function UnitFormFields() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={control}
-            name="fechaInstalacion"
+            name="fechaInicioContrato"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Instalación</FormLabel>
+                <FormLabel>Fecha de Inicio de Contrato</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
@@ -258,13 +271,14 @@ function UnitFormFields() {
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Vencimiento</FormLabel>
                   <Popover>
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger asChild disabled={tipoContrato === 'con_contrato'}>
                     <FormControl>
                       <Button
                         variant={'outline'}
                         className={cn(
                           'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground'
+                          !field.value && 'text-muted-foreground',
+                          tipoContrato === 'con_contrato' && 'disabled:opacity-100 bg-muted cursor-default'
                         )}
                       >
                         {field.value ? (
@@ -283,6 +297,7 @@ function UnitFormFields() {
                       onSelect={field.onChange}
                       initialFocus
                       locale={es}
+                      disabled={tipoContrato === 'con_contrato'}
                     />
                   </PopoverContent>
                 </Popover>
@@ -303,7 +318,7 @@ function UnitFormFields() {
                   <Input
                     readOnly
                     value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
-                    className="bg-muted"
+                    className="bg-muted cursor-default"
                   />
                 </FormControl>
                 <FormMessage />
@@ -320,7 +335,7 @@ function UnitFormFields() {
                   <Input
                     readOnly
                     value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
-                    className="bg-muted"
+                    className="bg-muted cursor-default"
                   />
                 </FormControl>
                 <FormMessage />
@@ -359,7 +374,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoMensual: unit.costoMensual ?? '',
           costoTotalContrato: unit.costoTotalContrato ?? '',
           mesesContrato: unit.mesesContrato ?? '',
-          fechaInstalacion: new Date(unit.fechaInstalacion),
+          fechaInicioContrato: new Date(unit.fechaInicioContrato),
           fechaVencimiento: new Date(unit.fechaVencimiento),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: new Date(unit.fechaSiguientePago),
@@ -373,7 +388,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoMensual: '',
           costoTotalContrato: '',
           mesesContrato: '',
-          fechaInstalacion: new Date(),
+          fechaInicioContrato: new Date(),
           fechaVencimiento: new Date(),
           ultimoPago: null,
           fechaSiguientePago: new Date(),

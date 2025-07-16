@@ -17,7 +17,7 @@ export const UnitSchema = z.object({
   costoMensual: z.coerce.number().optional(),
   costoTotalContrato: z.coerce.number().optional(),
   mesesContrato: z.coerce.number().optional(),
-  fechaInstalacion: z.date({ required_error: 'Fecha de instalación es requerida.' }),
+  fechaInicioContrato: z.date({ required_error: 'Fecha de inicio es requerida.' }),
   fechaVencimiento: z.date({ required_error: 'Fecha de vencimiento es requerida.' }),
   ultimoPago: z.date().nullable(),
   fechaSiguientePago: z.date({ required_error: 'Fecha de siguiente pago es requerida.' }),
