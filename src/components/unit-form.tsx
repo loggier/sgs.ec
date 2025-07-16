@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -56,7 +56,7 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 };
 
 function UnitFormFields() {
-  const { control } = useForm<UnitFormInput>();
+  const { control, setValue } = useFormContext<UnitFormInput>();
   const tipoContrato = useWatch({
     control,
     name: 'tipoContrato',
@@ -64,12 +64,12 @@ function UnitFormFields() {
 
   React.useEffect(() => {
     if (tipoContrato === 'sin_contrato') {
-      control.setValue('costoTotalContrato', undefined);
-      control.setValue('mesesContrato', undefined);
+      setValue('costoTotalContrato', undefined);
+      setValue('mesesContrato', undefined);
     } else if (tipoContrato === 'con_contrato') {
-      control.setValue('costoMensual', undefined);
+      setValue('costoMensual', undefined);
     }
-  }, [tipoContrato, control]);
+  }, [tipoContrato, setValue]);
 
   return (
     <div className="space-y-4 py-4">
