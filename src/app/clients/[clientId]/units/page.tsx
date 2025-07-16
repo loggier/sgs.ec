@@ -35,6 +35,11 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
     return acc;
   }, {} as Record<string, number>);
 
+  const unitsByContractType = units.reduce((acc, unit) => {
+    acc[unit.tipoContrato] = (acc[unit.tipoContrato] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="flex flex-col h-screen">
       <Header 
@@ -47,6 +52,7 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
           totalUnits={totalUnits}
           totalAmount={totalMonthlyAmount}
           unitsByPlan={unitsByPlan}
+          unitsByContractType={unitsByContractType}
         />
         <UnitList initialUnits={units} clientId={clientId} />
       </main>
