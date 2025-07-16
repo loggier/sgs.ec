@@ -3,7 +3,7 @@ import Link from 'next/link';
 import './globals.css';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
-import { Banknote, Users, UsersRound } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'SGC',
@@ -41,7 +41,7 @@ export default function RootLayout({
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Clientes">
                     <Link href="/">
-                      <Users />
+                      <Briefcase />
                       Clientes
                     </Link>
                   </SidebarMenuButton>
