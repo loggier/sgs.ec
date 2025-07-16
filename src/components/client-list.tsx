@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Link from 'next/link';
 
 import type { Client } from '@/lib/schema';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
@@ -156,6 +158,12 @@ export default function ClientList({ initialClients }: ClientListProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                           <DropdownMenuItem asChild>
+                            <Link href={`/clients/${client.id}/units`}>
+                              <Car className="mr-2 h-4 w-4" /> Ver Unidades
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleEditClient(client)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>

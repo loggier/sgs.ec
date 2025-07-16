@@ -1,0 +1,180 @@
+'use client';
+
+import * as React from 'react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+import type { Unit } from '@/lib/unit-schema';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+
+import UnitForm from './unit-form';
+import DeleteUnitDialog from './delete-unit-dialog';
+
+type UnitListProps = {
+  initialUnits: Unit[];
+  clientId: string;
+};
+
+export default function UnitList({ initialUnits, clientId }: UnitListProps) {
+  const [units, setUnits] = React.useState(initialUnits);
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [selectedUnit, setSelectedUnit] = React.useState<Unit | null>(null);
+
+  const [hasMounted, setHasMounted] = React.useState(false);
+  React.useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    setUnits(initialUnits);
+  }, [initialUnits]);
+  
+  const handleAddUnit = () => {
+    setSelectedUnit(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditUnit = (unit: Unit) => {
+    setSelectedUnit(unit);
+    setIsSheetOpen(true);
+  };
+
+  const handleDeleteUnit = (unit: Unit) => {
+    setSelectedUnit(unit);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleFormSave = (savedUnit: Unit) => {
+    setUnits(currentUnits => {
+        const existing = currentUnits.find(u => u.id === savedUnit.id);
+        if (existing) {
+            return currentUnits.map(u => u.id === savedUnit.id ? savedUnit : u);
+        }
+        return [...currentUnits, savedUnit];
+    });
+    setIsSheetOpen(false);
+  };
+  
+  const onUnitDeleted = (unitId: string) => {
+    setUnits(currentUnits => currentUnits.filter(u => u.id !== unitId));
+    setIsDeleteDialogOpen(false);
+  };
+
+  return (
+    <>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Unidades del Cliente</CardTitle>
+          <Button onClick={handleAddUnit} size="sm">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nueva Unidad
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Placa</TableHead>
+                <TableHead>IMEI</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Vencimiento</TableHead>
+                <TableHead>Monto</TableHead>
+                <TableHead>
+                  <span className="sr-only">Acciones</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {units.length > 0 ? (
+                units.map(unit => (
+                  <TableRow key={unit.id}>
+                    <TableCell className="font-medium">{unit.placa}</TableCell>
+                    <TableCell>{unit.imei}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{unit.tipoPlan}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}
+                    </TableCell>
+                    <TableCell>
+                      {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(unit.monto)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Alternar menú</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
+                            <Edit className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">
+                    Este cliente no tiene unidades registradas.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+      </Card>
+      
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="sm:max-w-2xl w-full">
+          <SheetHeader>
+            <SheetTitle>{selectedUnit ? 'Editar Unidad' : 'Agregar Nueva Unidad'}</SheetTitle>
+          </SheetHeader>
+          <UnitForm
+            unit={selectedUnit}
+            clientId={clientId}
+            onSave={handleFormSave}
+            onCancel={() => setIsSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <DeleteUnitDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        unit={selectedUnit}
+        clientId={clientId}
+        onDelete={onUnitDeleted}
+      />
+    </>
+  );
+}
