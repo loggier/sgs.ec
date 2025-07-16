@@ -108,7 +108,8 @@ export default function UserList({ initialUsers }: UserListProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Username</TableHead>
+                  <TableHead>Nombre de Usuario</TableHead>
+                  <TableHead>Correo Electrónico</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>
                     <span className="sr-only">Acciones</span>
@@ -119,7 +120,11 @@ export default function UserList({ initialUsers }: UserListProps) {
                 {users.length > 0 ? (
                   users.map(user => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.username}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="font-medium">{user.username}</div>
+                        <div className="text-sm text-muted-foreground">{user.nombre}</div>
+                      </TableCell>
+                       <TableCell>{user.correo}</TableCell>
                       <TableCell>
                         <Badge variant={getRoleVariant(user.role)}>
                           {displayRole[user.role]}
@@ -147,7 +152,7 @@ export default function UserList({ initialUsers }: UserListProps) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center">
+                    <TableCell colSpan={4} className="text-center">
                       No se encontraron usuarios.
                     </TableCell>
                   </TableRow>
@@ -159,7 +164,7 @@ export default function UserList({ initialUsers }: UserListProps) {
       </Card>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-md w-full">
+        <SheetContent className="sm:max-w-2xl w-full">
           <SheetHeader>
             <SheetTitle>{selectedUser ? 'Editar Usuario' : 'Agregar Nuevo Usuario'}</SheetTitle>
           </SheetHeader>

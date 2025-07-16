@@ -11,5 +11,10 @@ export let users: User[] = [
     // "masterpassword" hashed with bcrypt
     password: '$2a$10$9.M7GZ/r7e2.YFp35s/n5eJv/3fXbF.x2.D4g.OaJ1b.zQj4f3y7G',
     role: 'master',
+    nombre: 'Usuario Maestro',
+    correo: 'master@example.com',
+    telefono: '123456789',
+    empresa: 'Empresa Maestra',
+    nota: 'Este es el usuario administrador principal.',
   }
 ];

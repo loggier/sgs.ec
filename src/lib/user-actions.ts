@@ -22,11 +22,16 @@ export async function saveUser(
     return { success: false, message: `Datos no válidos: ${errorMessages}` };
   }
 
-  const { username, password, role } = validation.data;
+  const { username, password, role, nombre, correo, telefono, empresa, nota } = validation.data;
 
   // Check for unique username if it's being changed or created
   if (users.some(u => u.username === username && u.id !== id)) {
     return { success: false, message: 'El nombre de usuario ya existe.' };
+  }
+  
+  // Check for unique email if it's being changed or created
+  if (users.some(u => u.correo === correo && u.id !== id)) {
+    return { success: false, message: 'El correo electrónico ya está en uso.' };
   }
 
   try {
@@ -37,7 +42,7 @@ export async function saveUser(
         return { success: false, message: 'Usuario no encontrado.' };
       }
 
-      const updatedUser = { ...users[userIndex], username, role };
+      const updatedUser = { ...users[userIndex], username, role, nombre, correo, telefono, empresa, nota };
 
       if (password) {
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -59,6 +64,11 @@ export async function saveUser(
         username,
         password: hashedPassword,
         role,
+        nombre,
+        correo,
+        telefono,
+        empresa,
+        nota,
       };
       users.push(newUser);
 

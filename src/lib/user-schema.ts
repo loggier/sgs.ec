@@ -8,6 +8,11 @@ export const UserSchema = z.object({
   username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres.'),
   password: z.string(), // This will be the hashed password, so no length validation here
   role: UserRole,
+  nombre: z.string().optional(),
+  correo: z.string().email('Debe ser un correo electrónico válido.'),
+  telefono: z.string().optional(),
+  empresa: z.string().optional(),
+  nota: z.string().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -21,6 +26,11 @@ export const UserFormSchema = (isEditing: boolean) => z.object({
       })
     : z.string().min(6, 'La contraseña debe tener al menos 6 caracteres.'),
   role: UserRole,
+  nombre: z.string().optional(),
+  correo: z.string().email('El correo electrónico es obligatorio y debe ser válido.'),
+  telefono: z.string().optional(),
+  empresa: z.string().optional(),
+  nota: z.string().optional(),
 });
 
 export type UserFormInput = z.infer<ReturnType<typeof UserFormSchema>>;
