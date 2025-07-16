@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -50,16 +50,338 @@ const planDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoPlan'], strin
   'total-cc': 'Total CC',
 };
 
+const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContrato'], string> = {
+  'sin_contrato': 'Sin Contrato',
+  'con_contrato': 'Con Contrato',
+};
+
+function UnitFormFields() {
+  const { control } = useForm<UnitFormInput>();
+  const tipoContrato = useWatch({
+    control,
+    name: 'tipoContrato',
+  });
+
+  React.useEffect(() => {
+    if (tipoContrato === 'sin_contrato') {
+      control.setValue('costoTotalContrato', undefined);
+      control.setValue('mesesContrato', undefined);
+    } else if (tipoContrato === 'con_contrato') {
+      control.setValue('costoMensual', undefined);
+    }
+  }, [tipoContrato, control]);
+
+  return (
+    <div className="space-y-4 py-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={control}
+          name="placa"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Placa</FormLabel>
+              <FormControl>
+                <Input placeholder="PCQ-1234" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name="imei"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>IMEI</FormLabel>
+              <FormControl>
+                <Input placeholder="123456789012345" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      
+      <FormField
+        control={control}
+        name="modelo"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Modelo</FormLabel>
+            <FormControl>
+              <Input placeholder="Ej. Rastreador GPS 4G" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+          control={control}
+          name="tipoPlan"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tipo de Plan</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione un plan" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {Object.entries(planDisplayNames).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name="frecuenciaPago"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Frecuencia de Pago</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una frecuencia" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="mensual">Mensual</SelectItem>
+                  <SelectItem value="anual">Anual</SelectItem>
+                  <SelectItem value="contrato">Contrato</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+      
+       <FormField
+        control={control}
+        name="tipoContrato"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Tipo de Contrato</FormLabel>
+            <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un tipo de contrato" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                 {Object.entries(contractTypeDisplayNames).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                 ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {tipoContrato === 'sin_contrato' && (
+        <FormField
+          control={control}
+          name="costoMensual"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Costo Mensual</FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="25.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {tipoContrato === 'con_contrato' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="costoTotalContrato"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Costo Total del Contrato</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="300.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value))}/>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="mesesContrato"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Meses de Contrato</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="12" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))}/>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      )}
+
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="fechaInstalacion"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Fecha de Instalación</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full pl-3 text-left font-normal',
+                          !field.value && 'text-muted-foreground'
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, 'PPP', { locale: es })
+                        ) : (
+                          <span>Elige una fecha</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                      locale={es}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="fechaVencimiento"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Fecha de Vencimiento</FormLabel>
+                  <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full pl-3 text-left font-normal',
+                          !field.value && 'text-muted-foreground'
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, 'PPP', { locale: es })
+                        ) : (
+                          <span>Elige una fecha</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                      locale={es}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={control}
+            name="ultimoPago"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Último Pago</FormLabel>
+                <FormControl>
+                  <Input
+                    readOnly
+                    value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                    className="bg-muted"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="fechaSiguientePago"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Fecha de Siguiente Pago</FormLabel>
+                <FormControl>
+                  <Input
+                    readOnly
+                    value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                    className="bg-muted"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+      </div>
+
+        <FormField
+        control={control}
+        name="observacion"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Observación</FormLabel>
+            <FormControl>
+              <Textarea placeholder="Añadir una observación..." {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+    </div>
+  )
+}
+
 export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const isEditing = !!unit;
 
   const form = useForm<UnitFormInput>({
     resolver: zodResolver(UnitFormSchema),
     defaultValues: unit
       ? { 
           ...unit,
+          costoMensual: unit.costoMensual ?? undefined,
+          costoTotalContrato: unit.costoTotalContrato ?? undefined,
+          mesesContrato: unit.mesesContrato ?? undefined,
           fechaInstalacion: new Date(unit.fechaInstalacion),
           fechaVencimiento: new Date(unit.fechaVencimiento),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
@@ -71,9 +393,9 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           modelo: '',
           tipoPlan: 'estandar-sc',
           frecuenciaPago: 'mensual',
+          tipoContrato: 'sin_contrato',
           fechaInstalacion: new Date(),
           fechaVencimiento: new Date(),
-          monto: 0,
           ultimoPago: null,
           fechaSiguientePago: new Date(),
           observacion: '',
@@ -112,244 +434,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="placa"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Placa</FormLabel>
-                    <FormControl>
-                      <Input placeholder="PCQ-1234" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="imei"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>IMEI</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123456789012345" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="modelo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Modelo</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ej. Rastreador GPS 4G" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <FormField
-                control={form.control}
-                name="tipoPlan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de Plan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un plan" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {Object.entries(planDisplayNames).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="frecuenciaPago"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Frecuencia de Pago</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione una frecuencia" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="mensual">Mensual</SelectItem>
-                        <SelectItem value="anual">Anual</SelectItem>
-                        <SelectItem value="contrato">Contrato</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-             <FormField
-                control={form.control}
-                name="monto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monto</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="25.00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="fechaInstalacion"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Fecha de Instalación</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fechaVencimiento"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Fecha de Vencimiento</FormLabel>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="ultimoPago"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Último Pago</FormLabel>
-                      <FormControl>
-                        <Input
-                          readOnly
-                          value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
-                          className="bg-muted"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="fechaSiguientePago"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Fecha de Siguiente Pago</FormLabel>
-                      <FormControl>
-                        <Input
-                          readOnly
-                          value={field.value ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
-                          className="bg-muted"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
-
-             <FormField
-              control={form.control}
-              name="observacion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observación</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Añadir una observación..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-          </div>
+          <UnitFormFields />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>

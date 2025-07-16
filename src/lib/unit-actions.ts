@@ -17,6 +17,7 @@ export async function saveUnit(
   const validation = UnitFormSchema.safeParse(data);
 
   if (!validation.success) {
+    console.log(validation.error.errors);
     return { success: false, message: 'Datos de unidad no válidos.' };
   }
   
@@ -27,24 +28,37 @@ export async function saveUnit(
       if (unitIndex === -1) {
         return { success: false, message: 'Unidad no encontrada.' };
       }
-      // Preserve read-only fields
-      const updatedUnit = { 
-        ...units[unitIndex], 
-        ...validation.data,
-        ultimoPago: units[unitIndex].ultimoPago,
-        fechaSiguientePago: units[unitIndex].fechaSiguientePago,
-      };
-      units[unitIndex] = updatedUnit;
+      
+      const updatedUnitData = { ...units[unitIndex], ...validation.data };
+
+      if (validation.data.tipoContrato === 'sin_contrato') {
+        updatedUnitData.costoTotalContrato = undefined;
+        updatedUnitData.mesesContrato = undefined;
+      } else {
+        updatedUnitData.costoMensual = undefined;
+      }
+
+      units[unitIndex] = updatedUnitData;
       revalidatePath(`/clients/${clientId}/units`);
-      return { success: true, message: 'Unidad actualizada con éxito.', unit: updatedUnit };
+      return { success: true, message: 'Unidad actualizada con éxito.', unit: updatedUnitData };
 
     } else {
       // Create
       const newUnit: Unit = {
         id: `unit-${Date.now()}`,
         clientId,
-        ...validation.data
+        ...validation.data,
+        ultimoPago: null, // Ensure this is null on creation
+        fechaSiguientePago: validation.data.fechaSiguientePago || new Date(), // Ensure default
       };
+
+      if (validation.data.tipoContrato === 'sin_contrato') {
+        newUnit.costoTotalContrato = undefined;
+        newUnit.mesesContrato = undefined;
+      } else {
+        newUnit.costoMensual = undefined;
+      }
+
       units.push(newUnit);
       revalidatePath(`/clients/${clientId}/units`);
       return { success: true, message: 'Unidad creada con éxito.', unit: newUnit };

@@ -22,7 +22,15 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
 
   // Calculate summary data
   const totalUnits = units.length;
-  const totalAmount = units.reduce((sum, unit) => sum + unit.monto, 0);
+  const totalAmount = units.reduce((sum, unit) => {
+    if (unit.tipoContrato === 'con_contrato') {
+      return sum + (unit.costoTotalContrato ?? 0);
+    }
+    // For now, let's assume 'sin_contrato' monthly cost contributes for one month to the summary.
+    // This could be changed to an annualized value if needed.
+    return sum + (unit.costoMensual ?? 0);
+  }, 0);
+  
   const unitsByPlan = units.reduce((acc, unit) => {
     acc[unit.tipoPlan] = (acc[unit.tipoPlan] || 0) + 1;
     return acc;

@@ -42,6 +42,11 @@ const planDisplayNames: Record<Unit['tipoPlan'], string> = {
   'total-cc': 'Total CC',
 };
 
+function formatCurrency(amount?: number) {
+    if (amount === undefined || amount === null) return 'N/A';
+    return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
 export default function UnitList({ initialUnits, clientId }: UnitListProps) {
   const [units, setUnits] = React.useState(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -88,6 +93,20 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
     setIsDeleteDialogOpen(false);
   };
 
+  const getCostForUnit = (unit: Unit) => {
+    if (unit.tipoContrato === 'con_contrato') {
+        const monthly = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
+        return (
+            <div>
+                <div className="font-medium">{formatCurrency(unit.costoTotalContrato)}</div>
+                <div className="text-xs text-muted-foreground">{formatCurrency(monthly)}/mes</div>
+            </div>
+        );
+    }
+    return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
+  };
+
+
   return (
     <>
     <Card>
@@ -108,9 +127,9 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Plan</TableHead>
-                <TableHead>Frecuencia Pago</TableHead>
+                <TableHead>Contrato</TableHead>
+                <TableHead>Costo</TableHead>
                 <TableHead>Vencimiento</TableHead>
-                <TableHead>Monto</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -126,13 +145,15 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="capitalize">{unit.frecuenciaPago}</Badge>
+                       <Badge variant={unit.tipoContrato === 'con_contrato' ? 'default' : 'secondary'} className="capitalize">
+                            {unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato'}
+                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {getCostForUnit(unit)}
                     </TableCell>
                     <TableCell>
                       {hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}
-                    </TableCell>
-                    <TableCell>
-                      {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(unit.monto)}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
