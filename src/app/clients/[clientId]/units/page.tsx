@@ -2,6 +2,7 @@ import { getClientById } from '@/lib/actions';
 import { getUnitsByClientId } from '@/lib/unit-actions';
 import Header from '@/components/header';
 import UnitList from '@/components/unit-list';
+import UnitSummary from '@/components/unit-summary';
 import { notFound } from 'next/navigation';
 
 type UnitsPageProps = {
@@ -19,6 +20,14 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
     notFound();
   }
 
+  // Calculate summary data
+  const totalUnits = units.length;
+  const totalAmount = units.reduce((sum, unit) => sum + unit.monto, 0);
+  const unitsByPlan = units.reduce((acc, unit) => {
+    acc[unit.tipoPlan] = (acc[unit.tipoPlan] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="flex flex-col h-screen">
       <Header 
@@ -26,7 +35,12 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
         showBackButton 
         backButtonHref="/"
       />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <UnitSummary 
+          totalUnits={totalUnits}
+          totalAmount={totalAmount}
+          unitsByPlan={unitsByPlan}
+        />
         <UnitList initialUnits={units} clientId={clientId} />
       </main>
     </div>
