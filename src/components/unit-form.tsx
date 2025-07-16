@@ -75,12 +75,17 @@ function UnitFormFields() {
   }, [tipoContrato, setValue]);
   
   React.useEffect(() => {
-    if (tipoContrato === 'con_contrato' && fechaInicioContrato && mesesContrato) {
+    if (!fechaInicioContrato) return;
+
+    if (tipoContrato === 'con_contrato' && mesesContrato) {
       const months = Number(mesesContrato);
       if (!isNaN(months) && months > 0) {
         const newVencimiento = addMonths(new Date(fechaInicioContrato), months);
         setValue('fechaVencimiento', newVencimiento, { shouldValidate: true });
       }
+    } else if (tipoContrato === 'sin_contrato') {
+      const newVencimiento = addMonths(new Date(fechaInicioContrato), 1);
+      setValue('fechaVencimiento', newVencimiento, { shouldValidate: true });
     }
   }, [fechaInicioContrato, mesesContrato, tipoContrato, setValue]);
 
@@ -270,37 +275,13 @@ function UnitFormFields() {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Fecha de Vencimiento</FormLabel>
-                  <Popover>
-                  <PopoverTrigger asChild disabled={tipoContrato === 'con_contrato'}>
-                    <FormControl>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground',
-                          tipoContrato === 'con_contrato' && 'disabled:opacity-100 bg-muted cursor-default'
-                        )}
-                      >
-                        {field.value ? (
-                          format(new Date(field.value), 'PPP', { locale: es })
-                        ) : (
-                          <span>Elige una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value as Date}
-                      onSelect={field.onChange}
-                      initialFocus
-                      locale={es}
-                      disabled={tipoContrato === 'con_contrato'}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <FormControl>
+                  <Input
+                    readOnly
+                    value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                    className="bg-muted cursor-default"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -389,7 +370,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoTotalContrato: '',
           mesesContrato: '',
           fechaInicioContrato: new Date(),
-          fechaVencimiento: new Date(),
+          fechaVencimiento: addMonths(new Date(), 1), // Default to 1 month for new 'sin_contrato'
           ultimoPago: null,
           fechaSiguientePago: new Date(),
           observacion: '',
