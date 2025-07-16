@@ -141,20 +141,20 @@ function UnitFormFields() {
         />
         <FormField
           control={control}
-          name="frecuenciaPago"
+          name="tipoContrato"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Frecuencia de Pago</FormLabel>
+              <FormLabel>Tipo de Contrato</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione una frecuencia" />
+                    <SelectValue placeholder="Seleccione un tipo de contrato" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="mensual">Mensual</SelectItem>
-                  <SelectItem value="anual">Anual</SelectItem>
-                  <SelectItem value="contrato">Contrato</SelectItem>
+                   {Object.entries(contractTypeDisplayNames).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                   ))}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -163,29 +163,6 @@ function UnitFormFields() {
         />
       </div>
       
-       <FormField
-        control={control}
-        name="tipoContrato"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Tipo de Contrato</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un tipo de contrato" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                 {Object.entries(contractTypeDisplayNames).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>{label}</SelectItem>
-                 ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
       {tipoContrato === 'sin_contrato' && (
         <FormField
           control={control}
@@ -392,7 +369,6 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           placa: '',
           modelo: '',
           tipoPlan: 'estandar-sc',
-          frecuenciaPago: 'mensual',
           tipoContrato: 'sin_contrato',
           costoMensual: '',
           costoTotalContrato: '',

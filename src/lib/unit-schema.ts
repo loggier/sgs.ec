@@ -1,8 +1,5 @@
 import { z } from 'zod';
 
-export const UnitPaymentFrequency = z.enum(['mensual', 'anual', 'contrato']);
-export type UnitPaymentFrequency = z.infer<typeof UnitPaymentFrequency>;
-
 export const UnitPlanType = z.enum(['estandar-sc', 'avanzado-sc', 'total-sc', 'estandar-cc', 'avanzado-cc', 'total-cc']);
 export type UnitPlanType = z.infer<typeof UnitPlanType>;
 
@@ -16,7 +13,6 @@ export const UnitSchema = z.object({
   placa: z.string().min(1, 'Placa es requerida.'),
   modelo: z.string().optional(),
   tipoPlan: UnitPlanType,
-  frecuenciaPago: UnitPaymentFrequency,
   tipoContrato: UnitContractType,
   costoMensual: z.coerce.number().optional(),
   costoTotalContrato: z.coerce.number().optional(),
