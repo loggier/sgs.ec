@@ -9,20 +9,20 @@ import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit
 // This is a mock database implementation.
 // In a real application, you would use a database like Firestore, PostgreSQL, etc.
 
-export async function getClients(): Promise<Client[]> {
+export async function getClients(): Promise<Omit<Client, 'placaVehiculo'>[]> {
   // Simulate network delay
   await new Promise(resolve => setTimeout(resolve, 500));
   return clients;
 }
 
-export async function getClientById(id: string): Promise<Client | undefined> {
+export async function getClientById(id: string): Promise<Omit<Client, 'placaVehiculo'> | undefined> {
   return clients.find(c => c.id === id);
 }
 
 export async function saveClient(
-  data: Omit<Client, 'id'>,
+  data: Omit<Client, 'id' | 'placaVehiculo'>,
   id?: string
-): Promise<{ success: boolean; message: string; client?: Client; assessment?: AssessCreditRiskOutput }> {
+): Promise<{ success: boolean; message: string; client?: Omit<Client, 'placaVehiculo'>; assessment?: AssessCreditRiskOutput }> {
   const validation = ClientSchema.omit({ id: true }).safeParse(data);
 
   if (!validation.success) {
@@ -44,8 +44,8 @@ export async function saveClient(
       }
     } else {
       // Create new client
-      id = (clients.length + 1).toString() + Date.now();
-      const newClient = { id, ...clientData };
+      const newId = (clients.length + 1).toString() + Date.now();
+      const newClient = { id: newId, ...clientData };
       clients.push(newClient);
 
       // Perform AI credit risk assessment for new clients
@@ -54,13 +54,15 @@ export async function saveClient(
         fecConcesion: clientData.fecConcesion.toISOString().split('T')[0],
         fecVencimiento: clientData.fecVencimiento.toISOString().split('T')[0],
       });
+      id = newId;
     }
 
     revalidatePath('/');
+    const savedClient = await getClientById(id);
     return {
       success: true,
       message: `Cliente ${id ? 'actualizado' : 'creado'} con éxito.`,
-      client: await getClientById(id),
+      client: savedClient,
       assessment: assessmentResult,
     };
   } catch (error) {

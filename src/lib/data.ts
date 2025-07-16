@@ -2,7 +2,7 @@ import type { Client } from './schema';
 
 // This is a mock database. In a real application, you would use a database.
 // The data will reset every time the server restarts.
-export let clients: Client[] = [
+export let clients: Omit<Client, 'placaVehiculo'>[] = [
   {
     id: '1',
     codTipoId: 'C',
@@ -17,7 +17,6 @@ export let clients: Client[] = [
     valorPago: 5000,
     fecVencimiento: new Date('2024-01-15'),
     valorVencido: 0,
-    placaVehiculo: 'ABC-123',
     tipoPlan: 'total cc',
     usuario: 'api_user',
     estado: 'al dia',
@@ -36,7 +35,6 @@ export let clients: Client[] = [
     valorPago: 8000,
     fecVencimiento: new Date('2023-11-20'),
     valorVencido: 2000,
-    placaVehiculo: 'XYZ-789',
     tipoPlan: 'avanzado sc',
     usuario: 'api_user',
     estado: 'adeuda',
@@ -55,7 +53,6 @@ export let clients: Client[] = [
     valorPago: 7500,
     fecVencimiento: new Date('2022-05-10'),
     valorVencido: 0,
-    placaVehiculo: 'DEF-456',
     tipoPlan: 'estandar cc',
     usuario: 'api_user',
     estado: 'retirado',

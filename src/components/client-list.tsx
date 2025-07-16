@@ -31,7 +31,7 @@ import CreditRiskDialog from './credit-risk-dialog';
 import type { AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
 type ClientListProps = {
-  initialClients: Client[];
+  initialClients: Omit<Client, 'placaVehiculo'>[];
 };
 
 export default function ClientList({ initialClients }: ClientListProps) {
@@ -39,7 +39,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isRiskDialogOpen, setIsRiskDialogOpen] = React.useState(false);
-  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+  const [selectedClient, setSelectedClient] = React.useState<Omit<Client, 'placaVehiculo'> | null>(null);
   const [assessmentResult, setAssessmentResult] = React.useState<AssessCreditRiskOutput | null>(null);
 
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -56,17 +56,17 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setIsSheetOpen(true);
   };
 
-  const handleEditClient = (client: Client) => {
+  const handleEditClient = (client: Omit<Client, 'placaVehiculo'>) => {
     setSelectedClient(client);
     setIsSheetOpen(true);
   };
 
-  const handleDeleteClient = (client: Client) => {
+  const handleDeleteClient = (client: Omit<Client, 'placaVehiculo'>) => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
 
-  const handleFormSave = (result: { client?: Client, assessment?: AssessCreditRiskOutput }) => {
+  const handleFormSave = (result: { client?: Omit<Client, 'placaVehiculo'>, assessment?: AssessCreditRiskOutput }) => {
     setIsSheetOpen(false);
     setSelectedClient(null);
     if (result.assessment) {

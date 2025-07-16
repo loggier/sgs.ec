@@ -26,7 +26,6 @@ const AssessCreditRiskInputSchema = z.object({
   valorPago: z.number().describe('Valor del pago'),
   fecVencimiento: z.string().describe('Fecha de vencimiento'),
   valorVencido: z.number().describe('Valor vencido'),
-  placaVehiculo: z.string().describe('Placa del vehículo'),
   tipoPlan: z
     .enum([
       'estandar sc',
@@ -69,7 +68,6 @@ const prompt = ai.definePrompt({
   Valor del Pago: {{{valorPago}}}
   Fecha de Vencimiento: {{{fecVencimiento}}}
   Valor Vencido: {{{valorVencido}}}
-  Placa del Vehículo: {{{placaVehiculo}}}
   Tipo de Plan: {{{tipoPlan}}}
   Usuario: {{{usuario}}}
   Código de Tipo de ID: {{{codTipoId}}}

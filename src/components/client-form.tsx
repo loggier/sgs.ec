@@ -36,7 +36,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ClientFormProps = {
-  client: Client | null;
+  client: Omit<Client, 'placaVehiculo'> | null;
   onSave: (result: { client?: Client, assessment?: AssessCreditRiskOutput }) => void;
   onCancel: () => void;
 };
@@ -66,7 +66,6 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           valOperacion: 0,
           valorPago: 0,
           valorVencido: 0,
-          placaVehiculo: '',
           tipoPlan: 'estandar sc',
           usuario: '',
           estado: 'al dia',
@@ -202,32 +201,18 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
               />
                <FormField
                 control={form.control}
-                name="placaVehiculo"
+                name="numOperacion"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Placa del Vehículo</FormLabel>
+                    <FormLabel>Número de Operación</FormLabel>
                     <FormControl>
-                      <Input placeholder="PBA-1234" {...field} />
+                      <Input placeholder="OP-001" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="numOperacion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número de Operación</FormLabel>
-                  <FormControl>
-                    <Input placeholder="OP-001" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
