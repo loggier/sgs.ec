@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import './globals.css';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
@@ -38,15 +39,19 @@ export default function RootLayout({
             <SidebarContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton href="/" isActive tooltip="Clientes">
-                    <Users />
-                    Clientes
+                  <SidebarMenuButton asChild tooltip="Clientes">
+                    <Link href="/">
+                      <Users />
+                      Clientes
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
-                  <SidebarMenuButton href="/users" tooltip="Usuarios">
-                    <UsersRound />
-                    Usuarios
+                  <SidebarMenuButton asChild tooltip="Usuarios">
+                    <Link href="/users">
+                      <UsersRound />
+                      Usuarios
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
