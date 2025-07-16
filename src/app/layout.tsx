@@ -4,6 +4,7 @@ import './globals.css';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { Banknote, Briefcase, UsersRound } from 'lucide-react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
   title: 'SGC',
@@ -28,7 +29,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <SidebarProvider>
           <Sidebar collapsible="icon">
-            <SidebarHeader>
+            <SidebarHeader className="p-4">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Banknote className="h-5 w-5 text-primary-foreground" />
