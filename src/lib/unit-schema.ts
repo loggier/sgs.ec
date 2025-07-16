@@ -14,7 +14,7 @@ export const UnitSchema = z.object({
   clientId: z.string(),
   imei: z.string().min(1, 'IMEI es requerido.'),
   placa: z.string().min(1, 'Placa es requerida.'),
-  modelo: z.string().min(1, 'Modelo es requerido.'),
+  modelo: z.string().optional(),
   tipoPlan: UnitPlanType,
   frecuenciaPago: UnitPaymentFrequency,
   tipoContrato: UnitContractType,
