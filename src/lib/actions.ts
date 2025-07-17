@@ -10,10 +10,37 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
+  Firestore,
 } from 'firebase/firestore';
-import { getDb } from './firebaseAdmin';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { ClientSchema, type Client } from './schema';
 import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
+
+// --- Firebase Admin SDK Initialization ---
+let db: Firestore;
+
+function getDb(): Firestore {
+  if (db) {
+    return db;
+  }
+
+  if (!getApps().length) {
+    try {
+      const serviceAccount = require('../../../credentials.json');
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+    } catch (e: any) {
+      console.error('Error initializing Firebase Admin SDK in actions.ts:', e.message);
+      throw new Error('Failed to initialize Firebase in actions.ts. Is credentials.json correct?');
+    }
+  }
+  db = getFirestore(getApps()[0]);
+  return db;
+}
+// -----------------------------------------
+
 
 // Helper function to convert Firestore Timestamps to Dates in a document
 const convertTimestamps = (docData: any) => {

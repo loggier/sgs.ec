@@ -10,9 +10,36 @@ import {
   deleteDoc,
   Timestamp,
   getDoc,
+  Firestore,
 } from 'firebase/firestore';
-import { getDb } from './firebaseAdmin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
+
+// --- Firebase Admin SDK Initialization ---
+let db: Firestore;
+
+function getDb(): Firestore {
+  if (db) {
+    return db;
+  }
+
+  if (!getApps().length) {
+    try {
+      const serviceAccount = require('../../../credentials.json');
+      initializeApp({
+        credential: cert(serviceAccount),
+      });
+    } catch (e: any) {
+      console.error('Error initializing Firebase Admin SDK in unit-actions.ts:', e.message);
+      throw new Error('Failed to initialize Firebase in unit-actions.ts. Is credentials.json correct?');
+    }
+  }
+  db = getFirestore(getApps()[0]);
+  return db;
+}
+// -----------------------------------------
+
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
