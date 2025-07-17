@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
 import type { Client } from '@/lib/schema';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
 
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
@@ -36,8 +37,23 @@ type ClientListProps = {
   initialClients: Omit<Client, 'placaVehiculo'>[];
 };
 
+function formatCurrency(amount?: number | null) {
+  if (amount === undefined || amount === null) return 'N/A';
+  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
+function formatDate(date?: Date | string | null) {
+    if (!date) return 'N/A';
+    try {
+        return format(new Date(date), 'P', { locale: es });
+    } catch (error) {
+        return 'Fecha inválida';
+    }
+}
+
 export default function ClientList({ initialClients }: ClientListProps) {
   const [clients, setClients] = React.useState(initialClients);
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
@@ -105,7 +121,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
     }
   };
 
-  // Custom variants for Badge
   const badgeVariants = {
     success: 'bg-green-100 text-green-800 border-green-200',
     warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -119,48 +134,86 @@ export default function ClientList({ initialClients }: ClientListProps) {
     'retirado': 'Retirado'
   }
 
+  const filteredClients = React.useMemo(() => {
+    if (!searchTerm) return clients;
+    const lowercasedTerm = searchTerm.toLowerCase();
+    return clients.filter(client =>
+        client.nomSujeto.toLowerCase().includes(lowercasedTerm) ||
+        client.codIdSujeto.toLowerCase().includes(lowercasedTerm) ||
+        (client.ciudad && client.ciudad.toLowerCase().includes(lowercasedTerm)) ||
+        (client.telefono && client.telefono.includes(lowercasedTerm)) ||
+        client.numOperacion.toLowerCase().includes(lowercasedTerm)
+    );
+  }, [searchTerm, clients]);
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Gestión de Clientes</CardTitle>
-          <Button onClick={handleAddClient} size="sm">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nuevo Cliente
-          </Button>
+            <div>
+              <CardTitle>Gestión de Clientes</CardTitle>
+              <CardDescription>Busque, agregue, edite o elimine clientes.</CardDescription>
+            </div>
+            <Button onClick={handleAddClient} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nuevo Cliente
+            </Button>
         </div>
+         <div className="relative mt-4">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar por nombre, cédula, ciudad..."
+                className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Ciudad</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Contacto</TableHead>
+                <TableHead>Operación</TableHead>
+                <TableHead>Valores</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="hidden md:table-cell">Valor de Operación</TableHead>
-                <TableHead className="hidden lg:table-cell">Fecha de Vencimiento</TableHead>
+                <TableHead>Vencimiento</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.length > 0 ? (
-                clients.map(client => (
+              {filteredClients.length > 0 ? (
+                filteredClients.map(client => (
                   <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.nomSujeto}</TableCell>
-                    <TableCell>{client.ciudad || 'N/A'}</TableCell>
+                    <TableCell>
+                        <div className="font-medium">{client.nomSujeto}</div>
+                        <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div>{client.ciudad || 'N/A'}</div>
+                        <div className="text-sm text-muted-foreground">{client.telefono || 'N/A'}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div>{client.numOperacion}</div>
+                        <div className="text-sm text-muted-foreground">API: {client.usuario || 'N/A'}</div>
+                    </TableCell>
+                    <TableCell>
+                        <div title="Valor Operación">{formatCurrency(client.valOperacion)}</div>
+                        <div className="text-sm text-muted-foreground" title="Valor Pago">{formatCurrency(client.valorPago)}</div>
+                        <div className="text-sm text-red-600" title="Valor Vencido">{formatCurrency(client.valorVencido)}</div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
                         {displayStatus[client.estado]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {client.valOperacion ? new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(client.valOperacion) : 'N/A'}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell">
-                      {hasMounted && client.fecVencimiento ? format(new Date(client.fecVencimiento), 'P', { locale: es }) : 'N/A'}
+                    <TableCell>
+                      {hasMounted ? formatDate(client.fecVencimiento) : ''}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -193,7 +246,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     No se encontraron clientes.
                   </TableCell>
                 </TableRow>
