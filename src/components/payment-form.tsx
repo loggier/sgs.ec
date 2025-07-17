@@ -42,35 +42,42 @@ export default function PaymentForm({ unit, onSave, onCancel }: PaymentFormProps
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  const getMonthlyCost = (unit: Unit) => {
+    return unit.tipoContrato === 'con_contrato'
+      ? (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1)
+      : unit.costoMensual ?? 0;
+  }
+  const monthlyCost = getMonthlyCost(unit);
+
   const form = useForm<PaymentFormInput>({
     resolver: zodResolver(PaymentFormSchema),
     defaultValues: {
       fechaPago: new Date(),
       numeroFactura: '',
-      monto: unit.costoMensual || 0,
+      monto: monthlyCost,
       formaPago: 'transferencia',
       mesesPagados: 1,
     },
   });
 
   const mesesPagados = form.watch('mesesPagados');
-  const costoMensual = unit.costoMensual || 0;
 
   React.useEffect(() => {
-    const total = (costoMensual * (mesesPagados || 1));
+    const total = (monthlyCost * (mesesPagados || 1));
     form.setValue('monto', total);
-  }, [mesesPagados, costoMensual, form]);
+  }, [mesesPagados, monthlyCost, form]);
 
   async function onSubmit(values: PaymentFormInput) {
     setIsSubmitting(true);
     try {
-      const result = await registerPayment(values, unit.id, unit.clientId);
-      if (result.success && result.unit) {
+      // registerPayment now accepts an array of unit IDs
+      const result = await registerPayment(values, [unit.id], unit.clientId);
+      if (result.success && result.units?.length) {
         toast({
           title: 'Éxito',
           description: result.message,
         });
-        onSave(result.unit);
+        onSave(result.units[0]);
       } else {
         toast({
           title: 'Error',
@@ -155,7 +162,7 @@ export default function PaymentForm({ unit, onSave, onCancel }: PaymentFormProps
               <FormItem>
                 <FormLabel>Cantidad de Meses</FormLabel>
                 <FormControl>
-                  <Input type="number" min="1" {...field} />
+                   <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -170,6 +177,7 @@ export default function PaymentForm({ unit, onSave, onCancel }: PaymentFormProps
                 <FormControl>
                   <Input type="number" {...field} readOnly className="bg-muted"/>
                 </FormControl>
+                {unit && <p className="text-xs text-muted-foreground pt-1">Costo mensual: {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(monthlyCost)}</p>}
                 <FormMessage />
               </FormItem>
             )}

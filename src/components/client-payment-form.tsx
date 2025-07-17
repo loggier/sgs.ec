@@ -6,6 +6,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2 } from 'lucide-react';
+import { z } from 'zod';
 
 import { cn } from '@/lib/utils';
 import { ClientPaymentFormSchema, type ClientPaymentFormInput } from '@/lib/payment-schema';
@@ -33,7 +34,8 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Combobox } from './ui/combobox';
+import { MultiSelectCombobox } from './ui/multi-select-combobox';
+
 
 type ClientPaymentFormProps = {
   client: Omit<Client, 'placaVehiculo'>;
@@ -41,16 +43,22 @@ type ClientPaymentFormProps = {
   onCancel: () => void;
 };
 
+// Adjust schema for multiple unit IDs
+const BatchPaymentFormSchema = ClientPaymentFormSchema.extend({
+    unitIds: z.array(z.string()).min(1, 'Debe seleccionar al menos una unidad.'),
+}).omit({ unitId: true });
+type BatchPaymentFormInput = z.infer<typeof BatchPaymentFormSchema>;
+
+
 export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPaymentFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [units, setUnits] = React.useState<Unit[]>([]);
-  const [selectedUnit, setSelectedUnit] = React.useState<Unit | null>(null);
 
-  const form = useForm<ClientPaymentFormInput>({
-    resolver: zodResolver(ClientPaymentFormSchema),
+  const form = useForm<BatchPaymentFormInput>({
+    resolver: zodResolver(BatchPaymentFormSchema),
     defaultValues: {
-      unitId: '',
+      unitIds: [],
       fechaPago: new Date(),
       numeroFactura: '',
       monto: 0,
@@ -67,49 +75,43 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
     fetchUnits();
   }, [client.id]);
 
-  const unitId = form.watch('unitId');
+  const unitIds = form.watch('unitIds');
   const mesesPagados = form.watch('mesesPagados');
 
   React.useEffect(() => {
-    const unit = units.find(u => u.id === unitId);
-    setSelectedUnit(unit || null);
-    if(unit) {
-      const monthlyCost = unit.tipoContrato === 'con_contrato'
-        ? (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1)
-        : unit.costoMensual ?? 0;
-      form.setValue('monto', monthlyCost * (form.getValues('mesesPagados') || 1));
-    }
-  }, [unitId, units, form]);
-
-  React.useEffect(() => {
-    if (selectedUnit) {
-      const monthlyCost = selectedUnit.tipoContrato === 'con_contrato'
-        ? (selectedUnit.costoTotalContrato ?? 0) / (selectedUnit.mesesContrato ?? 1)
-        : selectedUnit.costoMensual ?? 0;
-      const total = monthlyCost * (mesesPagados || 1);
-      form.setValue('monto', total);
-    } else {
+    if (unitIds.length === 0) {
       form.setValue('monto', 0);
+      return;
     }
-  }, [mesesPagados, selectedUnit, form]);
+    
+    const totalMonthlyCost = unitIds.reduce((total, id) => {
+        const unit = units.find(u => u.id === id);
+        if (unit) {
+            const monthlyCost = unit.tipoContrato === 'con_contrato'
+                ? (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1)
+                : unit.costoMensual ?? 0;
+            return total + monthlyCost;
+        }
+        return total;
+    }, 0);
+
+    const totalAmount = totalMonthlyCost * (mesesPagados || 1);
+    form.setValue('monto', totalAmount);
+    
+  }, [unitIds, mesesPagados, units, form]);
   
   const unitOptions = units.map(unit => ({
     value: unit.id,
     label: `${unit.placa} - ${unit.modelo}`,
   }));
   
-  const getMonthlyCost = () => {
-    if (!selectedUnit) return 0;
-    return selectedUnit.tipoContrato === 'con_contrato'
-      ? (selectedUnit.costoTotalContrato ?? 0) / (selectedUnit.mesesContrato ?? 1)
-      : selectedUnit.costoMensual ?? 0;
-  }
-
-  async function onSubmit(values: ClientPaymentFormInput) {
+  async function onSubmit(values: BatchPaymentFormInput) {
     setIsSubmitting(true);
     try {
-      const result = await registerPayment(values, values.unitId, client.id);
-      if (result.success && result.unit) {
+      // The action now handles an array of unitIds
+      const result = await registerPayment(values, values.unitIds, client.id);
+
+      if (result.success) {
         toast({
           title: 'Éxito',
           description: result.message,
@@ -125,7 +127,7 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Ocurrió un error inesperado al registrar el pago.',
+        description: 'Ocurrió un error inesperado al registrar los pagos.',
         variant: 'destructive',
       });
     } finally {
@@ -138,18 +140,18 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
         <FormField
           control={form.control}
-          name="unitId"
+          name="unitIds"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Unidad (Placa)</FormLabel>
-               <Combobox
-                options={unitOptions}
-                value={field.value}
-                onChange={field.onChange}
-                placeholder={units.length > 0 ? "Seleccione una unidad" : "Cliente sin unidades"}
-                searchPlaceholder="Buscar placa o modelo..."
-                emptyPlaceholder="No se encontraron unidades."
-                disabled={units.length === 0}
+              <FormLabel>Unidades (Placas)</FormLabel>
+               <MultiSelectCombobox
+                  options={unitOptions}
+                  selected={field.value}
+                  onChange={field.onChange}
+                  placeholder="Seleccione una o más unidades"
+                  searchPlaceholder="Buscar placa o modelo..."
+                  emptyPlaceholder="No se encontraron unidades."
+                  disabled={units.length === 0}
               />
               <FormMessage />
             </FormItem>
@@ -219,7 +221,7 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
               <FormItem>
                 <FormLabel>Cantidad de Meses</FormLabel>
                 <FormControl>
-                  <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} disabled={!selectedUnit} />
+                  <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} disabled={unitIds.length === 0} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -230,12 +232,11 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
             name="monto"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Monto Total</FormLabel>
+                <FormLabel>Monto Total Agregado</FormLabel>
                 <FormControl>
                   <Input type="number" {...field} readOnly className="bg-muted"/>
                 </FormControl>
-                {selectedUnit && <p className="text-xs text-muted-foreground pt-1">Costo mensual: {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(getMonthlyCost())}</p>}
-                <FormMessage />
+                 <FormMessage />
               </FormItem>
             )}
           />
@@ -267,9 +268,9 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSubmitting || !selectedUnit}>
+          <Button type="submit" disabled={isSubmitting || unitIds.length === 0}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Registrando...' : 'Registrar Pago'}
+            {isSubmitting ? 'Registrando...' : 'Registrar Pagos'}
           </Button>
         </div>
       </form>

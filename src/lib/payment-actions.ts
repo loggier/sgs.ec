@@ -9,9 +9,10 @@ import {
   updateDoc,
   getDoc,
   Timestamp,
+  writeBatch,
 } from 'firebase/firestore';
-import { db } from './firebase'; // <-- Cambiado a firebase
-import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
+import { db } from './firebase';
+import { PaymentFormSchema, type PaymentFormInput, type Payment } from './payment-schema';
 import type { Unit } from './unit-schema';
 import { z } from 'zod';
 
@@ -35,56 +36,79 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
 
 
 export async function registerPayment(
-  data: PaymentFormInput | z.infer<typeof ClientPaymentFormSchema>,
-  unitId: string,
+  data: PaymentFormInput,
+  unitIds: string[],
   clientId: string
-): Promise<{ success: boolean; message: string; unit?: Unit }> {
-  const validation = ClientPaymentFormSchema.safeParse(data);
+): Promise<{ success: boolean; message: string; units?: Unit[] }> {
+  // Use the base schema as client/batch forms provide the necessary data
+  const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
     console.error(validation.error.flatten().fieldErrors);
     return { success: false, message: 'Datos de pago no válidos.' };
   }
   
+  if (!unitIds || unitIds.length === 0) {
+    return { success: false, message: 'No se seleccionó ninguna unidad.' };
+  }
+  
   try {
-    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+    const batch = writeBatch(db);
+    const { fechaPago, mesesPagados, ...paymentData } = validation.data;
+    const updatedUnits: Unit[] = [];
+    let processedCount = 0;
 
-    const unit = await getUnit(clientId, unitId);
-    if (!unit) {
-      return { success: false, message: 'Unidad no encontrada.' };
+    for (const unitId of unitIds) {
+        const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+        const unitSnapshot = await getDoc(unitDocRef);
+
+        if (!unitSnapshot.exists()) {
+            console.warn(`Unidad con ID ${unitId} no encontrada. Saltando.`);
+            continue;
+        }
+
+        const unit = { id: unitSnapshot.id, clientId, ...convertTimestamps(unitSnapshot.data()) } as Unit;
+        
+        // 1. Update unit dates
+        const unitUpdateData: Partial<Record<keyof Unit, any>> = {
+            ultimoPago: fechaPago,
+        };
+
+        const currentVencimiento = unit.fechaVencimiento;
+        const baseDateForVencimiento = currentVencimiento > new Date() ? currentVencimiento : new Date();
+        const newVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
+        
+        unitUpdateData.fechaVencimiento = newVencimiento;
+        unitUpdateData.fechaSiguientePago = addMonths(newVencimiento, 1);
+        
+        batch.update(unitDocRef, unitUpdateData);
+
+        // 2. Create and save the payment record
+        const newPayment: Omit<Payment, 'id'> = {
+            unitId,
+            clientId,
+            fechaPago,
+            mesesPagados,
+            ...paymentData,
+        };
+        const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitId, 'payments'));
+        batch.set(paymentDocRef, newPayment);
+        
+        updatedUnits.push({ ...unit, ...unitUpdateData });
+        processedCount++;
     }
-
-    const { fechaPago, mesesPagados } = validation.data;
     
-    // 1. Update unit dates
-    const unitUpdateData: Partial<Record<keyof Unit, any>> = {
-      ultimoPago: fechaPago,
-    };
-
-    const currentVencimiento = unit.fechaVencimiento;
-    const baseDateForVencimiento = currentVencimiento > new Date() ? currentVencimiento : new Date();
-    const newVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
-    
-    unitUpdateData.fechaVencimiento = newVencimiento;
-    // Set next payment date to one month after the new expiration date
-    unitUpdateData.fechaSiguientePago = addMonths(newVencimiento, 1);
-    
-    await updateDoc(unitDocRef, unitUpdateData);
-
-    // 2. Create and save the payment record
-    const newPayment: Omit<Payment, 'id'> = {
-      unitId,
-      clientId,
-      ...validation.data,
-    };
-    const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-    await addDoc(paymentsCollectionRef, newPayment);
-
-    const updatedUnit = await getUnit(clientId, unitId);
+    await batch.commit();
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
-    return { success: true, message: `Pago registrado con éxito para la unidad ${unit.placa}.`, unit: updatedUnit! };
+    revalidatePath('/units');
+
+    return { 
+        success: true, 
+        message: `${processedCount} pago(s) registrado(s) con éxito.`, 
+        units: updatedUnits 
+    };
 
   } catch (error) {
     console.error("Error registering payment:", error);
