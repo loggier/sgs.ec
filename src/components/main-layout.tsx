@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Banknote, Briefcase, UsersRound, Car, LogOut } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, User as UserIcon } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -15,9 +15,17 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from './ui/avatar';
+import { Button } from './ui/button';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { logout, user } = useAuth();
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
 
   return (
     <SidebarProvider>
@@ -50,25 +58,45 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Usuarios">
-                <Link href="/users">
-                  <UsersRound />
-                  Usuarios
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {user?.role === 'master' && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Usuarios">
+                  <Link href="/users">
+                    <UsersRound />
+                    Usuarios
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton onClick={logout} tooltip="Cerrar Sesión">
-                        <LogOut />
-                        Cerrar Sesión
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
+          {user && (
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start items-center gap-2 p-2 h-auto text-left">
+                       <Avatar className="h-8 w-8">
+                          <AvatarFallback>{getInitials(user.nombre)}</AvatarFallback>
+                       </Avatar>
+                       <div className="flex flex-col overflow-hidden transition-all duration-300 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0">
+                          <span className="font-semibold text-sm truncate">{user.nombre || user.username}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                       </div>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 mb-2" side="top" align="start">
+                    <DropdownMenuLabel>
+                        <p className="font-bold">{user.nombre}</p>
+                        <p className="text-xs text-muted-foreground font-normal">{user.correo}</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Cerrar Sesión</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+             </DropdownMenu>
+          )}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
