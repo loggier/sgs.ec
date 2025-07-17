@@ -4,30 +4,37 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import fs from 'fs';
 import path from 'path';
 
-let db: Firestore;
+// Esta variable almacenará la instancia de la aplicación de Firebase para evitar reinicializaciones.
+let app: App;
 
-if (!getApps().length) {
+export async function initializeDb(): Promise<Firestore> {
+  // Comprueba si la aplicación ya está inicializada. Si es así, devuelve la instancia de Firestore existente.
+  if (getApps().length) {
+    if (!app) {
+      app = getApps()[0];
+    }
+    return getFirestore(app);
+  }
+
+  // Si la aplicación no está inicializada, la configura.
   try {
-    // Construye la ruta al archivo credentials.json en la raíz del proyecto
     const credentialsPath = path.join(process.cwd(), 'credentials.json');
-    
-    // Comprueba si el archivo existe antes de intentar leerlo
     if (!fs.existsSync(credentialsPath)) {
-        throw new Error("El archivo 'credentials.json' no se encontró en la raíz del proyecto. Por favor, asegúrate de que el archivo existe y está en el lugar correcto.");
+      throw new Error("FATAL: 'credentials.json' no se encontró en la raíz del proyecto.");
     }
 
-    const serviceAccount = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+    const serviceAccountString = fs.readFileSync(credentialsPath, 'utf8');
+    const serviceAccount = JSON.parse(serviceAccountString);
 
-    initializeApp({
+    app = initializeApp({
       credential: cert(serviceAccount),
     });
-  } catch (e: any) {
-    console.error('Error al inicializar Firebase Admin SDK:', e);
-    // Lanza un error más descriptivo para facilitar la depuración
-    throw new Error(`Fallo en la inicialización de Firebase. Revisa el error anterior y asegúrate de que 'credentials.json' es un archivo JSON válido. Error original: ${e.message}`);
+
+    console.log("Firebase Admin SDK inicializado correctamente.");
+    return getFirestore(app);
+  } catch (error) {
+    console.error('ERROR FATAL: Fallo en la inicialización de Firebase Admin SDK.', error);
+    // Lanzamos el error para detener la ejecución si la base de datos no se puede inicializar.
+    throw new Error('No se pudo inicializar la base de datos de Firebase.');
   }
 }
-
-db = getFirestore(getApps()[0]);
-
-export { db };
