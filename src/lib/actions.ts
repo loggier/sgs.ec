@@ -11,7 +11,7 @@ import {
   deleteDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebaseAdmin';
+import { getDb } from './firebaseAdmin';
 import { ClientSchema, type Client } from './schema';
 import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
@@ -28,6 +28,7 @@ const convertTimestamps = (docData: any) => {
 
 export async function getClients(): Promise<Omit<Client, 'placaVehiculo'>[]> {
   try {
+    const db = getDb();
     const clientsCollection = collection(db, 'clients');
     const clientSnapshot = await getDocs(clientsCollection);
     const clientsList = clientSnapshot.docs.map(doc => {
@@ -43,6 +44,7 @@ export async function getClients(): Promise<Omit<Client, 'placaVehiculo'>[]> {
 
 export async function getClientById(id: string): Promise<Omit<Client, 'placaVehiculo'> | undefined> {
   try {
+    const db = getDb();
     const clientDocRef = doc(db, 'clients', id);
     const clientDoc = await getDoc(clientDocRef);
     if (!clientDoc.exists()) {
@@ -70,6 +72,7 @@ export async function saveClient(
   let assessmentResult: AssessCreditRiskOutput | undefined;
 
   try {
+    const db = getDb();
     let savedClientId = id;
     if (id) {
       // Update existing client
@@ -106,6 +109,7 @@ export async function saveClient(
 
 export async function deleteClient(id: string): Promise<{ success: boolean; message: string }> {
    try {
+    const db = getDb();
     // Optional: Also delete subcollections like units if necessary
     const unitsCollectionRef = collection(db, 'clients', id, 'units');
     const unitsSnapshot = await getDocs(unitsCollectionRef);

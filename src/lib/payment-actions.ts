@@ -10,7 +10,7 @@ import {
   getDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebaseAdmin';
+import { getDb } from './firebaseAdmin';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
 import type { Unit } from './unit-schema';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ const convertTimestamps = (docData: any): any => {
 };
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
+    const db = getDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
@@ -46,6 +47,7 @@ export async function registerPayment(
     return { success: false, message: 'Datos de pago no válidos.' };
   }
   
+  const db = getDb();
   const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
 
   try {

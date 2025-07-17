@@ -5,29 +5,32 @@ import * as path from 'path';
 
 let db: Firestore;
 
-try {
-  const credentialsPath = path.resolve(process.cwd(), 'credentials.json');
-
-  if (!fs.existsSync(credentialsPath)) {
-    throw new Error(
-        'Fallo en la inicialización de Firebase: credentials.json no encontrado.'
-    );
+function initializeDb(): Firestore {
+  if (getApps().length) {
+    return getFirestore(getApps()[0]);
   }
 
-  const serviceAccount = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+  const credentialsPath = path.resolve(process.cwd(), 'credentials.json');
+  if (!fs.existsSync(credentialsPath)) {
+    throw new Error('Fallo en la inicialización de Firebase: credentials.json no encontrado en la raíz del proyecto.');
+  }
 
-  if (!getApps().length) {
+  try {
+    const serviceAccount = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
     const app: App = initializeApp({
       credential: cert(serviceAccount),
     });
-    db = getFirestore(app);
     console.log("Firebase Admin SDK inicializado correctamente.");
-  } else {
-    db = getFirestore(getApps()[0]);
+    return getFirestore(app);
+  } catch (error: any) {
+    console.error("Error crítico al inicializar Firebase Admin SDK:", error.message);
+    throw new Error(`Fallo al analizar credentials.json o al inicializar Firebase: ${error.message}`);
   }
-} catch (error) {
-  console.error("Error crítico al inicializar Firebase Admin SDK:", error);
-  throw new Error("Fallo en la inicialización de Firebase. Revisa el archivo credentials.json y los logs del servidor.");
 }
 
-export { db };
+export function getDb(): Firestore {
+  if (!db) {
+    db = initializeDb();
+  }
+  return db;
+}

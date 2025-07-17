@@ -11,7 +11,7 @@ import {
   Timestamp,
   getDoc,
 } from 'firebase/firestore';
-import { db } from './firebaseAdmin';
+import { getDb } from './firebaseAdmin';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 
 const convertTimestamps = (docData: any) => {
@@ -26,6 +26,7 @@ const convertTimestamps = (docData: any) => {
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   try {
+    const db = getDb();
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
     const unitsList = unitSnapshot.docs.map(doc => {
@@ -40,6 +41,7 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
 }
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
+    const db = getDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
@@ -75,6 +77,7 @@ export async function saveUnit(
       delete unitDataForFirestore.costoMensual;
     }
 
+    const db = getDb();
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     let savedUnitId = unitId;
 
@@ -101,6 +104,7 @@ export async function saveUnit(
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
   try {
+    const db = getDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);
