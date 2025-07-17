@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 
 export const UserRole = z.enum(['master', 'manager', 'usuario']);
@@ -17,7 +18,7 @@ export const UserSchema = z.object({
 export type User = z.infer<typeof UserSchema>;
 
 
-// Schema for the form validation
+// Schema for the user management form (by master users)
 export const UserFormSchema = (isEditing: boolean) => z.object({
   username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres.'),
   password: isEditing 
@@ -34,3 +35,21 @@ export const UserFormSchema = (isEditing: boolean) => z.object({
 });
 
 export type UserFormInput = z.infer<ReturnType<typeof UserFormSchema>>;
+
+
+// Schema for the user's own profile editing form
+export const ProfileFormSchema = z.object({
+  nombre: z.string().optional(),
+  telefono: z.string().optional(),
+  empresa: z.string().optional(),
+  nota: z.string().optional(),
+  password: z.string().optional().refine(val => !val || val.length >= 6, {
+    message: 'La nueva contraseña debe tener al menos 6 caracteres.',
+  }),
+  confirmPassword: z.string().optional(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Las contraseñas no coinciden.',
+  path: ['confirmPassword'],
+});
+
+export type ProfileFormInput = z.infer<typeof ProfileFormSchema>;

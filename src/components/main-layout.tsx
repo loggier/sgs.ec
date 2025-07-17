@@ -1,8 +1,9 @@
 
 'use client';
 
+import * as React from 'react';
 import Link from 'next/link';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, User as UserIcon } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit } from 'lucide-react';
 import {
   SidebarProvider,
   Sidebar,
@@ -18,13 +19,22 @@ import { useAuth } from '@/context/auth-context';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import ProfileForm from './profile-form';
+import type { User } from '@/lib/user-schema';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { logout, user } = useAuth();
+  const { logout, user, updateUser } = useAuth();
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  }
+  
+  const handleProfileSave = (updatedUser: User) => {
+    updateUser(updatedUser);
+    setIsProfileDialogOpen(false);
   }
 
   return (
@@ -90,6 +100,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <p className="text-xs text-muted-foreground font-normal">{user.correo}</p>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                     <DropdownMenuItem onClick={() => setIsProfileDialogOpen(true)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        <span>Editar Perfil</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={logout}>
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Cerrar Sesión</span>
@@ -102,6 +116,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <SidebarInset>
         <main>{children}</main>
       </SidebarInset>
+
+       <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Editar mi Perfil</DialogTitle>
+          </DialogHeader>
+          {user && (
+            <ProfileForm
+              user={user}
+              onSave={handleProfileSave}
+              onCancel={() => setIsProfileDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

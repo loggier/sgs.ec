@@ -15,7 +15,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { UserFormSchema, type User, type UserFormInput } from './user-schema';
+import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput } from './user-schema';
 import bcrypt from 'bcryptjs';
 
 // Use bcrypt for secure password hashing.
@@ -164,5 +164,43 @@ export async function loginUser(credentials: {username: string; password: string
     } catch (error) {
         console.error("Error during login:", error);
         return { success: false, message: 'Ocurrió un error en el servidor.' };
+    }
+}
+
+export async function updateProfile(
+    userId: string,
+    data: ProfileFormInput
+): Promise<{ success: boolean; message: string; user?: User }> {
+    const validation = ProfileFormSchema.safeParse(data);
+
+    if (!validation.success) {
+        return { success: false, message: 'Datos no válidos.' };
+    }
+
+    const { password, ...profileData } = validation.data;
+
+    try {
+        const userDocRef = doc(db, 'users', userId);
+        const userDataToUpdate: Partial<Omit<User, 'id' | 'username' | 'correo' | 'role'>> = {
+            ...profileData,
+        };
+
+        if (password) {
+            userDataToUpdate.password = await hashPassword(password);
+        }
+
+        await updateDoc(userDocRef, userDataToUpdate);
+        
+        const updatedUserDoc = await getDoc(userDocRef);
+        if (!updatedUserDoc.exists()) {
+            return { success: false, message: 'No se pudo encontrar el usuario actualizado.' };
+        }
+        const { password: _, ...updatedUser } = { id: userId, ...updatedUserDoc.data() } as User;
+
+        return { success: true, message: 'Perfil actualizado con éxito.', user: updatedUser };
+
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        return { success: false, message: 'Ocurrió un error inesperado al actualizar el perfil.' };
     }
 }

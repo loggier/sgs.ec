@@ -12,6 +12,7 @@ type AuthContextType = {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (newUser: User) => void;
 };
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
@@ -51,6 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('user');
     router.push('/login');
   };
+  
+  const updateUser = (newUser: User) => {
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
+  }
 
   const value = {
     user,
@@ -58,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     login,
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
