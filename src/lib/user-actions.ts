@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import bcrypt from 'bcryptjs';
 import {
   collection,
   getDocs,
@@ -14,8 +13,16 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
-import { db } from './firebaseAdmin';
+import { db } from './firebase'; // <-- Cambiado a firebase
 import { UserFormSchema, type User, type UserFormInput } from './user-schema';
+
+// This is a placeholder for a secure password hashing mechanism.
+// In a real app, use a proper library like bcrypt or Argon2,
+// but for this prototype, we'll store passwords in plain text.
+// Note: This is NOT secure and should NOT be used in production.
+const hashPassword = async (password: string) => `hashed_${password}`;
+const comparePassword = async (password: string, hash: string) => `hashed_${password}` === hash;
+
 
 // Helper function to fetch users without returning passwords
 const fetchUsersFromFirestore = async (): Promise<User[]> => {
@@ -27,6 +34,7 @@ const fetchUsersFromFirestore = async (): Promise<User[]> => {
 export async function getUsers(): Promise<User[]> {
   try {
     const users = await fetchUsersFromFirestore();
+    // Ensure password is not returned
     return users.map(({ password, ...user }) => user as User);
   } catch (error) {
     console.error("Error getting users:", error);
@@ -70,7 +78,7 @@ export async function saveUser(
       const userDataToUpdate: Partial<User> = { username, role, nombre, correo, telefono, empresa, nota };
 
       if (password) {
-        userDataToUpdate.password = await bcrypt.hash(password, 10);
+        userDataToUpdate.password = await hashPassword(password);
       }
       
       await updateDoc(userDocRef, userDataToUpdate);
@@ -81,7 +89,7 @@ export async function saveUser(
       return { success: true, message: 'Usuario actualizado con éxito.', user: userWithoutPassword };
     } else {
       // Create new user
-      const hashedPassword = await bcrypt.hash(password, 10);
+      const hashedPassword = await hashPassword(password);
       const newUser: Omit<User, 'id'> = { username, password: hashedPassword, role, nombre, correo, telefono, empresa, nota };
       const newUserRef = await addDoc(usersCollection, newUser);
 
