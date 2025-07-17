@@ -10,7 +10,7 @@ import {
   getDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from './firebaseAdmin';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
 import type { Unit } from './unit-schema';
 import { z } from 'zod';

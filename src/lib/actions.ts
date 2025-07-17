@@ -11,7 +11,7 @@ import {
   deleteDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from './firebaseAdmin';
 import { ClientSchema, type Client } from './schema';
 import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 

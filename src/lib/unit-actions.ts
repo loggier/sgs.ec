@@ -11,7 +11,7 @@ import {
   Timestamp,
   getDoc,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from './firebaseAdmin';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 
 const convertTimestamps = (docData: any) => {

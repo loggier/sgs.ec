@@ -14,7 +14,7 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db } from './firebaseAdmin';
 import { UserFormSchema, type User, type UserFormInput } from './user-schema';
 
 // Helper function to fetch users without returning passwords
