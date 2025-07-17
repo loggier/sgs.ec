@@ -54,9 +54,9 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           ...client,
           fecConcesion: client.fecConcesion ? new Date(client.fecConcesion) : null,
           fecVencimiento: client.fecVencimiento ? new Date(client.fecVencimiento) : null,
-          valOperacion: client.valOperacion ?? undefined,
-          valorPago: client.valorPago ?? undefined,
-          valorVencido: client.valorVencido ?? undefined,
+          valOperacion: client.valOperacion ?? '',
+          valorPago: client.valorPago ?? '',
+          valorVencido: client.valorVencido ?? '',
           ciudad: client.ciudad ?? '',
           telefono: client.telefono ?? '',
         }
@@ -76,14 +76,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
   async function onSubmit(values: FormSchemaType) {
     setIsSubmitting(true);
     try {
-       const dataToSave = {
-        ...values,
-        valOperacion: values.valOperacion || 0,
-        valorPago: values.valorPago || 0,
-        valorVencido: values.valorVencido || 0,
-       };
-
-      const result = await saveClient(dataToSave, client?.id);
+      const result = await saveClient(values, client?.id);
       if (result.success) {
         toast({
           title: 'Éxito',

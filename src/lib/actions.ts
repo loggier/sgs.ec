@@ -70,21 +70,24 @@ export async function saveClient(
 
   try {
     let savedClientId = id;
-    // Remove nullish values before saving
-    Object.keys(clientData).forEach(key => {
-      if (clientData[key as keyof typeof clientData] === null || clientData[key as keyof typeof clientData] === undefined) {
-        delete clientData[key as keyof typeof clientData];
-      }
+    const dataToSave: { [key: string]: any } = { ...clientData };
+
+    // Remove nullish or empty values before saving
+    Object.keys(dataToSave).forEach(key => {
+        const K = key as keyof typeof dataToSave;
+        if (dataToSave[K] === null || dataToSave[K] === undefined || dataToSave[K] === '') {
+            delete dataToSave[K];
+        }
     });
 
     if (id) {
       // Update existing client
       const clientDocRef = doc(db, 'clients', id);
-      await updateDoc(clientDocRef, clientData);
+      await updateDoc(clientDocRef, dataToSave);
     } else {
       // Create new client
       const clientsCollection = collection(db, 'clients');
-      const newClientRef = await addDoc(clientsCollection, clientData);
+      const newClientRef = await addDoc(clientsCollection, dataToSave);
       savedClientId = newClientRef.id;
     }
 
