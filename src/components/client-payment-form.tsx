@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Combobox } from './ui/combobox';
 
 type ClientPaymentFormProps = {
   client: Omit<Client, 'placaVehiculo'>;
@@ -72,17 +73,37 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
   React.useEffect(() => {
     const unit = units.find(u => u.id === unitId);
     setSelectedUnit(unit || null);
-  }, [unitId, units]);
+    if(unit) {
+      const monthlyCost = unit.tipoContrato === 'con_contrato'
+        ? (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1)
+        : unit.costoMensual ?? 0;
+      form.setValue('monto', monthlyCost * (form.getValues('mesesPagados') || 1));
+    }
+  }, [unitId, units, form]);
 
   React.useEffect(() => {
     if (selectedUnit) {
-      const costoMensual = selectedUnit.costoMensual || 0;
-      const total = costoMensual * (mesesPagados || 1);
+      const monthlyCost = selectedUnit.tipoContrato === 'con_contrato'
+        ? (selectedUnit.costoTotalContrato ?? 0) / (selectedUnit.mesesContrato ?? 1)
+        : selectedUnit.costoMensual ?? 0;
+      const total = monthlyCost * (mesesPagados || 1);
       form.setValue('monto', total);
     } else {
       form.setValue('monto', 0);
     }
   }, [mesesPagados, selectedUnit, form]);
+  
+  const unitOptions = units.map(unit => ({
+    value: unit.id,
+    label: `${unit.placa} - ${unit.modelo}`,
+  }));
+  
+  const getMonthlyCost = () => {
+    if (!selectedUnit) return 0;
+    return selectedUnit.tipoContrato === 'con_contrato'
+      ? (selectedUnit.costoTotalContrato ?? 0) / (selectedUnit.mesesContrato ?? 1)
+      : selectedUnit.costoMensual ?? 0;
+  }
 
   async function onSubmit(values: ClientPaymentFormInput) {
     setIsSubmitting(true);
@@ -119,20 +140,17 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
           control={form.control}
           name="unitId"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="flex flex-col">
               <FormLabel>Unidad (Placa)</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={units.length === 0}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder={units.length > 0 ? "Seleccione una unidad" : "Cliente sin unidades"} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {units.map(unit => (
-                    <SelectItem key={unit.id} value={unit.id}>{unit.placa} - {unit.modelo}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+               <Combobox
+                options={unitOptions}
+                value={field.value}
+                onChange={field.onChange}
+                placeholder={units.length > 0 ? "Seleccione una unidad" : "Cliente sin unidades"}
+                searchPlaceholder="Buscar placa o modelo..."
+                emptyPlaceholder="No se encontraron unidades."
+                disabled={units.length === 0}
+              />
               <FormMessage />
             </FormItem>
           )}
@@ -201,7 +219,7 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
               <FormItem>
                 <FormLabel>Cantidad de Meses</FormLabel>
                 <FormControl>
-                  <Input type="number" min="1" {...field} disabled={!selectedUnit} />
+                  <Input type="number" min="1" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 1)} disabled={!selectedUnit} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -216,6 +234,7 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
                 <FormControl>
                   <Input type="number" {...field} readOnly className="bg-muted"/>
                 </FormControl>
+                {selectedUnit && <p className="text-xs text-muted-foreground pt-1">Costo mensual: {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(getMonthlyCost())}</p>}
                 <FormMessage />
               </FormItem>
             )}
