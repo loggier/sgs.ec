@@ -26,7 +26,12 @@ export const UnitSchema = z.object({
 
 export type Unit = z.infer<typeof UnitSchema>;
 
-export const UnitFormSchema = UnitSchema.omit({ id: true, clientId: true }).superRefine((data, ctx) => {
+export const UnitFormSchema = UnitSchema.omit({ 
+  id: true, 
+  clientId: true, 
+  ultimoPago: true, 
+  fechaSiguientePago: true 
+}).superRefine((data, ctx) => {
     if (data.tipoContrato === 'sin_contrato') {
         if (!data.costoMensual || data.costoMensual <= 0) {
             ctx.addIssue({

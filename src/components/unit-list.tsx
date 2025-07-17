@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -22,11 +22,14 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
+import PaymentForm from './payment-form';
 
 type UnitListProps = {
   initialUnits: Unit[];
@@ -51,6 +54,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
   const [units, setUnits] = React.useState(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<Unit | null>(null);
 
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -76,6 +80,11 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
     setSelectedUnit(unit);
     setIsDeleteDialogOpen(true);
   };
+  
+  const handleRegisterPayment = (unit: Unit) => {
+    setSelectedUnit(unit);
+    setIsPaymentDialogOpen(true);
+  };
 
   const handleFormSave = (savedUnit: Unit) => {
     setUnits(currentUnits => {
@@ -86,6 +95,8 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
         return [...currentUnits, savedUnit];
     });
     setIsSheetOpen(false);
+    setIsPaymentDialogOpen(false);
+    setSelectedUnit(null);
   };
   
   const onUnitDeleted = (unitId: string) => {
@@ -106,6 +117,9 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
     return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
   };
 
+  const isExpired = (date: Date) => {
+    return new Date(date) < new Date();
+  }
 
   return (
     <>
@@ -138,7 +152,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
             <TableBody>
               {units.length > 0 ? (
                 units.map(unit => (
-                  <TableRow key={unit.id}>
+                  <TableRow key={unit.id} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
                     <TableCell className="font-medium">{unit.placa}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
@@ -153,7 +167,10 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                       {getCostForUnit(unit)}
                     </TableCell>
                     <TableCell>
-                      {hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}
+                      <div className="flex flex-col">
+                        <span>{hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}</span>
+                        {isExpired(unit.fechaVencimiento) && <span className="text-xs text-red-600">Vencido</span>}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -164,6 +181,10 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                           <DropdownMenuItem onClick={() => handleRegisterPayment(unit)}>
+                            <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
@@ -209,6 +230,24 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
         clientId={clientId}
         onDelete={onUnitDeleted}
       />
+      
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Registrar Pago para {selectedUnit?.placa}</DialogTitle>
+                  <DialogDescription>
+                      Complete los detalles del pago. Al guardar, las fechas de la unidad se actualizarán automáticamente.
+                  </DialogDescription>
+              </DialogHeader>
+              {selectedUnit && (
+                  <PaymentForm 
+                      unit={selectedUnit}
+                      onSave={handleFormSave}
+                      onCancel={() => setIsPaymentDialogOpen(false)}
+                  />
+              )}
+          </DialogContent>
+      </Dialog>
     </>
   );
 }
