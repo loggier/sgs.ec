@@ -10,36 +10,9 @@ import {
   deleteDoc,
   Timestamp,
   getDoc,
-  Firestore,
 } from 'firebase/firestore';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from './firebaseAdmin'; // Importa la instancia de DB inicializada
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
-
-// --- Firebase Admin SDK Initialization ---
-let db: Firestore;
-
-function getDb(): Firestore {
-  if (db) {
-    return db;
-  }
-
-  if (!getApps().length) {
-    try {
-      const serviceAccount = require('../../../credentials.json');
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    } catch (e: any) {
-      console.error('Error initializing Firebase Admin SDK in unit-actions.ts:', e.message);
-      throw new Error('Failed to initialize Firebase in unit-actions.ts. Is credentials.json correct?');
-    }
-  }
-  db = getFirestore(getApps()[0]);
-  return db;
-}
-// -----------------------------------------
-
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -53,7 +26,6 @@ const convertTimestamps = (docData: any) => {
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   try {
-    const db = getDb();
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
     const unitsList = unitSnapshot.docs.map(doc => {
@@ -68,7 +40,6 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
 }
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
-    const db = getDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
@@ -104,7 +75,6 @@ export async function saveUnit(
       delete unitDataForFirestore.costoMensual;
     }
 
-    const db = getDb();
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     let savedUnitId = unitId;
 
@@ -131,7 +101,6 @@ export async function saveUnit(
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
   try {
-    const db = getDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);

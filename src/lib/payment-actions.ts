@@ -9,38 +9,11 @@ import {
   updateDoc,
   getDoc,
   Timestamp,
-  Firestore,
 } from 'firebase/firestore';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from './firebaseAdmin'; // Importa la instancia de DB inicializada
 import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
 import type { Unit } from './unit-schema';
 import { z } from 'zod';
-
-// --- Firebase Admin SDK Initialization ---
-let db: Firestore;
-
-function getDb(): Firestore {
-  if (db) {
-    return db;
-  }
-
-  if (!getApps().length) {
-    try {
-      const serviceAccount = require('../../../credentials.json');
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    } catch (e: any) {
-      console.error('Error initializing Firebase Admin SDK in payment-actions.ts:', e.message);
-      throw new Error('Failed to initialize Firebase in payment-actions.ts. Is credentials.json correct?');
-    }
-  }
-  db = getFirestore(getApps()[0]);
-  return db;
-}
-// -----------------------------------------
-
 
 const convertTimestamps = (docData: any): any => {
     const data = { ...docData };
@@ -53,7 +26,6 @@ const convertTimestamps = (docData: any): any => {
 };
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
-    const db = getDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
@@ -74,7 +46,6 @@ export async function registerPayment(
     return { success: false, message: 'Datos de pago no válidos.' };
   }
   
-  const db = getDb();
   const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
 
   try {

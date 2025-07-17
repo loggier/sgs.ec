@@ -10,37 +10,10 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
-  Firestore,
 } from 'firebase/firestore';
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from './firebaseAdmin'; // Importa la instancia de DB inicializada
 import { ClientSchema, type Client } from './schema';
 import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
-
-// --- Firebase Admin SDK Initialization ---
-let db: Firestore;
-
-function getDb(): Firestore {
-  if (db) {
-    return db;
-  }
-
-  if (!getApps().length) {
-    try {
-      const serviceAccount = require('../../../credentials.json');
-      initializeApp({
-        credential: cert(serviceAccount),
-      });
-    } catch (e: any) {
-      console.error('Error initializing Firebase Admin SDK in actions.ts:', e.message);
-      throw new Error('Failed to initialize Firebase in actions.ts. Is credentials.json correct?');
-    }
-  }
-  db = getFirestore(getApps()[0]);
-  return db;
-}
-// -----------------------------------------
-
 
 // Helper function to convert Firestore Timestamps to Dates in a document
 const convertTimestamps = (docData: any) => {
@@ -55,7 +28,6 @@ const convertTimestamps = (docData: any) => {
 
 export async function getClients(): Promise<Omit<Client, 'placaVehiculo'>[]> {
   try {
-    const db = getDb();
     const clientsCollection = collection(db, 'clients');
     const clientSnapshot = await getDocs(clientsCollection);
     const clientsList = clientSnapshot.docs.map(doc => {
@@ -71,7 +43,6 @@ export async function getClients(): Promise<Omit<Client, 'placaVehiculo'>[]> {
 
 export async function getClientById(id: string): Promise<Omit<Client, 'placaVehiculo'> | undefined> {
   try {
-    const db = getDb();
     const clientDocRef = doc(db, 'clients', id);
     const clientDoc = await getDoc(clientDocRef);
     if (!clientDoc.exists()) {
@@ -99,7 +70,6 @@ export async function saveClient(
   let assessmentResult: AssessCreditRiskOutput | undefined;
 
   try {
-    const db = getDb();
     let savedClientId = id;
     if (id) {
       // Update existing client
@@ -136,7 +106,6 @@ export async function saveClient(
 
 export async function deleteClient(id: string): Promise<{ success: boolean; message: string }> {
    try {
-    const db = getDb();
     // Optional: Also delete subcollections like units if necessary
     const unitsCollectionRef = collection(db, 'clients', id, 'units');
     const unitsSnapshot = await getDocs(unitsCollectionRef);
