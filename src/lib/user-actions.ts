@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -133,4 +134,35 @@ export async function deleteUser(id: string): Promise<{ success: boolean; messag
     console.error("Error deleting user:", error);
     return { success: false, message: 'Error al eliminar el usuario.' };
   }
+}
+
+export async function loginUser(credentials: {username: string; password: string;}): Promise<{success: boolean; message: string; user?: User}> {
+    try {
+        const { username, password } = credentials;
+
+        const usersCollection = collection(db, 'users');
+        const q = query(usersCollection, where("username", "==", username), limit(1));
+        const userSnapshot = await getDocs(q);
+
+        if (userSnapshot.empty) {
+            return { success: false, message: 'Usuario o contraseña incorrectos.' };
+        }
+
+        const userDoc = userSnapshot.docs[0];
+        const userData = userDoc.data() as User;
+
+        const passwordMatch = await comparePassword(password, userData.password);
+
+        if (!passwordMatch) {
+            return { success: false, message: 'Usuario o contraseña incorrectos.' };
+        }
+        
+        const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
+
+        return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
+
+    } catch (error) {
+        console.error("Error during login:", error);
+        return { success: false, message: 'Ocurrió un error en el servidor.' };
+    }
 }

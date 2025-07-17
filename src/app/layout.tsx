@@ -1,10 +1,10 @@
+
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import './globals.css';
-import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
-import { Banknote, Briefcase, UsersRound, Car } from 'lucide-react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { AuthProvider } from '@/context/auth-context';
+import AppContent from '@/components/app-content';
+
 
 export const metadata: Metadata = {
   title: 'SGC',
@@ -27,49 +27,11 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <SidebarProvider>
-          <Sidebar collapsible="icon">
-            <SidebarHeader className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <Banknote className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-semibold overflow-hidden transition-all duration-300 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0">SGC</span>
-              </div>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Clientes">
-                    <Link href="/">
-                      <Briefcase />
-                      Clientes
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Unidades">
-                    <Link href="/units">
-                      <Car />
-                      Unidades
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Usuarios">
-                    <Link href="/users">
-                      <UsersRound />
-                      Usuarios
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarContent>
-          </Sidebar>
-          <SidebarInset>
-            <main>{children}</main>
-          </SidebarInset>
-        </SidebarProvider>
+        <AuthProvider>
+            <AppContent>
+              {children}
+            </AppContent>
+        </AuthProvider>
         <Toaster />
       </body>
     </html>
