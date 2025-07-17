@@ -2,8 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { addMonths } from 'date-fns';
-import { units } from './unit-data';
-import { payments } from './payment-data';
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  getDoc,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
 import type { Unit } from './unit-schema';
 
@@ -12,53 +19,60 @@ export async function registerPayment(
   unitId: string,
   clientId: string
 ): Promise<{ success: boolean; message: string; unit?: Unit }> {
-  // We can use the base schema for validation as ClientPaymentFormSchema is a superset
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
     console.error(validation.error.flatten().fieldErrors);
     return { success: false, message: 'Datos de pago no válidos.' };
   }
-
-  const unitIndex = units.findIndex(u => u.id === unitId);
-  if (unitIndex === -1) {
-    return { success: false, message: 'Unidad no encontrada.' };
-  }
   
-  const unit = units[unitIndex];
-  const { fechaPago, mesesPagados } = validation.data;
+  const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
 
   try {
-    // 1. Update unit dates
-    unit.ultimoPago = fechaPago;
+    const unitDoc = await getDoc(unitDocRef);
+    if (!unitDoc.exists()) {
+      return { success: false, message: 'Unidad no encontrada.' };
+    }
+
+    const unit = { id: unitDoc.id, ...unitDoc.data() } as Unit;
+    const { fechaPago, mesesPagados } = validation.data;
     
-    // For 'sin_contrato', extend the expiration date. For 'con_contrato', this logic might differ,
-    // but for now we assume payment just registers without changing contract end date.
+    // 1. Update unit dates
+    const unitUpdateData: Partial<Unit> = {
+      ultimoPago: fechaPago,
+    };
+
     if (unit.tipoContrato === 'sin_contrato') {
-      const currentVencimiento = unit.fechaVencimiento > new Date() ? unit.fechaVencimiento : new Date();
-      unit.fechaVencimiento = addMonths(currentVencimiento, mesesPagados);
+      const currentVencimientoTimestamp = unit.fechaVencimiento as unknown as Timestamp;
+      const currentVencimiento = currentVencimientoTimestamp.toDate();
+      const baseDateForVencimiento = currentVencimiento > new Date() ? currentVencimiento : new Date();
+      unitUpdateData.fechaVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
     }
     
-    // Calculate next payment date based on the new expiration date
-    unit.fechaSiguientePago = addMonths(unit.fechaVencimiento, 1);
+    if(unitUpdateData.fechaVencimiento) {
+        unitUpdateData.fechaSiguientePago = addMonths(unitUpdateData.fechaVencimiento, 1);
+    }
+
+    await updateDoc(unitDocRef, unitUpdateData);
 
     // 2. Create and save the payment record
-    const newPayment: Payment = {
-      id: `pay-${Date.now()}`,
+    const newPayment: Omit<Payment, 'id'> = {
       unitId,
       clientId,
       ...validation.data,
     };
-    payments.push(newPayment);
-    
-    // 3. Update the unit in our mock DB
-    units[unitIndex] = unit;
+    const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
+    await addDoc(paymentsCollectionRef, newPayment);
 
+    const updatedUnitDoc = await getDoc(unitDocRef);
+    const updatedUnit = { id: updatedUnitDoc.id, ...updatedUnitDoc.data() } as Unit;
+    
     revalidatePath(`/clients/${clientId}/units`);
-    revalidatePath('/'); // Revalidate client page too
-    return { success: true, message: `Pago registrado con éxito para la unidad ${unit.placa}.`, unit };
+    revalidatePath('/');
+    return { success: true, message: `Pago registrado con éxito para la unidad ${unit.placa}.`, unit: updatedUnit };
 
   } catch (error) {
+    console.error("Error registering payment:", error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return { success: false, message: `Error al registrar el pago: ${errorMessage}` };
   }

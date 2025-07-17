@@ -2,12 +2,36 @@
 
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
-import { users } from './user-data';
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  limit,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput } from './user-schema';
 
+// Helper function to fetch users without returning passwords
+const fetchUsersFromFirestore = async (): Promise<User[]> => {
+    const usersCollection = collection(db, 'users');
+    const userSnapshot = await getDocs(usersCollection);
+    return userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+};
+
 export async function getUsers(): Promise<User[]> {
-  // We should not return passwords, even hashed ones, to the client.
-  return users.map(({ password, ...user }) => user) as User[];
+  try {
+    const users = await fetchUsersFromFirestore();
+    return users.map(({ password, ...user }) => user as User);
+  } catch (error) {
+    console.error("Error getting users:", error);
+    return [];
+  }
 }
 
 export async function saveUser(
@@ -23,58 +47,47 @@ export async function saveUser(
   }
 
   const { username, password, role, nombre, correo, telefono, empresa, nota } = validation.data;
-
-  // Check for unique username if it's being changed or created
-  if (users.some(u => u.username === username && u.id !== id)) {
-    return { success: false, message: 'El nombre de usuario ya existe.' };
-  }
-  
-  // Check for unique email if it's being changed or created
-  if (users.some(u => u.correo === correo && u.id !== id)) {
-    return { success: false, message: 'El correo electrónico ya está en uso.' };
-  }
+  const usersCollection = collection(db, 'users');
 
   try {
+    // Check for unique username
+    const usernameQuery = query(usersCollection, where("username", "==", username), limit(1));
+    const usernameSnapshot = await getDocs(usernameQuery);
+    if (!usernameSnapshot.empty && usernameSnapshot.docs[0].id !== id) {
+      return { success: false, message: 'El nombre de usuario ya existe.' };
+    }
+
+    // Check for unique email
+    const emailQuery = query(usersCollection, where("correo", "==", correo), limit(1));
+    const emailSnapshot = await getDocs(emailQuery);
+    if (!emailSnapshot.empty && emailSnapshot.docs[0].id !== id) {
+      return { success: false, message: 'El correo electrónico ya está en uso.' };
+    }
+
     if (isEditing) {
       // Update existing user
-      const userIndex = users.findIndex(u => u.id === id);
-      if (userIndex === -1) {
-        return { success: false, message: 'Usuario no encontrado.' };
-      }
-
-      const updatedUser = { ...users[userIndex], username, role, nombre, correo, telefono, empresa, nota };
+      const userDocRef = doc(db, 'users', id);
+      const userDataToUpdate: Partial<User> = { username, role, nombre, correo, telefono, empresa, nota };
 
       if (password) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        updatedUser.password = hashedPassword;
+        userDataToUpdate.password = await bcrypt.hash(password, 10);
       }
-
-      users[userIndex] = updatedUser;
-
+      
+      await updateDoc(userDocRef, userDataToUpdate);
+      const updatedDoc = await getDoc(userDocRef);
+      const { password: _, ...userWithoutPassword } = { id, ...updatedDoc.data() } as User;
+      
       revalidatePath('/users');
-      const { password: _, ...userWithoutPassword } = updatedUser;
-      return { success: true, message: 'Usuario actualizado con éxito.', user: userWithoutPassword as User };
-
+      return { success: true, message: 'Usuario actualizado con éxito.', user: userWithoutPassword };
     } else {
       // Create new user
       const hashedPassword = await bcrypt.hash(password, 10);
-      const newUserId = (users.length + 1).toString() + Date.now();
-      const newUser: User = {
-        id: newUserId,
-        username,
-        password: hashedPassword,
-        role,
-        nombre,
-        correo,
-        telefono,
-        empresa,
-        nota,
-      };
-      users.push(newUser);
+      const newUser: Omit<User, 'id'> = { username, password: hashedPassword, role, nombre, correo, telefono, empresa, nota };
+      const newUserRef = await addDoc(usersCollection, newUser);
 
       revalidatePath('/users');
-      const { password: _, ...userWithoutPassword } = newUser;
-      return { success: true, message: 'Usuario creado con éxito.', user: userWithoutPassword as User };
+      const { password: _, ...userWithoutPassword } = { id: newUserRef.id, ...newUser } as User;
+      return { success: true, message: 'Usuario creado con éxito.', user: userWithoutPassword };
     }
   } catch (error) {
     console.error(error);
@@ -84,19 +97,28 @@ export async function saveUser(
 }
 
 export async function deleteUser(id: string): Promise<{ success: boolean; message: string }> {
-  const userIndex = users.findIndex(u => u.id === id);
-  if (userIndex > -1) {
-    // Prevent deleting the last master user
-    const user = users[userIndex];
-    if (user.role === 'master') {
-        const masterUsers = users.filter(u => u.role === 'master');
-        if (masterUsers.length <= 1) {
-            return { success: false, message: 'No se puede eliminar el último usuario maestro.' };
-        }
+  try {
+    const userDocRef = doc(db, 'users', id);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      return { success: false, message: 'Usuario no encontrado.' };
     }
-    users.splice(userIndex, 1);
+
+    // Prevent deleting the last master user
+    if (userDoc.data().role === 'master') {
+      const masterQuery = query(collection(db, 'users'), where("role", "==", "master"));
+      const masterSnapshot = await getDocs(masterQuery);
+      if (masterSnapshot.size <= 1) {
+        return { success: false, message: 'No se puede eliminar el último usuario maestro.' };
+      }
+    }
+
+    await deleteDoc(userDocRef);
     revalidatePath('/users');
     return { success: true, message: 'Usuario eliminado con éxito.' };
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return { success: false, message: 'Error al eliminar el usuario.' };
   }
-  return { success: false, message: 'Usuario no encontrado.' };
 }

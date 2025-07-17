@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { Timestamp } from 'firebase/firestore';
+
+// Helper to accept Date or Firestore Timestamp
+const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]);
+const nullableDateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]).nullable();
+
 
 export const UnitPlanType = z.enum(['estandar-sc', 'avanzado-sc', 'total-sc', 'estandar-cc', 'avanzado-cc', 'total-cc']);
 export type UnitPlanType = z.infer<typeof UnitPlanType>;
@@ -17,10 +23,10 @@ export const UnitSchema = z.object({
   costoMensual: z.coerce.number().optional(),
   costoTotalContrato: z.coerce.number().optional(),
   mesesContrato: z.coerce.number().optional(),
-  fechaInicioContrato: z.date({ required_error: 'Fecha de inicio es requerida.' }),
-  fechaVencimiento: z.date({ required_error: 'Fecha de vencimiento es requerida.' }),
-  ultimoPago: z.date().nullable(),
-  fechaSiguientePago: z.date({ required_error: 'Fecha de siguiente pago es requerida.' }),
+  fechaInicioContrato: dateOrTimestamp.refine(val => val !== null, 'Fecha de inicio es requerida.'),
+  fechaVencimiento: dateOrTimestamp.refine(val => val !== null, 'Fecha de vencimiento es requerida.'),
+  ultimoPago: nullableDateOrTimestamp,
+  fechaSiguientePago: dateOrTimestamp.refine(val => val !== null, 'Fecha de siguiente pago es requerida.'),
   observacion: z.string().optional(),
 });
 

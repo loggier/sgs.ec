@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { Timestamp } from 'firebase/firestore';
+
+const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]);
 
 export const PaymentMethod = z.enum(['transferencia', 'efectivo']);
 export type PaymentMethod = z.infer<typeof PaymentMethod>;
@@ -7,7 +10,7 @@ export const PaymentSchema = z.object({
     id: z.string(),
     unitId: z.string(),
     clientId: z.string(),
-    fechaPago: z.date(),
+    fechaPago: dateOrTimestamp.refine(val => val !== null, 'Fecha de pago es requerida.'),
     numeroFactura: z.string().min(1, 'El número de factura es requerido.'),
     monto: z.coerce.number().positive('El monto debe ser un número positivo.'),
     formaPago: PaymentMethod,

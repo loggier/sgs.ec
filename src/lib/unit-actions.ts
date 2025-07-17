@@ -1,19 +1,48 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { units } from './unit-data';
+import {
+  collection,
+  getDocs,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 
+const convertTimestamps = (docData: any) => {
+  const data = { ...docData };
+  for (const key in data) {
+    if (data[key] instanceof Timestamp) {
+      data[key] = data[key].toDate();
+    }
+  }
+  return data;
+};
+
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return units.filter(u => u.clientId === clientId);
+  try {
+    const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
+    const unitSnapshot = await getDocs(unitsCollectionRef);
+    const unitsList = unitSnapshot.docs.map(doc => {
+      const data = convertTimestamps(doc.data());
+      return { id: doc.id, clientId, ...data } as Unit;
+    });
+    return unitsList;
+  } catch (error) {
+    console.error("Error getting units by client ID:", error);
+    return [];
+  }
 }
 
 export async function saveUnit(
   data: UnitFormInput,
   clientId: string,
   unitId?: string
-): Promise<{ success: boolean; message: string; unit?: Unit }> {
+): Promise<{ success: boolean; message:string; unit?: Unit }> {
   const validation = UnitFormSchema.safeParse(data);
 
   if (!validation.success) {
@@ -22,47 +51,36 @@ export async function saveUnit(
   }
   
   try {
+    const unitData: Omit<Unit, 'id' | 'clientId'> = {
+      ...validation.data,
+      ultimoPago: null,
+      fechaSiguientePago: validation.data.fechaSiguientePago || new Date(),
+    };
+    
+    if (validation.data.tipoContrato === 'sin_contrato') {
+      unitData.costoTotalContrato = undefined;
+      unitData.mesesContrato = undefined;
+    } else {
+      unitData.costoMensual = undefined;
+    }
+
+    const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
+    let savedUnit: Unit;
+
     if (unitId) {
       // Update
-      const unitIndex = units.findIndex(u => u.id === unitId && u.clientId === clientId);
-      if (unitIndex === -1) {
-        return { success: false, message: 'Unidad no encontrada.' };
-      }
-      
-      const updatedUnitData = { ...units[unitIndex], ...validation.data };
-
-      if (validation.data.tipoContrato === 'sin_contrato') {
-        updatedUnitData.costoTotalContrato = undefined;
-        updatedUnitData.mesesContrato = undefined;
-      } else {
-        updatedUnitData.costoMensual = undefined;
-      }
-
-      units[unitIndex] = updatedUnitData;
-      revalidatePath(`/clients/${clientId}/units`);
-      return { success: true, message: 'Unidad actualizada con éxito.', unit: updatedUnitData };
-
+      const unitDocRef = doc(unitsCollectionRef, unitId);
+      await updateDoc(unitDocRef, unitData);
+      savedUnit = { id: unitId, clientId, ...unitData };
     } else {
       // Create
-      const newUnit: Unit = {
-        id: `unit-${Date.now()}`,
-        clientId,
-        ...validation.data,
-        ultimoPago: null, // Ensure this is null on creation
-        fechaSiguientePago: validation.data.fechaSiguientePago || new Date(), // Ensure default
-      };
-
-      if (validation.data.tipoContrato === 'sin_contrato') {
-        newUnit.costoTotalContrato = undefined;
-        newUnit.mesesContrato = undefined;
-      } else {
-        newUnit.costoMensual = undefined;
-      }
-
-      units.push(newUnit);
-      revalidatePath(`/clients/${clientId}/units`);
-      return { success: true, message: 'Unidad creada con éxito.', unit: newUnit };
+      const newUnitRef = await addDoc(unitsCollectionRef, unitData);
+      savedUnit = { id: newUnitRef.id, clientId, ...unitData };
     }
+
+    revalidatePath(`/clients/${clientId}/units`);
+    return { success: true, message: 'Unidad guardada con éxito.', unit: savedUnit };
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return { success: false, message: `Error al guardar la unidad: ${errorMessage}` };
@@ -70,11 +88,13 @@ export async function saveUnit(
 }
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
-    const unitIndex = units.findIndex(u => u.id === unitId);
-    if (unitIndex === -1) {
-        return { success: false, message: 'Unidad no encontrada.' };
-    }
-    units.splice(unitIndex, 1);
+  try {
+    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+    await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);
     return { success: true, message: 'Unidad eliminada con éxito.' };
+  } catch (error) {
+    console.error("Error deleting unit:", error);
+    return { success: false, message: 'Error al eliminar la unidad.' };
+  }
 }
