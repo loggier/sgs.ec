@@ -189,7 +189,7 @@ export async function updateProfile(
             userDataToUpdate.password = await hashPassword(password);
         }
 
-        await updateDoc(userDocRef, userDataToUpdate);
+        await updateDoc(userDocRef, userDataToUpdate as Record<string, any>);
         
         const updatedUserDoc = await getDoc(userDocRef);
         if (!updatedUserDoc.exists()) {

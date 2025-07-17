@@ -42,7 +42,6 @@ export const ProfileFormSchema = z.object({
   nombre: z.string().optional(),
   telefono: z.string().optional(),
   empresa: z.string().optional(),
-  nota: z.string().optional(),
   password: z.string().optional().refine(val => !val || val.length >= 6, {
     message: 'La nueva contraseña debe tener al menos 6 caracteres.',
   }),

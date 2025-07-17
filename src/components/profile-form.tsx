@@ -19,7 +19,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from './ui/textarea';
 
 type ProfileFormProps = {
   user: User;
@@ -37,7 +36,6 @@ export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps
       nombre: user.nombre || '',
       telefono: user.telefono || '',
       empresa: user.empresa || '',
-      nota: user.nota || '',
       password: '',
       confirmPassword: '',
     },
@@ -131,20 +129,6 @@ export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps
             )}
           />
         </div>
-        
-        <FormField
-          control={form.control}
-          name="nota"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nota Adicional</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Escriba aquí cualquier nota adicional..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
