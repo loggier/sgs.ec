@@ -2,13 +2,15 @@ import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { config } from 'dotenv';
 
-// Cargar las variables de entorno desde .env.local
 config({ path: '.env.local' });
 
-let app: App;
 let db: Firestore;
 
-try {
+function initializeDb(): Firestore {
+  if (getApps().length > 0) {
+    return getFirestore(getApps()[0]);
+  }
+
   const firebaseCreds = process.env.FIREBASE_CREDS;
   if (!firebaseCreds) {
     throw new Error(
@@ -16,22 +18,21 @@ try {
     );
   }
 
-  const serviceAccount = JSON.parse(firebaseCreds);
-
-  if (getApps().length === 0) {
-    app = initializeApp({
+  try {
+    const serviceAccount = JSON.parse(firebaseCreds);
+    const app = initializeApp({
       credential: cert(serviceAccount),
     });
-  } else {
-    app = getApps()[0];
+    return getFirestore(app);
+  } catch (e: any) {
+    console.error('Error al inicializar Firebase Admin SDK:', e);
+    throw new Error(`Fallo en la inicialización de Firebase: ${e.message}`);
   }
-
-  db = getFirestore(app);
-} catch (e: any) {
-  console.error('Error al inicializar Firebase Admin SDK:', e);
-  // Lanzamos un error para que la aplicación no continúe con una instancia de 'db' no válida.
-  throw new Error(`Fallo en la inicialización de Firebase: ${e.message}`);
 }
 
-
-export { db };
+export function getDb(): Firestore {
+  if (!db) {
+    db = initializeDb();
+  }
+  return db;
+}
