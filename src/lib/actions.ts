@@ -11,7 +11,7 @@ import {
   deleteDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebase'; // <-- Cambiado a firebase
+import { db } from './firebase';
 import { ClientSchema, type Client } from './schema';
 import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
@@ -63,6 +63,7 @@ export async function saveClient(
   const validation = ClientSchema.omit({ id: true }).safeParse(data);
 
   if (!validation.success) {
+    console.error(validation.error.flatten().fieldErrors);
     return { success: false, message: 'Datos proporcionados no válidos.' };
   }
 
@@ -71,6 +72,13 @@ export async function saveClient(
 
   try {
     let savedClientId = id;
+    // Remove nullish values before saving
+    Object.keys(clientData).forEach(key => {
+      if (clientData[key as keyof typeof clientData] === null || clientData[key as keyof typeof clientData] === undefined) {
+        delete clientData[key as keyof typeof clientData];
+      }
+    });
+
     if (id) {
       // Update existing client
       const clientDocRef = doc(db, 'clients', id);
@@ -81,12 +89,19 @@ export async function saveClient(
       const newClientRef = await addDoc(clientsCollection, clientData);
       savedClientId = newClientRef.id;
 
-      // Perform AI credit risk assessment for new clients
-      assessmentResult = await assessCreditRisk({
+      // Prepare data for AI assessment, providing defaults for optional fields if not present
+      const assessmentData = {
         ...clientData,
-        fecConcesion: clientData.fecConcesion.toISOString().split('T')[0],
-        fecVencimiento: clientData.fecVencimiento.toISOString().split('T')[0],
-      });
+        fecConcesion: (clientData.fecConcesion || new Date()).toISOString().split('T')[0],
+        fecVencimiento: (clientData.fecVencimiento || new Date()).toISOString().split('T')[0],
+        valOperacion: clientData.valOperacion ?? 0,
+        valorPago: clientData.valorPago ?? 0,
+        valorVencido: clientData.valorVencido ?? 0,
+        ciudad: clientData.ciudad ?? 'N/A',
+        telefono: clientData.telefono ?? 'N/A',
+      };
+      // Perform AI credit risk assessment for new clients
+      assessmentResult = await assessCreditRisk(assessmentData);
     }
 
     revalidatePath('/');

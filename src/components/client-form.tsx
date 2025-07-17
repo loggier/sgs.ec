@@ -42,18 +42,24 @@ type ClientFormProps = {
 };
 
 const formSchema = ClientSchema.omit({ id: true });
+type FormSchemaType = z.infer<typeof formSchema>;
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
     defaultValues: client
       ? {
           ...client,
-          fecConcesion: new Date(client.fecConcesion),
-          fecVencimiento: new Date(client.fecVencimiento),
+          fecConcesion: client.fecConcesion ? new Date(client.fecConcesion) : null,
+          fecVencimiento: client.fecVencimiento ? new Date(client.fecVencimiento) : null,
+          valOperacion: client.valOperacion ?? undefined,
+          valorPago: client.valorPago ?? undefined,
+          valorVencido: client.valorVencido ?? undefined,
+          ciudad: client.ciudad ?? '',
+          telefono: client.telefono ?? '',
         }
       : {
           codTipoId: 'C',
@@ -63,18 +69,22 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           ciudad: '',
           telefono: '',
           numOperacion: '',
-          valOperacion: 0,
-          valorPago: 0,
-          valorVencido: 0,
           usuario: '',
           estado: 'al dia',
         },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormSchemaType) {
     setIsSubmitting(true);
     try {
-      const result = await saveClient(values, client?.id);
+       const dataToSave = {
+        ...values,
+        valOperacion: values.valOperacion || 0,
+        valorPago: values.valorPago || 0,
+        valorVencido: values.valorVencido || 0,
+       };
+
+      const result = await saveClient(dataToSave, client?.id);
       if (result.success) {
         toast({
           title: 'Éxito',

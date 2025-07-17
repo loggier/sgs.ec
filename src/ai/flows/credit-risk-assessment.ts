@@ -18,14 +18,14 @@ const AssessCreditRiskInputSchema = z.object({
   codIdSujeto: z.string().describe('Código de identificación del sujeto'),
   nomSujeto: z.string().describe('Nombre del cliente'),
   direccion: z.string().describe('Dirección del cliente'),
-  ciudad: z.string().describe('Ciudad del cliente'),
-  telefono: z.string().describe('Número de teléfono del cliente'),
+  ciudad: z.string().describe('Ciudad del cliente').optional(),
+  telefono: z.string().describe('Número de teléfono del cliente').optional(),
   numOperacion: z.string().describe('Número de operación'),
-  fecConcesion: z.string().describe('Fecha de concesión de la operación'),
-  valOperacion: z.number().describe('Valor de la operación'),
-  valorPago: z.number().describe('Valor del pago'),
-  fecVencimiento: z.string().describe('Fecha de vencimiento'),
-  valorVencido: z.number().describe('Valor vencido'),
+  fecConcesion: z.string().describe('Fecha de concesión de la operación').optional(),
+  valOperacion: z.number().describe('Valor de la operación').optional(),
+  valorPago: z.number().describe('Valor del pago').optional(),
+  fecVencimiento: z.string().describe('Fecha de vencimiento').optional(),
+  valorVencido: z.number().describe('Valor vencido').optional(),
   usuario: z.string().describe('Usuario (de la API)'),
 });
 export type AssessCreditRiskInput = z.infer<typeof AssessCreditRiskInputSchema>;
@@ -47,17 +47,17 @@ const prompt = ai.definePrompt({
   input: {schema: AssessCreditRiskInputSchema},
   output: {schema: AssessCreditRiskOutputSchema},
   prompt: `Eres un analista experto en riesgo crediticio.
-  Evalúa el riesgo crediticio de un cliente basándose en la siguiente información:
+  Evalúa el riesgo crediticio de un cliente basándose en la siguiente información. Si algunos campos no se proporcionan, tenlo en cuenta en tu análisis, pero aun así proporciona una evaluación.
 
   Nombre del Cliente: {{{nomSujeto}}}
-  Dirección: {{{direccion}}}, {{{ciudad}}}
-  Teléfono: {{{telefono}}}
+  Dirección: {{{direccion}}}{{#if ciudad}}, {{{ciudad}}}{{/if}}
+  Teléfono: {{#if telefono}}{{{telefono}}}{{else}}N/A{{/if}}
   Número de Operación: {{{numOperacion}}}
-  Fecha de Concesión: {{{fecConcesion}}}
-  Valor de la Operación: {{{valOperacion}}}
-  Valor del Pago: {{{valorPago}}}
-  Fecha de Vencimiento: {{{fecVencimiento}}}
-  Valor Vencido: {{{valorVencido}}}
+  Fecha de Concesión: {{#if fecConcesion}}{{{fecConcesion}}}{{else}}N/A{{/if}}
+  Valor de la Operación: {{#if valOperacion}}{{{valOperacion}}}{{else}}N/A{{/if}}
+  Valor del Pago: {{#if valorPago}}{{{valorPago}}}{{else}}N/A{{/if}}
+  Fecha de Vencimiento: {{#if fecVencimiento}}{{{fecVencimiento}}}{{else}}N/A{{/if}}
+  Valor Vencido: {{#if valorVencido}}{{{valorVencido}}}{{else}}N/A{{/if}}
   Usuario: {{{usuario}}}
   Código de Tipo de ID: {{{codTipoId}}}
   Código de ID del Sujeto: {{{codIdSujeto}}}

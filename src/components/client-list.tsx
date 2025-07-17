@@ -159,17 +159,17 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 clients.map(client => (
                   <TableRow key={client.id}>
                     <TableCell className="font-medium">{client.nomSujeto}</TableCell>
-                    <TableCell>{client.ciudad}</TableCell>
+                    <TableCell>{client.ciudad || 'N/A'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
                         {displayStatus[client.estado]}
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(client.valOperacion)}
+                      {client.valOperacion ? new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(client.valOperacion) : 'N/A'}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      {hasMounted ? format(new Date(client.fecVencimiento), 'P', { locale: es }) : ''}
+                      {hasMounted && client.fecVencimiento ? format(new Date(client.fecVencimiento), 'P', { locale: es }) : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
