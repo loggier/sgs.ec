@@ -59,6 +59,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           valorVencido: client.valorVencido ?? '',
           ciudad: client.ciudad ?? '',
           telefono: client.telefono ?? '',
+          usuario: client.usuario ?? '',
         }
       : {
           codTipoId: 'C',
@@ -322,7 +323,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Valor de Operación</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="5000" {...field} />
+                          <Input type="number" placeholder="5000" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -335,7 +336,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Valor del Pago</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="5000" {...field} />
+                           <Input type="number" placeholder="5000" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -351,7 +352,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Valor Vencido</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="0" {...field} />
+                           <Input type="number" placeholder="0" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
