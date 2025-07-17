@@ -11,7 +11,7 @@ import {
   Timestamp,
   getDoc,
 } from 'firebase/firestore';
-import { initializeDb } from './firebaseAdmin';
+import { db } from './firebaseAdmin';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 
 const convertTimestamps = (docData: any) => {
@@ -26,7 +26,6 @@ const convertTimestamps = (docData: any) => {
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   try {
-    const db = await initializeDb();
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
     const unitsList = unitSnapshot.docs.map(doc => {
@@ -41,7 +40,6 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
 }
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
-    const db = await initializeDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
@@ -63,7 +61,6 @@ export async function saveUnit(
   }
   
   try {
-    const db = await initializeDb();
     // Create a new object for Firestore to avoid passing undefined, which is not allowed.
     const unitDataForFirestore: any = {
       ...validation.data,
@@ -104,7 +101,6 @@ export async function saveUnit(
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
   try {
-    const db = await initializeDb();
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);

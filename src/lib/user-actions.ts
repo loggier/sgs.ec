@@ -14,12 +14,11 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
-import { initializeDb } from './firebaseAdmin';
+import { db } from './firebaseAdmin';
 import { UserFormSchema, type User, type UserFormInput } from './user-schema';
 
 // Helper function to fetch users without returning passwords
 const fetchUsersFromFirestore = async (): Promise<User[]> => {
-    const db = await initializeDb();
     const usersCollection = collection(db, 'users');
     const userSnapshot = await getDocs(usersCollection);
     return userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
@@ -50,7 +49,6 @@ export async function saveUser(
   const { username, password, role, nombre, correo, telefono, empresa, nota } = validation.data;
   
   try {
-    const db = await initializeDb();
     const usersCollection = collection(db, 'users');
     // Check for unique username
     const usernameQuery = query(usersCollection, where("username", "==", username), limit(1));
@@ -100,7 +98,6 @@ export async function saveUser(
 
 export async function deleteUser(id: string): Promise<{ success: boolean; message: string }> {
   try {
-    const db = await initializeDb();
     const userDocRef = doc(db, 'users', id);
     const userDoc = await getDoc(userDocRef);
 
