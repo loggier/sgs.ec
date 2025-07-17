@@ -3,7 +3,7 @@ import Link from 'next/link';
 import './globals.css';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/toaster';
-import { Banknote, Briefcase, UsersRound } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
@@ -44,6 +44,14 @@ export default function RootLayout({
                     <Link href="/">
                       <Briefcase />
                       Clientes
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Unidades">
+                    <Link href="/units">
+                      <Car />
+                      Unidades
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

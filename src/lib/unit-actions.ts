@@ -10,9 +10,12 @@ import {
   deleteDoc,
   Timestamp,
   getDoc,
+  collectionGroup,
+  query,
 } from 'firebase/firestore';
-import { db } from './firebase'; // <-- Cambiado a firebase
+import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
+import type { Client } from './schema';
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -89,6 +92,7 @@ export async function saveUnit(
     }
 
     revalidatePath(`/clients/${clientId}/units`);
+    revalidatePath('/units');
     const savedUnit = await getUnit(clientId, savedUnitId!);
     return { success: true, message: 'Unidad guardada con éxito.', unit: savedUnit! };
 
@@ -104,9 +108,39 @@ export async function deleteUnit(unitId: string, clientId: string): Promise<{ su
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);
+    revalidatePath('/units');
     return { success: true, message: 'Unidad eliminada con éxito.' };
   } catch (error) {
     console.error("Error deleting unit:", error);
     return { success: false, message: 'Error al eliminar la unidad.' };
   }
+}
+
+export async function getAllUnits(): Promise<(Unit & { clientName: string })[]> {
+    try {
+        const clientsCollection = collection(db, 'clients');
+        const clientsSnapshot = await getDocs(clientsCollection);
+        const allClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Client, 'placaVehiculo'>));
+        const clientMap = new Map(allClients.map(c => [c.id, c.nomSujeto]));
+
+        const unitsQuery = query(collectionGroup(db, 'units'));
+        const unitsSnapshot = await getDocs(unitsQuery);
+
+        const allUnits = unitsSnapshot.docs.map(doc => {
+            const data = convertTimestamps(doc.data());
+            const clientId = doc.ref.parent.parent!.id;
+            const clientName = clientMap.get(clientId) || 'Cliente Desconocido';
+            return {
+                id: doc.id,
+                clientId,
+                clientName,
+                ...data
+            } as Unit & { clientName: string };
+        });
+
+        return allUnits;
+    } catch (error) {
+        console.error("Error getting all units:", error);
+        return [];
+    }
 }
