@@ -9,6 +9,7 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
@@ -38,6 +39,15 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   }
 }
 
+const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
+    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+    const unitDoc = await getDoc(unitDocRef);
+    if (!unitDoc.exists()) return null;
+    const data = convertTimestamps(unitDoc.data());
+    return { id: unitDoc.id, clientId, ...data } as Unit;
+}
+
+
 export async function saveUnit(
   data: UnitFormInput,
   clientId: string,
@@ -51,37 +61,39 @@ export async function saveUnit(
   }
   
   try {
-    const unitData: Omit<Unit, 'id' | 'clientId'> = {
+    // Create a new object for Firestore to avoid passing undefined, which is not allowed.
+    const unitDataForFirestore: any = {
       ...validation.data,
       ultimoPago: null,
       fechaSiguientePago: validation.data.fechaSiguientePago || new Date(),
     };
     
     if (validation.data.tipoContrato === 'sin_contrato') {
-      unitData.costoTotalContrato = undefined;
-      unitData.mesesContrato = undefined;
+      delete unitDataForFirestore.costoTotalContrato;
+      delete unitDataForFirestore.mesesContrato;
     } else {
-      unitData.costoMensual = undefined;
+      delete unitDataForFirestore.costoMensual;
     }
 
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
-    let savedUnit: Unit;
+    let savedUnitId = unitId;
 
     if (unitId) {
       // Update
       const unitDocRef = doc(unitsCollectionRef, unitId);
-      await updateDoc(unitDocRef, unitData);
-      savedUnit = { id: unitId, clientId, ...unitData };
+      await updateDoc(unitDocRef, unitDataForFirestore);
     } else {
       // Create
-      const newUnitRef = await addDoc(unitsCollectionRef, unitData);
-      savedUnit = { id: newUnitRef.id, clientId, ...unitData };
+      const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
+      savedUnitId = newUnitRef.id;
     }
 
     revalidatePath(`/clients/${clientId}/units`);
-    return { success: true, message: 'Unidad guardada con éxito.', unit: savedUnit };
+    const savedUnit = await getUnit(clientId, savedUnitId!);
+    return { success: true, message: 'Unidad guardada con éxito.', unit: savedUnit! };
 
   } catch (error) {
+    console.error("Error saving unit:", error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return { success: false, message: `Error al guardar la unidad: ${errorMessage}` };
   }

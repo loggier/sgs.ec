@@ -1,5 +1,5 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
 const serviceAccount = {
   projectId: process.env.FIREBASE_PROJECT_ID,
@@ -7,29 +7,22 @@ const serviceAccount = {
   privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
 };
 
-// Validate that all required environment variables are set
-if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-  throw new Error(
-    'Firebase credentials are not set in the environment. Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set.'
-  );
-}
-
-let db: ReturnType<typeof getFirestore>;
+let app: App;
+let db: Firestore;
 
 if (getApps().length === 0) {
-  try {
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
-    db = getFirestore();
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
-    // You might want to throw the error or handle it gracefully
-    throw new Error('Could not initialize Firebase Admin SDK.');
+  if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+    throw new Error(
+      'Firebase credentials are not set in the environment. Please ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set.'
+    );
   }
+  app = initializeApp({
+    credential: cert(serviceAccount),
+  });
 } else {
-  // If already initialized, get the existing instance
-  db = getFirestore();
+  app = getApps()[0];
 }
+
+db = getFirestore(app);
 
 export { db };

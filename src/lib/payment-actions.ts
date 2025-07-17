@@ -13,13 +13,33 @@ import {
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
 import type { Unit } from './unit-schema';
+import { z } from 'zod';
+
+const convertTimestamps = (docData: any): any => {
+    const data = { ...docData };
+    for (const key in data) {
+        if (data[key] instanceof Timestamp) {
+            data[key] = data[key].toDate();
+        }
+    }
+    return data;
+};
+
+const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
+    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+    const unitDoc = await getDoc(unitDocRef);
+    if (!unitDoc.exists()) return null;
+    const data = convertTimestamps(unitDoc.data());
+    return { id: unitDoc.id, clientId, ...data } as Unit;
+}
+
 
 export async function registerPayment(
   data: PaymentFormInput | z.infer<typeof ClientPaymentFormSchema>,
   unitId: string,
   clientId: string
 ): Promise<{ success: boolean; message: string; unit?: Unit }> {
-  const validation = PaymentFormSchema.safeParse(data);
+  const validation = ClientPaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
     console.error(validation.error.flatten().fieldErrors);
@@ -29,30 +49,10 @@ export async function registerPayment(
   const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
 
   try {
-    const unitDoc = await getDoc(unitDocRef);
-    if (!unitDoc.exists()) {
+    const unit = await getUnit(clientId, unitId);
+    if (!unit) {
       return { success: false, message: 'Unidad no encontrada.' };
     }
-
-    // Firestore data needs to be converted before being used as a Unit
-    const unitData = unitDoc.data();
-    const unit: Unit = {
-        id: unitDoc.id,
-        clientId: unitData.clientId,
-        imei: unitData.imei,
-        placa: unitData.placa,
-        modelo: unitData.modelo,
-        tipoPlan: unitData.tipoPlan,
-        tipoContrato: unitData.tipoContrato,
-        costoMensual: unitData.costoMensual,
-        costoTotalContrato: unitData.costoTotalContrato,
-        mesesContrato: unitData.mesesContrato,
-        fechaInicioContrato: (unitData.fechaInicioContrato as Timestamp).toDate(),
-        fechaVencimiento: (unitData.fechaVencimiento as Timestamp).toDate(),
-        ultimoPago: unitData.ultimoPago ? (unitData.ultimoPago as Timestamp).toDate() : null,
-        fechaSiguientePago: (unitData.fechaSiguientePago as Timestamp).toDate(),
-        observacion: unitData.observacion,
-    };
 
     const { fechaPago, mesesPagados } = validation.data;
     
@@ -66,6 +66,7 @@ export async function registerPayment(
     const newVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
     
     unitUpdateData.fechaVencimiento = newVencimiento;
+    // Set next payment date to one month after the new expiration date
     unitUpdateData.fechaSiguientePago = addMonths(newVencimiento, 1);
     
     await updateDoc(unitDocRef, unitUpdateData);
@@ -79,29 +80,11 @@ export async function registerPayment(
     const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
     await addDoc(paymentsCollectionRef, newPayment);
 
-    const updatedUnitDoc = await getDoc(unitDocRef);
-    const updatedUnitData = updatedUnitDoc.data()!;
-    const updatedUnit: Unit = {
-        id: updatedUnitDoc.id,
-        clientId: updatedUnitData.clientId,
-        imei: updatedUnitData.imei,
-        placa: updatedUnitData.placa,
-        modelo: updatedUnitData.modelo,
-        tipoPlan: updatedUnitData.tipoPlan,
-        tipoContrato: updatedUnitData.tipoContrato,
-        costoMensual: updatedUnitData.costoMensual,
-        costoTotalContrato: updatedUnitData.costoTotalContrato,
-        mesesContrato: updatedUnitData.mesesContrato,
-        fechaInicioContrato: (updatedUnitData.fechaInicioContrato as Timestamp).toDate(),
-        fechaVencimiento: (updatedUnitData.fechaVencimiento as Timestamp).toDate(),
-        ultimoPago: updatedUnitData.ultimoPago ? (updatedUnitData.ultimoPago as Timestamp).toDate() : null,
-        fechaSiguientePago: (updatedUnitData.fechaSiguientePago as Timestamp).toDate(),
-        observacion: updatedUnitData.observacion,
-    };
+    const updatedUnit = await getUnit(clientId, unitId);
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
-    return { success: true, message: `Pago registrado con éxito para la unidad ${unit.placa}.`, unit: updatedUnit };
+    return { success: true, message: `Pago registrado con éxito para la unidad ${unit.placa}.`, unit: updatedUnit! };
 
   } catch (error) {
     console.error("Error registering payment:", error);

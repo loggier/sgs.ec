@@ -14,7 +14,6 @@ import {
 import { db } from './firebase';
 import { ClientSchema, type Client } from './schema';
 import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
-import { units } from './unit-data';
 
 // Helper function to convert Firestore Timestamps to Dates in a document
 const convertTimestamps = (docData: any) => {
@@ -117,6 +116,7 @@ export async function deleteClient(id: string): Promise<{ success: boolean; mess
     await deleteDoc(doc(db, 'clients', id));
     
     revalidatePath('/');
+    revalidatePath(`/clients/${id}/units`);
     return { success: true, message: 'Cliente y todas sus unidades eliminados con éxito.' };
   } catch (error) {
     console.error("Error deleting client:", error);
