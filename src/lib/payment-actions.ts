@@ -34,25 +34,40 @@ export async function registerPayment(
       return { success: false, message: 'Unidad no encontrada.' };
     }
 
-    const unit = { id: unitDoc.id, ...unitDoc.data() } as Unit;
+    // Firestore data needs to be converted before being used as a Unit
+    const unitData = unitDoc.data();
+    const unit: Unit = {
+        id: unitDoc.id,
+        clientId: unitData.clientId,
+        imei: unitData.imei,
+        placa: unitData.placa,
+        modelo: unitData.modelo,
+        tipoPlan: unitData.tipoPlan,
+        tipoContrato: unitData.tipoContrato,
+        costoMensual: unitData.costoMensual,
+        costoTotalContrato: unitData.costoTotalContrato,
+        mesesContrato: unitData.mesesContrato,
+        fechaInicioContrato: (unitData.fechaInicioContrato as Timestamp).toDate(),
+        fechaVencimiento: (unitData.fechaVencimiento as Timestamp).toDate(),
+        ultimoPago: unitData.ultimoPago ? (unitData.ultimoPago as Timestamp).toDate() : null,
+        fechaSiguientePago: (unitData.fechaSiguientePago as Timestamp).toDate(),
+        observacion: unitData.observacion,
+    };
+
     const { fechaPago, mesesPagados } = validation.data;
     
     // 1. Update unit dates
-    const unitUpdateData: Partial<Unit> = {
+    const unitUpdateData: Partial<Record<keyof Unit, any>> = {
       ultimoPago: fechaPago,
     };
 
-    if (unit.tipoContrato === 'sin_contrato') {
-      const currentVencimientoTimestamp = unit.fechaVencimiento as unknown as Timestamp;
-      const currentVencimiento = currentVencimientoTimestamp.toDate();
-      const baseDateForVencimiento = currentVencimiento > new Date() ? currentVencimiento : new Date();
-      unitUpdateData.fechaVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
-    }
+    const currentVencimiento = unit.fechaVencimiento;
+    const baseDateForVencimiento = currentVencimiento > new Date() ? currentVencimiento : new Date();
+    const newVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
     
-    if(unitUpdateData.fechaVencimiento) {
-        unitUpdateData.fechaSiguientePago = addMonths(unitUpdateData.fechaVencimiento, 1);
-    }
-
+    unitUpdateData.fechaVencimiento = newVencimiento;
+    unitUpdateData.fechaSiguientePago = addMonths(newVencimiento, 1);
+    
     await updateDoc(unitDocRef, unitUpdateData);
 
     // 2. Create and save the payment record
@@ -65,7 +80,24 @@ export async function registerPayment(
     await addDoc(paymentsCollectionRef, newPayment);
 
     const updatedUnitDoc = await getDoc(unitDocRef);
-    const updatedUnit = { id: updatedUnitDoc.id, ...updatedUnitDoc.data() } as Unit;
+    const updatedUnitData = updatedUnitDoc.data()!;
+    const updatedUnit: Unit = {
+        id: updatedUnitDoc.id,
+        clientId: updatedUnitData.clientId,
+        imei: updatedUnitData.imei,
+        placa: updatedUnitData.placa,
+        modelo: updatedUnitData.modelo,
+        tipoPlan: updatedUnitData.tipoPlan,
+        tipoContrato: updatedUnitData.tipoContrato,
+        costoMensual: updatedUnitData.costoMensual,
+        costoTotalContrato: updatedUnitData.costoTotalContrato,
+        mesesContrato: updatedUnitData.mesesContrato,
+        fechaInicioContrato: (updatedUnitData.fechaInicioContrato as Timestamp).toDate(),
+        fechaVencimiento: (updatedUnitData.fechaVencimiento as Timestamp).toDate(),
+        ultimoPago: updatedUnitData.ultimoPago ? (updatedUnitData.ultimoPago as Timestamp).toDate() : null,
+        fechaSiguientePago: (updatedUnitData.fechaSiguientePago as Timestamp).toDate(),
+        observacion: updatedUnitData.observacion,
+    };
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
