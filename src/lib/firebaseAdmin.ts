@@ -1,28 +1,33 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-};
-
 let app: App;
 let db: Firestore;
 
-if (getApps().length === 0) {
-  if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
+try {
+  const firebaseCreds = process.env.FIREBASE_CREDS;
+  if (!firebaseCreds) {
     throw new Error(
-      'Las credenciales de Firebase no están configuradas correctamente en las variables de entorno. Por favor, revisa tu archivo .env.local y asegúrate de que las variables FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, y FIREBASE_PRIVATE_KEY estén presentes y sean correctas.'
+      'La variable de entorno FIREBASE_CREDS no está definida. Por favor, copia el contenido completo de tu archivo JSON de credenciales de Firebase en la variable FIREBASE_CREDS en tu archivo .env.local.'
     );
   }
-  app = initializeApp({
-    credential: cert(serviceAccount),
-  });
-} else {
-  app = getApps()[0];
+
+  const serviceAccount = JSON.parse(firebaseCreds);
+
+  if (getApps().length === 0) {
+    app = initializeApp({
+      credential: cert(serviceAccount),
+    });
+  } else {
+    app = getApps()[0];
+  }
+
+  db = getFirestore(app);
+} catch (e: any) {
+  console.error('Error al inicializar Firebase Admin SDK:', e);
+  // Lanzamos un error para que la aplicación no continúe con una instancia de 'db' no válida.
+  throw new Error(`Fallo en la inicialización de Firebase: ${e.message}`);
 }
 
-db = getFirestore(app);
 
 export { db };
