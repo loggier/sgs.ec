@@ -13,15 +13,19 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
-import { db } from './firebase'; // <-- Cambiado a firebase
+import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput } from './user-schema';
+import bcrypt from 'bcryptjs';
 
-// This is a placeholder for a secure password hashing mechanism.
-// In a real app, use a proper library like bcrypt or Argon2,
-// but for this prototype, we'll store passwords in plain text.
-// Note: This is NOT secure and should NOT be used in production.
-const hashPassword = async (password: string) => `hashed_${password}`;
-const comparePassword = async (password: string, hash: string) => `hashed_${password}` === hash;
+// Use bcrypt for secure password hashing.
+const hashPassword = async (password: string) => {
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(password, salt);
+};
+
+const comparePassword = async (password: string, hash: string) => {
+  return await bcrypt.compare(password, hash);
+};
 
 
 // Helper function to fetch users without returning passwords
