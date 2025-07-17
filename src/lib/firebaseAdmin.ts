@@ -13,7 +13,7 @@ let db: Firestore;
 if (getApps().length === 0) {
   if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
     throw new Error(
-      'Firebase credentials are not set in the environment variables. Please check your .env.local file.'
+      'Las credenciales de Firebase no están configuradas correctamente en las variables de entorno. Por favor, revisa tu archivo .env.local y asegúrate de que las variables FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, y FIREBASE_PRIVATE_KEY estén presentes y sean correctas.'
     );
   }
   app = initializeApp({
