@@ -18,3 +18,10 @@ export type Payment = z.infer<typeof PaymentSchema>;
 
 export const PaymentFormSchema = PaymentSchema.omit({ id: true, unitId: true, clientId: true });
 export type PaymentFormInput = z.infer<typeof PaymentFormSchema>;
+
+
+// Schema for the payment form on the client list page
+export const ClientPaymentFormSchema = PaymentFormSchema.extend({
+    unitId: z.string().min(1, 'Debe seleccionar una unidad.'),
+});
+export type ClientPaymentFormInput = z.infer<typeof ClientPaymentFormSchema>;

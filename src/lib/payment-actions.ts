@@ -4,14 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { addMonths } from 'date-fns';
 import { units } from './unit-data';
 import { payments } from './payment-data';
-import { PaymentFormSchema, type PaymentFormInput, type Payment } from './payment-schema';
+import { PaymentFormSchema, type PaymentFormInput, type Payment, ClientPaymentFormSchema } from './payment-schema';
 import type { Unit } from './unit-schema';
 
 export async function registerPayment(
-  data: PaymentFormInput,
+  data: PaymentFormInput | z.infer<typeof ClientPaymentFormSchema>,
   unitId: string,
   clientId: string
 ): Promise<{ success: boolean; message: string; unit?: Unit }> {
+  // We can use the base schema for validation as ClientPaymentFormSchema is a superset
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
@@ -54,6 +55,7 @@ export async function registerPayment(
     units[unitIndex] = unit;
 
     revalidatePath(`/clients/${clientId}/units`);
+    revalidatePath('/'); // Revalidate client page too
     return { success: true, message: `Pago registrado con éxito para la unidad ${unit.placa}.`, unit };
 
   } catch (error) {

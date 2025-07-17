@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -25,11 +25,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
 import CreditRiskDialog from './credit-risk-dialog';
+import ClientPaymentForm from './client-payment-form';
 import type { AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
 type ClientListProps = {
@@ -41,6 +43,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isRiskDialogOpen, setIsRiskDialogOpen] = React.useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<Omit<Client, 'placaVehiculo'> | null>(null);
   const [assessmentResult, setAssessmentResult] = React.useState<AssessCreditRiskOutput | null>(null);
 
@@ -67,6 +70,11 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
+
+  const handleRegisterPayment = (client: Omit<Client, 'placaVehiculo'>) => {
+    setSelectedClient(client);
+    setIsPaymentDialogOpen(true);
+  }
 
   const handleFormSave = (result: { client?: Omit<Client, 'placaVehiculo'>, assessment?: AssessCreditRiskOutput }) => {
     if (result.client) {
@@ -177,6 +185,9 @@ export default function ClientList({ initialClients }: ClientListProps) {
                               <Car className="mr-2 h-4 w-4" /> Ver Unidades
                             </Link>
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                            <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleEditClient(client)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
@@ -230,6 +241,24 @@ export default function ClientList({ initialClients }: ClientListProps) {
         onOpenChange={setIsRiskDialogOpen}
         assessment={assessmentResult}
       />
+
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Registrar Pago para {selectedClient?.nomSujeto}</DialogTitle>
+                  <DialogDescription>
+                      Seleccione la unidad y complete los detalles del pago.
+                  </DialogDescription>
+              </DialogHeader>
+              {selectedClient && (
+                  <ClientPaymentForm
+                      client={selectedClient}
+                      onSave={() => setIsPaymentDialogOpen(false)}
+                      onCancel={() => setIsPaymentDialogOpen(false)}
+                  />
+              )}
+          </DialogContent>
+      </Dialog>
     </Card>
   );
 }
