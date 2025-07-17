@@ -1,5 +1,9 @@
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { config } from 'dotenv';
+
+// Cargar las variables de entorno desde .env.local
+config({ path: '.env.local' });
 
 let app: App;
 let db: Firestore;
