@@ -1,10 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Search } from 'lucide-react';
 import type { User } from '@/lib/user-schema';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -23,6 +23,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import UserForm from './user-form';
 import DeleteUserDialog from './delete-user-dialog';
+import { Input } from './ui/input';
 
 type UserListProps = {
   initialUsers: User[];
@@ -30,6 +31,7 @@ type UserListProps = {
 
 export default function UserList({ initialUsers }: UserListProps) {
   const [users, setUsers] = React.useState(initialUsers);
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
@@ -89,27 +91,53 @@ export default function UserList({ initialUsers }: UserListProps) {
     'master': 'Master',
     'manager': 'Manager',
     'usuario': 'Usuario'
-  }
+  };
+
+  const filteredUsers = React.useMemo(() => {
+    if (!searchTerm) return users;
+    const lowercasedTerm = searchTerm.toLowerCase();
+    return users.filter(user =>
+      user.username.toLowerCase().includes(lowercasedTerm) ||
+      (user.nombre && user.nombre.toLowerCase().includes(lowercasedTerm)) ||
+      user.correo.toLowerCase().includes(lowercasedTerm) ||
+      (user.telefono && user.telefono.includes(lowercasedTerm))
+    );
+  }, [searchTerm, users]);
+
 
   return (
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Gestión de Usuarios</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+                <CardTitle>Gestión de Usuarios</CardTitle>
+                <CardDescription>Busque, agregue, edite o elimine usuarios.</CardDescription>
+            </div>
             <Button onClick={handleAddUser} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuevo Usuario
             </Button>
           </div>
+           <div className="relative mt-4">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar por nombre, correo, teléfono..."
+                className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre de Usuario</TableHead>
-                  <TableHead>Correo Electrónico</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Correo</TableHead>
+                  <TableHead>Teléfono</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead>
                     <span className="sr-only">Acciones</span>
@@ -117,14 +145,15 @@ export default function UserList({ initialUsers }: UserListProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.length > 0 ? (
-                  users.map(user => (
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map(user => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">
-                        <div className="font-medium">{user.username}</div>
-                        <div className="text-sm text-muted-foreground">{user.nombre}</div>
+                      <TableCell>
+                        <div className="font-medium">{user.nombre || 'N/A'}</div>
+                        <div className="text-sm text-muted-foreground">{user.username}</div>
                       </TableCell>
                        <TableCell>{user.correo}</TableCell>
+                       <TableCell>{user.telefono || 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={getRoleVariant(user.role)}>
                           {displayRole[user.role]}
@@ -152,8 +181,8 @@ export default function UserList({ initialUsers }: UserListProps) {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center">
-                      No se encontraron usuarios.
+                    <TableCell colSpan={5} className="text-center">
+                      No se encontraron usuarios que coincidan con la búsqueda.
                     </TableCell>
                   </TableRow>
                 )}
