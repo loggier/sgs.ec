@@ -69,7 +69,7 @@ export async function registerPayment(
     
     unitUpdateData.fechaVencimiento = newVencimiento;
     // Set next payment date to one month after the new expiration date
-    unitUpdateData.fechaSiguientePago = addMonths(newVencimiento, 0);
+    unitUpdateData.fechaSiguientePago = addMonths(newVencimiento, 1);
     
     await updateDoc(unitDocRef, unitUpdateData);
 
