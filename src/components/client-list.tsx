@@ -30,9 +30,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
-import CreditRiskDialog from './credit-risk-dialog';
 import ClientPaymentForm from './client-payment-form';
-import type { AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
 type ClientListProps = {
   initialClients: Omit<Client, 'placaVehiculo'>[];
@@ -42,10 +40,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [clients, setClients] = React.useState(initialClients);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [isRiskDialogOpen, setIsRiskDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<Omit<Client, 'placaVehiculo'> | null>(null);
-  const [assessmentResult, setAssessmentResult] = React.useState<AssessCreditRiskOutput | null>(null);
 
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
@@ -76,7 +72,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setIsPaymentDialogOpen(true);
   }
 
-  const handleFormSave = (result: { client?: Omit<Client, 'placaVehiculo'>, assessment?: AssessCreditRiskOutput }) => {
+  const handleFormSave = (result: { client?: Omit<Client, 'placaVehiculo'> }) => {
     if (result.client) {
       setClients(currentClients => {
         const existing = currentClients.find(c => c.id === result.client!.id);
@@ -89,11 +85,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
     
     setIsSheetOpen(false);
     setSelectedClient(null);
-
-    if (result.assessment) {
-      setAssessmentResult(result.assessment);
-      setIsRiskDialogOpen(true);
-    }
   };
 
   const onClientDeleted = (clientId: string) => {
@@ -234,12 +225,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
             onClientDeleted(selectedClient.id);
           }
         }}
-      />
-      
-      <CreditRiskDialog
-        isOpen={isRiskDialogOpen}
-        onOpenChange={setIsRiskDialogOpen}
-        assessment={assessmentResult}
       />
 
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>

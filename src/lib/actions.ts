@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ClientSchema, type Client } from './schema';
-import { assessCreditRisk, type AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
 // Helper function to convert Firestore Timestamps to Dates in a document
 const convertTimestamps = (docData: any) => {
@@ -59,7 +58,7 @@ export async function getClientById(id: string): Promise<Omit<Client, 'placaVehi
 export async function saveClient(
   data: Omit<Client, 'id'>,
   id?: string
-): Promise<{ success: boolean; message: string; client?: Omit<Client, 'placaVehiculo'>; assessment?: AssessCreditRiskOutput }> {
+): Promise<{ success: boolean; message: string; client?: Omit<Client, 'placaVehiculo'>; }> {
   const validation = ClientSchema.omit({ id: true }).safeParse(data);
 
   if (!validation.success) {
@@ -68,7 +67,6 @@ export async function saveClient(
   }
 
   const { ...clientData } = validation.data;
-  let assessmentResult: AssessCreditRiskOutput | undefined;
 
   try {
     let savedClientId = id;
@@ -88,20 +86,6 @@ export async function saveClient(
       const clientsCollection = collection(db, 'clients');
       const newClientRef = await addDoc(clientsCollection, clientData);
       savedClientId = newClientRef.id;
-
-      // Prepare data for AI assessment, providing defaults for optional fields if not present
-      const assessmentData = {
-        ...clientData,
-        fecConcesion: (clientData.fecConcesion || new Date()).toISOString().split('T')[0],
-        fecVencimiento: (clientData.fecVencimiento || new Date()).toISOString().split('T')[0],
-        valOperacion: clientData.valOperacion ?? 0,
-        valorPago: clientData.valorPago ?? 0,
-        valorVencido: clientData.valorVencido ?? 0,
-        ciudad: clientData.ciudad ?? 'N/A',
-        telefono: clientData.telefono ?? 'N/A',
-      };
-      // Perform AI credit risk assessment for new clients
-      assessmentResult = await assessCreditRisk(assessmentData);
     }
 
     revalidatePath('/');
@@ -110,7 +94,6 @@ export async function saveClient(
       success: true,
       message: `Cliente ${id ? 'actualizado' : 'creado'} con éxito.`,
       client: savedClient,
-      assessment: assessmentResult,
     };
   } catch (error) {
     console.error(error);

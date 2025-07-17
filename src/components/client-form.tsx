@@ -12,7 +12,6 @@ import { cn } from '@/lib/utils';
 import { ClientSchema, type Client } from '@/lib/schema';
 import { saveClient } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-import type { AssessCreditRiskOutput } from '@/ai/flows/credit-risk-assessment';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -37,7 +36,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ClientFormProps = {
   client: Omit<Client, 'placaVehiculo'> | null;
-  onSave: (result: { client?: Client, assessment?: AssessCreditRiskOutput }) => void;
+  onSave: (result: { client?: Client }) => void;
   onCancel: () => void;
 };
 
@@ -90,7 +89,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           title: 'Éxito',
           description: result.message,
         });
-        onSave({ client: result.client, assessment: result.assessment });
+        onSave({ client: result.client });
       } else {
         toast({
           title: 'Error',
