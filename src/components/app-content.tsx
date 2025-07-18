@@ -1,3 +1,4 @@
+
 'use client';
 
 import { usePathname } from 'next/navigation';
@@ -6,14 +7,11 @@ import MainLayout from './main-layout';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
 
   const getPageTitle = () => {
     if (pathname === '/') return 'Clientes';
     if (pathname.startsWith('/clients/') && pathname.endsWith('/units')) {
-      // This part is tricky without fetching client name here. 
-      // A more robust solution might involve a separate context for page titles.
-      // For now, we'll keep it generic.
       return 'Unidades del Cliente';
     }
     if (pathname === '/units') return 'Todas las Unidades';
@@ -25,13 +23,14 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
 
   if (isLoading) {
     return (
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-screen items-center justify-center bg-background">
             <div className="text-lg font-semibold">Cargando...</div>
         </div>
     );
   }
 
-  if (isAuthenticated && user && pathname !== '/login') {
+  // Si está autenticado y no es la página de login, muestra el layout principal
+  if (isAuthenticated && pathname !== '/login') {
     return (
       <MainLayout 
         title={getPageTitle()}
@@ -43,6 +42,6 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
   
-  // For the login page or if not authenticated
+  // Para la página de login o si no está autenticado, muestra solo el contenido
   return <>{children}</>;
 }
