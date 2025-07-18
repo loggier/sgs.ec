@@ -60,11 +60,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
   
   const updateUserContext = (newUser: User) => {
-      setUser(currentUser => {
-        const updatedUser = currentUser ? { ...currentUser, ...newUser } : newUser;
-        return updatedUser;
-      });
-  }
+      // Replace the entire user object to ensure all fields, including role, are up-to-date.
+      setUser(newUser);
+  };
 
   const value = {
     user,
