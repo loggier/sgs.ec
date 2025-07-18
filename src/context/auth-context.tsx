@@ -47,8 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
-      router.refresh(); // Force a refresh to re-run middleware with new cookie
-      router.push('/');
+      router.refresh();
     } else {
       throw new Error(result.message);
     }
@@ -59,7 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (response.ok) {
         setUser(null);
         router.refresh(); // Force a refresh to re-run middleware
-        router.push('/login');
     } else {
         console.error('Logout failed');
         // Even if server fails, clear client state

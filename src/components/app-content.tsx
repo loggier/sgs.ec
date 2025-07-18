@@ -16,17 +16,12 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (pathname === '/login') {
-    return <>{children}</>;
+  // The middleware handles all redirection logic.
+  // This component just decides what to render based on the final auth state.
+  if (isAuthenticated && pathname !== '/login') {
+    return <MainLayout>{children}</MainLayout>;
   }
   
-  // The middleware handles redirection, so we just need to ensure
-  // we don't render the layout if the user is not authenticated.
-  if (!isAuthenticated) {
-     return null;
-  }
-  
-  return (
-      <MainLayout>{children}</MainLayout>
-  );
+  // For the login page or if not authenticated
+  return <>{children}</>;
 }

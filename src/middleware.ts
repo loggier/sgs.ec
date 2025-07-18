@@ -1,4 +1,3 @@
-
 import { NextResponse, type NextRequest } from 'next/server'
  
 export async function middleware(request: NextRequest) {
@@ -10,7 +9,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // If there's a user cookie and the user is trying to access the login page, redirect to home
+  // If there's a user cookie and the user is on the login page, redirect to home
   if (userCookie && pathname === '/login') {
     return NextResponse.redirect(new URL('/', request.url))
   }
