@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from './ui/button';
 
 type HeaderProps = {
@@ -11,8 +10,7 @@ type HeaderProps = {
 
 export default function Header({ title = 'Clientes', showBackButton = false, backButtonHref = '/' }: HeaderProps) {
   return (
-    <header className="flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6">
-      <SidebarTrigger className="md:hidden" />
+    <header className="flex h-16 items-center gap-4 px-4 md:px-0">
       {showBackButton && (
         <Button asChild variant="outline" size="icon" className="h-8 w-8">
             <Link href={backButtonHref}>
@@ -21,7 +19,7 @@ export default function Header({ title = 'Clientes', showBackButton = false, bac
             </Link>
         </Button>
       )}
-      <h1 className="text-xl font-semibold">{title}</h1>
+      <h1 className="text-2xl font-semibold">{title}</h1>
     </header>
   );
 }

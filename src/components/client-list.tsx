@@ -33,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
+import Header from './header';
 
 type ClientListProps = {
   initialClients: ClientWithOwner[];
@@ -151,160 +152,165 @@ export default function ClientList({ initialClients }: ClientListProps) {
   }, [searchTerm, clients]);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Gestión de Clientes</CardTitle>
-              <CardDescription>Busque, agregue, edite o elimine clientes.</CardDescription>
+    <>
+      <Header title="Clientes" />
+      <div className="flex flex-col gap-6 mt-4">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Gestión de Clientes</CardTitle>
+                  <CardDescription>Busque, agregue, edite o elimine clientes.</CardDescription>
+                </div>
+                <Button onClick={handleAddClient} size="sm">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Nuevo Cliente
+                </Button>
             </div>
-            <Button onClick={handleAddClient} size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nuevo Cliente
-            </Button>
-        </div>
-         <div className="relative mt-4">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nombre, cédula, ciudad, propietario..."
-                className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>Operación</TableHead>
-                <TableHead>Valores</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Vencimiento</TableHead>
-                {user?.role === 'master' && <TableHead>Propietario</TableHead>}
-                <TableHead>
-                  <span className="sr-only">Acciones</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClients.length > 0 ? (
-                filteredClients.map(client => (
-                  <TableRow key={client.id}>
-                    <TableCell>
-                        <div className="font-medium">{client.nomSujeto}</div>
-                        <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
-                    </TableCell>
-                    <TableCell>
-                        <div>{client.ciudad || 'N/A'}</div>
-                        <div className="text-sm text-muted-foreground">{client.telefono || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell>
-                        <div>{client.numOperacion}</div>
-                        <div className="text-sm text-muted-foreground">API: {client.usuario || 'N/A'}</div>
-                    </TableCell>
-                    <TableCell>
-                        <div title="Valor Operación">{formatCurrency(client.valOperacion)}</div>
-                        <div className="text-sm text-muted-foreground" title="Valor Pago">{formatCurrency(client.valorPago)}</div>
-                        <div className="text-sm text-red-600" title="Valor Vencido">{formatCurrency(client.valorVencido)}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
-                        {displayStatus[client.estado]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {hasMounted ? formatDate(client.fecVencimiento) : ''}
-                    </TableCell>
-                    {user?.role === 'master' && (
-                        <TableCell>{client.ownerName || 'N/A'}</TableCell>
-                    )}
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Alternar menú</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                           <DropdownMenuItem asChild>
-                            <Link href={`/clients/${client.id}/units`}>
-                              <Car className="mr-2 h-4 w-4" /> Ver Unidades
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
-                            <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                            <Edit className="mr-2 h-4 w-4" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 8 : 7} className="text-center">
-                    No se encontraron clientes.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-2xl w-full">
-          <SheetHeader>
-            <SheetTitle>{selectedClient ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}</SheetTitle>
-          </SheetHeader>
-          <ClientForm
-            client={selectedClient}
-            onSave={handleFormSave}
-            onCancel={() => setIsSheetOpen(false)}
-          />
-        </SheetContent>
-      </Sheet>
-
-      <DeleteClientDialog
-        isOpen={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        client={selectedClient}
-        onDelete={() => {
-          if (selectedClient) {
-            onClientDeleted(selectedClient.id);
-          }
-        }}
-      />
-
-      <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Registrar Pago para {selectedClient?.nomSujeto}</DialogTitle>
-                  <DialogDescription>
-                      Seleccione la unidad y complete los detalles del pago.
-                  </DialogDescription>
-              </DialogHeader>
-              {selectedClient && (
-                  <ClientPaymentForm
-                      client={selectedClient}
-                      onSave={() => setIsPaymentDialogOpen(false)}
-                      onCancel={() => setIsPaymentDialogOpen(false)}
+            <div className="relative mt-4">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar por nombre, cédula, ciudad, propietario..."
+                    className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   />
-              )}
-          </DialogContent>
-      </Dialog>
-    </Card>
+                </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Contacto</TableHead>
+                    <TableHead>Operación</TableHead>
+                    <TableHead>Valores</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Vencimiento</TableHead>
+                    {user?.role === 'master' && <TableHead>Propietario</TableHead>}
+                    <TableHead>
+                      <span className="sr-only">Acciones</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredClients.length > 0 ? (
+                    filteredClients.map(client => (
+                      <TableRow key={client.id}>
+                        <TableCell>
+                            <div className="font-medium">{client.nomSujeto}</div>
+                            <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
+                        </TableCell>
+                        <TableCell>
+                            <div>{client.ciudad || 'N/A'}</div>
+                            <div className="text-sm text-muted-foreground">{client.telefono || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                            <div>{client.numOperacion}</div>
+                            <div className="text-sm text-muted-foreground">API: {client.usuario || 'N/A'}</div>
+                        </TableCell>
+                        <TableCell>
+                            <div title="Valor Operación">{formatCurrency(client.valOperacion)}</div>
+                            <div className="text-sm text-muted-foreground" title="Valor Pago">{formatCurrency(client.valorPago)}</div>
+                            <div className="text-sm text-red-600" title="Valor Vencido">{formatCurrency(client.valorVencido)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
+                            {displayStatus[client.estado]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {hasMounted ? formatDate(client.fecVencimiento) : ''}
+                        </TableCell>
+                        {user?.role === 'master' && (
+                            <TableCell>{client.ownerName || 'N/A'}</TableCell>
+                        )}
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Alternar menú</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem asChild>
+                                <Link href={`/clients/${client.id}/units`}>
+                                  <Car className="mr-2 h-4 w-4" /> Ver Unidades
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                                <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={user?.role === 'master' ? 8 : 7} className="text-center">
+                        No se encontraron clientes.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetContent className="sm:max-w-2xl w-full">
+              <SheetHeader>
+                <SheetTitle>{selectedClient ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}</SheetTitle>
+              </SheetHeader>
+              <ClientForm
+                client={selectedClient}
+                onSave={handleFormSave}
+                onCancel={() => setIsSheetOpen(false)}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <DeleteClientDialog
+            isOpen={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            client={selectedClient}
+            onDelete={() => {
+              if (selectedClient) {
+                onClientDeleted(selectedClient.id);
+              }
+            }}
+          />
+
+          <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+              <DialogContent>
+                  <DialogHeader>
+                      <DialogTitle>Registrar Pago para {selectedClient?.nomSujeto}</DialogTitle>
+                      <DialogDescription>
+                          Seleccione la unidad y complete los detalles del pago.
+                      </DialogDescription>
+                  </DialogHeader>
+                  {selectedClient && (
+                      <ClientPaymentForm
+                          client={selectedClient}
+                          onSave={() => setIsPaymentDialogOpen(false)}
+                          onCancel={() => setIsPaymentDialogOpen(false)}
+                      />
+                  )}
+              </DialogContent>
+          </Dialog>
+        </Card>
+      </div>
+    </>
   );
 }

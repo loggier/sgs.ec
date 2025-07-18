@@ -3,6 +3,7 @@ import { getUnitsByClientId } from '@/lib/unit-actions';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
 import { notFound } from 'next/navigation';
+import Header from '@/components/header';
 
 type UnitsPageProps = {
   params: {
@@ -40,16 +41,15 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-full">
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-        <UnitSummary 
-          totalUnits={totalUnits}
-          totalAmount={totalMonthlyAmount}
-          unitsByPlan={unitsByPlan}
-          unitsByContractType={unitsByContractType}
-        />
-        <UnitList initialUnits={units} clientId={clientId} />
-      </main>
+    <div className="flex flex-col h-full space-y-6">
+      <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/" />
+      <UnitSummary 
+        totalUnits={totalUnits}
+        totalAmount={totalMonthlyAmount}
+        unitsByPlan={unitsByPlan}
+        unitsByContractType={unitsByContractType}
+      />
+      <UnitList initialUnits={units} clientId={clientId} />
     </div>
   );
 }

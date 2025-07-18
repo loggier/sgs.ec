@@ -1,6 +1,7 @@
 import { getAllUnits } from '@/lib/unit-actions';
 import GlobalUnitList from '@/components/global-unit-list';
 import UnitSummary from '@/components/unit-summary';
+import Header from '@/components/header';
 
 export default async function GlobalUnitsPage() {
   const units = await getAllUnits();
@@ -27,16 +28,15 @@ export default async function GlobalUnitsPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-full">
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-        <UnitSummary 
-          totalUnits={totalUnits}
-          totalAmount={totalMonthlyAmount}
-          unitsByPlan={unitsByPlan}
-          unitsByContractType={unitsByContractType}
-        />
-        <GlobalUnitList initialUnits={units} />
-      </main>
+    <div className="flex flex-col h-full space-y-6">
+      <Header title="Todas las Unidades" />
+      <UnitSummary 
+        totalUnits={totalUnits}
+        totalAmount={totalMonthlyAmount}
+        unitsByPlan={unitsByPlan}
+        unitsByContractType={unitsByContractType}
+      />
+      <GlobalUnitList initialUnits={units} />
     </div>
   );
 }
