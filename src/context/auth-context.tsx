@@ -1,7 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { loginUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
 
