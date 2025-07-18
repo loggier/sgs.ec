@@ -20,6 +20,7 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
 
@@ -30,12 +31,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const userData = await response.json();
           setUser(userData);
+          setIsAuthenticated(true);
         } else {
           setUser(null);
+          setIsAuthenticated(false);
         }
       } catch (error) {
         console.error("Failed to fetch user session", error);
         setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -47,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
+      setIsAuthenticated(true);
       router.push('/');
     } else {
       throw new Error(result.message);
@@ -56,17 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await logoutUser();
     setUser(null);
+    setIsAuthenticated(false);
     router.push('/login');
   };
   
   const updateUserContext = (newUser: User) => {
-      // Replace the entire user object to ensure all fields, including role, are up-to-date.
       setUser(newUser);
   };
 
   const value = {
     user,
-    isAuthenticated: !!user,
+    isAuthenticated,
     isLoading,
     login,
     logout,
