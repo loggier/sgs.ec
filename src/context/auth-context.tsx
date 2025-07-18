@@ -21,7 +21,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   React.useEffect(() => {
     const checkUser = async () => {
@@ -42,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
     checkUser();
-  }, [pathname]);
+  }, []);
 
   const login = async (username: string, password: string) => {
     const result = await loginUser({ username, password });
