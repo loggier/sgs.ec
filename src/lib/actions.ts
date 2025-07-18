@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -90,10 +91,12 @@ export async function getClientById(id: string): Promise<ClientWithOwner | undef
     let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
     
     if (user.role === 'master') {
-        const ownerDocRef = doc(db, 'users', data.ownerId);
-        const ownerDoc = await getDoc(ownerDocRef);
-        if (ownerDoc.exists()) {
-            clientData.ownerName = (ownerDoc.data() as User).nombre;
+        if (data.ownerId) {
+            const ownerDocRef = doc(db, 'users', data.ownerId);
+            const ownerDoc = await getDoc(ownerDocRef);
+            if (ownerDoc.exists()) {
+                clientData.ownerName = (ownerDoc.data() as User).nombre;
+            }
         }
     }
 
@@ -135,15 +138,20 @@ export async function saveClient(
     });
 
     if (id) {
-      const existingClient = await getClientById(id);
-      if (!existingClient) {
+      const existingClientRef = doc(db, 'clients', id);
+      const existingClientSnap = await getDoc(existingClientRef);
+      if (!existingClientSnap.exists()) {
           return { success: false, message: 'Cliente no encontrado.' };
       }
+      const existingClient = existingClientSnap.data();
+      // Security check
+      if (user.role !== 'master' && existingClient.ownerId !== user.id) {
+        return { success: false, message: 'No tiene permiso para editar este cliente.' };
+      }
+      
       // Re-assign ownerId to prevent it from being changed on update
       dataToSave.ownerId = existingClient.ownerId;
-
-      const clientDocRef = doc(db, 'clients', id);
-      await updateDoc(clientDocRef, dataToSave);
+      await updateDoc(existingClientRef, dataToSave);
     } else {
       const clientsCollection = collection(db, 'clients');
       const newClientRef = await addDoc(clientsCollection, dataToSave);
@@ -169,10 +177,12 @@ export async function deleteClient(id: string): Promise<{ success: boolean; mess
    if (!user) return { success: false, message: 'No autenticado.' };
 
    try {
-    const existingClient = await getClientById(id);
-    if (!existingClient) {
+    const clientDocRef = doc(db, 'clients', id);
+    const clientDoc = await getDoc(clientDocRef);
+    if (!clientDoc.exists()) {
       return { success: false, message: 'Cliente no encontrado.' };
     }
+    const existingClient = clientDoc.data();
     // Security check
     if (user.role !== 'master' && existingClient.ownerId !== user.id) {
         return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
