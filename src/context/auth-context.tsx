@@ -31,24 +31,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (response.ok) {
                 const data = await response.json();
                 setUser(data.user);
+                 if (pathname === '/login') {
+                    router.push('/');
+                }
             } else {
                 setUser(null);
-                // The middleware handles redirection, no need to push here
+                if (pathname !== '/login') {
+                    router.push('/login');
+                }
             }
         } catch (error) {
             console.error("Failed to fetch user session", error);
             setUser(null);
+             if (pathname !== '/login') {
+                router.push('/login');
+            }
         } finally {
             setIsLoading(false);
         }
     };
-    // Only check session if not on the login page to avoid race conditions during login
-    if (pathname !== '/login') {
-        checkUser();
-    } else {
-        setIsLoading(false);
-    }
-  }, [pathname]);
+    checkUser();
+  }, [pathname, router]);
 
   const login = async (username: string, password: string) => {
     const result = await loginUser({ username, password });
