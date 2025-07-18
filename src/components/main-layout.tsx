@@ -1,10 +1,9 @@
-
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, Loader2 } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit } from 'lucide-react';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -42,26 +41,18 @@ function NavLink({ href, children }: NavLinkProps) {
 }
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { logout, user, updateUserContext, isLoading } = useAuth();
+  const { logout, user, updateUserContext } = useAuth();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
-
+  
   const handleProfileSave = (updatedUser: User) => {
     updateUserContext(updatedUser);
     setIsProfileDialogOpen(false);
   };
-  
-  if (isLoading) {
-      return (
-          <div className="flex h-screen w-full items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-      );
-  }
 
   return (
     <SidebarProvider>
@@ -123,7 +114,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <Edit className="mr-2 h-4 w-4" />
                         <span>Editar Perfil</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => logout()}>
+                    <DropdownMenuItem onClick={logout}>
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Cerrar Sesión</span>
                     </DropdownMenuItem>

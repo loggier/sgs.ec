@@ -1,22 +1,31 @@
-
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/auth-context';
 import MainLayout from './main-layout';
+import { Loader2 } from 'lucide-react';
+import ProtectedRoute from './protected-route';
+
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { isLoading } = useAuth();
 
-  // The middleware protects routes. If we are not on the login page,
-  // it means we are authenticated and should show the main layout.
-  if (pathname !== '/login') {
+  if (isLoading) {
     return (
-      <MainLayout>
-        {children}
-      </MainLayout>
+        <div className="flex h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
     );
   }
+
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
   
-  // This will render the login page itself, as it's the only other case.
-  return <>{children}</>;
+  return (
+    <ProtectedRoute>
+      <MainLayout>{children}</MainLayout>
+    </ProtectedRoute>
+  );
 }
