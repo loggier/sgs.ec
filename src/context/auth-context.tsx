@@ -7,6 +7,7 @@ import { updateProfile } from '@/lib/user-actions';
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string; user?: User; }>;
   logout: () => Promise<void>;
   updateUserContext: (newUser: User) => void;
@@ -22,6 +23,37 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const [user, setUser] = React.useState<User | null>(initialUser);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchUser() {
+      // If we have an initial user from server, no need to fetch unless we want to revalidate
+      if (initialUser) {
+        setUser(initialUser);
+        setIsLoading(false);
+        return;
+      }
+      
+      // If no initial user, try to fetch from API
+      try {
+        const response = await fetch('/api/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user", error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchUser();
+  }, [initialUser]);
+
 
   const login = async (username: string, password: string) => {
     try {
@@ -68,6 +100,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const value = {
     user,
     isAuthenticated: !!user,
+    isLoading,
     login,
     logout,
     updateUserContext,
