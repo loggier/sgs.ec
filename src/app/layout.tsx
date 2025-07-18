@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import AppContent from '@/components/app-content';
-import { getCurrentUser } from '@/lib/auth';
+import { getLoginSession } from '@/lib/auth';
 
 
 export const metadata: Metadata = {
@@ -17,7 +17,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const initialUser = await getCurrentUser();
+  const session = await getLoginSession();
 
   return (
     <html lang="es" suppressHydrationWarning>
@@ -30,7 +30,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider initialUser={initialUser}>
+        <AuthProvider initialUser={session}>
             <AppContent>
               {children}
             </AppContent>

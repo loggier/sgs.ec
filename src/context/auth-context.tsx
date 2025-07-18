@@ -1,14 +1,13 @@
-
 'use client';
 
 import * as React from 'react';
-import { loginUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
+import { updateProfile } from '@/lib/user-actions';
 
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<{ success: boolean; message: string; user?: User; }>;
   logout: () => Promise<void>;
   updateUserContext: (newUser: User) => void;
   updateUser: (userId: string, data: ProfileFormInput) => Promise<{success: boolean; message: string; user?: User;}>;
@@ -26,16 +25,26 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
 
   const login = async (username: string, password: string) => {
     try {
-        const result = await loginUser({ username, password });
-        if (result.success && result.user) {
-            // Force a full page reload to ensure the new cookie is read by the server layout
-            // and the entire app state is reset correctly.
-            window.location.href = '/';
-        } else {
-            throw new Error(result.message);
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+        });
+        
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Error de inicio de sesión');
         }
+        
+        // Force a full page reload to ensure the new cookie is read
+        // by the server layout and the entire app state is reset correctly.
+        window.location.href = '/';
+        return { success: true, message: "Inicio de sesión exitoso", user: data.user };
+
     } catch (error) {
-        throw error;
+        const message = error instanceof Error ? error.message : 'Error desconocido';
+        return { success: false, message };
     }
   };
 

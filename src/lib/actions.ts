@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientWithOwner } from './schema';
-import { getCurrentUser } from './auth';
+import { getLoginSession } from './auth';
 import type { User } from './user-schema';
 
 // Helper function to convert Firestore Timestamps to Dates in a document
@@ -31,17 +31,17 @@ const convertTimestamps = (docData: any) => {
 };
 
 export async function getClients(): Promise<ClientWithOwner[]> {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const session = await getLoginSession();
+  if (!session) return [];
 
   try {
     const clientsCollectionRef = collection(db, 'clients');
     let q;
 
-    if (user.role === 'master') {
+    if (session.role === 'master') {
       q = query(clientsCollectionRef);
     } else {
-      q = query(clientsCollectionRef, where('ownerId', '==', user.id));
+      q = query(clientsCollectionRef, where('ownerId', '==', session.id));
     }
     
     const clientSnapshot = await getDocs(q);
@@ -51,7 +51,7 @@ export async function getClients(): Promise<ClientWithOwner[]> {
         return { id: doc.id, ...data } as ClientWithOwner;
     });
 
-    if (user.role === 'master') {
+    if (session.role === 'master') {
         const usersCollection = collection(db, 'users');
         const usersSnapshot = await getDocs(usersCollection);
         const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
@@ -70,8 +70,8 @@ export async function getClients(): Promise<ClientWithOwner[]> {
 }
 
 export async function getClientById(id: string): Promise<ClientWithOwner | undefined> {
-   const user = await getCurrentUser();
-   if (!user) return undefined;
+   const session = await getLoginSession();
+   if (!session) return undefined;
 
   try {
     const clientDocRef = doc(db, 'clients', id);
@@ -83,14 +83,14 @@ export async function getClientById(id: string): Promise<ClientWithOwner | undef
     const data = convertTimestamps(clientDoc.data()) as Client;
     
     // Security check: ensure user owns the client or is a master user
-    if (user.role !== 'master' && data.ownerId !== user.id) {
-        console.warn(`Security violation: User ${user.id} attempted to access client ${id} owned by ${data.ownerId}`);
+    if (session.role !== 'master' && data.ownerId !== session.id) {
+        console.warn(`Security violation: User ${session.id} attempted to access client ${id} owned by ${data.ownerId}`);
         return undefined;
     }
 
     let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
     
-    if (user.role === 'master') {
+    if (session.role === 'master') {
         if (data.ownerId) {
             const ownerDocRef = doc(db, 'users', data.ownerId);
             const ownerDoc = await getDoc(ownerDocRef);
@@ -111,12 +111,12 @@ export async function saveClient(
   data: Omit<Client, 'id' | 'ownerId'>,
   id?: string
 ): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
-  const user = await getCurrentUser();
-  if (!user) {
+  const session = await getLoginSession();
+  if (!session) {
       return { success: false, message: 'No autenticado. Inicie sesión para continuar.' };
   }
 
-  const dataWithOwner = { ...data, ownerId: user.id };
+  const dataWithOwner = { ...data, ownerId: session.id };
   const validation = ClientSchema.omit({ id: true }).safeParse(dataWithOwner);
 
   if (!validation.success) {
@@ -145,7 +145,7 @@ export async function saveClient(
       }
       const existingClient = existingClientSnap.data();
       // Security check
-      if (user.role !== 'master' && existingClient.ownerId !== user.id) {
+      if (session.role !== 'master' && existingClient.ownerId !== session.id) {
         return { success: false, message: 'No tiene permiso para editar este cliente.' };
       }
       
@@ -173,8 +173,8 @@ export async function saveClient(
 }
 
 export async function deleteClient(id: string): Promise<{ success: boolean; message: string }> {
-   const user = await getCurrentUser();
-   if (!user) return { success: false, message: 'No autenticado.' };
+   const session = await getLoginSession();
+   if (!session) return { success: false, message: 'No autenticado.' };
 
    try {
     const clientDocRef = doc(db, 'clients', id);
@@ -184,7 +184,7 @@ export async function deleteClient(id: string): Promise<{ success: boolean; mess
     }
     const existingClient = clientDoc.data();
     // Security check
-    if (user.role !== 'master' && existingClient.ownerId !== user.id) {
+    if (session.role !== 'master' && existingClient.ownerId !== session.id) {
         return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
     }
 

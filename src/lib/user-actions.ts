@@ -17,18 +17,13 @@ import {
 import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput } from './user-schema';
 import bcrypt from 'bcryptjs';
-import { cookies } from 'next/headers';
+import { getLoginSession } from './auth';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
   const salt = await bcrypt.genSalt(10);
   return await bcrypt.hash(password, salt);
 };
-
-const comparePassword = async (password: string, hash: string) => {
-  return await bcrypt.compare(password, hash);
-};
-
 
 // Helper function to fetch users without returning passwords
 const fetchUsersFromFirestore = async (): Promise<User[]> => {
@@ -137,49 +132,15 @@ export async function deleteUser(id: string): Promise<{ success: boolean; messag
   }
 }
 
-export async function loginUser(credentials: {username: string; password: string;}): Promise<{success: boolean; message: string; user?: User}> {
-    try {
-        const { username, password } = credentials;
-
-        const usersCollection = collection(db, 'users');
-        const q = query(usersCollection, where("username", "==", username), limit(1));
-        const userSnapshot = await getDocs(q);
-
-        if (userSnapshot.empty) {
-            return { success: false, message: 'Usuario o contraseña incorrectos.' };
-        }
-
-        const userDoc = userSnapshot.docs[0];
-        const userData = userDoc.data() as User;
-
-        const passwordMatch = await comparePassword(password, userData.password);
-
-        if (!passwordMatch) {
-            return { success: false, message: 'Usuario o contraseña incorrectos.' };
-        }
-        
-        const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
-        
-        // Set cookie
-        cookies().set('user', JSON.stringify(userWithoutPassword), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          maxAge: 60 * 60 * 24 * 7, // 1 week
-          path: '/',
-        });
-
-        return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
-
-    } catch (error) {
-        console.error("Error during login:", error);
-        return { success: false, message: 'Ocurrió un error en el servidor.' };
-    }
-}
-
 export async function updateProfile(
     userId: string,
     data: ProfileFormInput
 ): Promise<{ success: boolean; message: string; user?: User }> {
+    const session = await getLoginSession();
+    if (!session || session.id !== userId) {
+      return { success: false, message: "No autorizado." };
+    }
+
     const validation = ProfileFormSchema.safeParse(data);
 
     if (!validation.success) {
@@ -200,19 +161,15 @@ export async function updateProfile(
 
         await updateDoc(userDocRef, userDataToUpdate as Record<string, any>);
         
+        // Fetch the updated user to get the complete object
         const updatedUserDoc = await getDoc(userDocRef);
         if (!updatedUserDoc.exists()) {
             return { success: false, message: 'No se pudo encontrar el usuario actualizado.' };
         }
         const { password: _, ...updatedUser } = { id: userId, ...updatedUserDoc.data() } as User;
         
-        // Re-set the cookie with updated information
-        cookies().set('user', JSON.stringify(updatedUser), {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24 * 7, // 1 week
-            path: '/',
-        });
+        // This server action can't set the cookie, 
+        // but the session will be updated on the next request via getLoginSession.
 
         return { success: true, message: 'Perfil actualizado con éxito.', user: updatedUser };
 

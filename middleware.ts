@@ -1,19 +1,18 @@
-
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getLoginSession } from '@/lib/auth';
 
-// This function can be marked `async` if using `await` inside
-export function middleware(request: NextRequest) {
-  const userCookie = request.cookies.get('user');
+export async function middleware(request: NextRequest) {
+  const session = await getLoginSession();
   const { pathname } = request.nextUrl;
 
-  // If there's no user cookie and they're not on the login page, redirect to login
-  if (!userCookie && pathname !== '/login') {
+  // If there's no session and they're not on the login page, redirect to login
+  if (!session && pathname !== '/login') {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // If there is a user cookie and they're on the login page, redirect to home
-  if (userCookie && pathname === '/login') {
+  // If there is a session and they're on the login page, redirect to home
+  if (session && pathname === '/login') {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

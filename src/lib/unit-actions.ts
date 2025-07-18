@@ -17,7 +17,7 @@ import {
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientWithOwner } from './schema';
-import { getCurrentUser } from './auth';
+import { getLoginSession } from './auth';
 import type { User } from './user-schema';
 
 const convertTimestamps = (docData: any) => {
@@ -31,8 +31,8 @@ const convertTimestamps = (docData: any) => {
 };
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
-  const user = await getCurrentUser();
-  if (!user) return [];
+  const session = await getLoginSession();
+  if (!session) return [];
 
   try {
     // Security check: Make sure user owns the client or is a master
@@ -41,8 +41,8 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
     if (!clientDoc.exists()) return [];
 
     const clientData = clientDoc.data() as Client;
-    if (user.role !== 'master' && clientData.ownerId !== user.id) {
-        console.warn(`Security violation: User ${user.id} attempting to access units for client ${clientId}`);
+    if (session.role !== 'master' && clientData.ownerId !== session.id) {
+        console.warn(`Security violation: User ${session.id} attempting to access units for client ${clientId}`);
         return [];
     }
 
@@ -60,8 +60,8 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
 }
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
-    const user = await getCurrentUser();
-    if (!user) return null;
+    const session = await getLoginSession();
+    if (!session) return null;
 
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
@@ -72,7 +72,7 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
     if (!clientDoc.exists()) return null;
 
     const clientData = clientDoc.data() as Client;
-    if (user.role !== 'master' && clientData.ownerId !== user.id) {
+    if (session.role !== 'master' && clientData.ownerId !== session.id) {
         return null; // Security check
     }
 
@@ -86,12 +86,12 @@ export async function saveUnit(
   clientId: string,
   unitId?: string
 ): Promise<{ success: boolean; message:string; unit?: Unit }> {
-  const user = await getCurrentUser();
-  if (!user) return { success: false, message: 'No autenticado.' };
+  const session = await getLoginSession();
+  if (!session) return { success: false, message: 'No autenticado.' };
 
   const clientDocRef = doc(db, 'clients', clientId);
   const clientDoc = await getDoc(clientDocRef);
-  if (!clientDoc.exists() || (user.role !== 'master' && clientDoc.data().ownerId !== user.id)) {
+  if (!clientDoc.exists() || (session.role !== 'master' && clientDoc.data().ownerId !== session.id)) {
       return { success: false, message: 'No tiene permiso para modificar este cliente.' };
   }
   
@@ -142,13 +142,13 @@ export async function saveUnit(
 }
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
-  const user = await getCurrentUser();
-  if (!user) return { success: false, message: 'No autenticado.' };
+  const session = await getLoginSession();
+  if (!session) return { success: false, message: 'No autenticado.' };
 
   try {
     const clientDocRef = doc(db, 'clients', clientId);
     const clientDoc = await getDoc(clientDocRef);
-    if (!clientDoc.exists() || (user.role !== 'master' && clientDoc.data().ownerId !== user.id)) {
+    if (!clientDoc.exists() || (session.role !== 'master' && clientDoc.data().ownerId !== session.id)) {
         return { success: false, message: 'No tiene permiso para eliminar unidades de este cliente.' };
     }
 
@@ -164,8 +164,8 @@ export async function deleteUnit(unitId: string, clientId: string): Promise<{ su
 }
 
 export async function getAllUnits(): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
-    const user = await getCurrentUser();
-    if (!user) return [];
+    const session = await getLoginSession();
+    if (!session) return [];
 
     try {
         const clientsCollection = collection(db, 'clients');
@@ -196,8 +196,8 @@ export async function getAllUnits(): Promise<(Unit & { clientName: string; owner
             } as Unit & { clientName: string; ownerId: string; ownerName?: string };
         });
 
-        if (user.role !== 'master') {
-            allUnits = allUnits.filter(unit => unit.ownerId === user.id);
+        if (session.role !== 'master') {
+            allUnits = allUnits.filter(unit => unit.ownerId === session.id);
         }
 
         return allUnits;
