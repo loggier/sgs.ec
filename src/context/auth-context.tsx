@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     async function checkSession() {
+      setIsLoading(true);
       try {
         const response = await fetch('/api/me');
         if (response.ok) {
