@@ -1,6 +1,5 @@
 import { getClientById } from '@/lib/actions';
 import { getUnitsByClientId } from '@/lib/unit-actions';
-import Header from '@/components/header';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
 import { notFound } from 'next/navigation';
@@ -41,12 +40,7 @@ export default async function UnitsPage({ params }: UnitsPageProps) {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header 
-        title={`Unidades de ${client.nomSujeto}`} 
-        showBackButton 
-        backButtonHref="/"
-      />
+    <div className="flex flex-col h-full">
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         <UnitSummary 
           totalUnits={totalUnits}

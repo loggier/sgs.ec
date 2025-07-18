@@ -1,6 +1,5 @@
 import { getAllUnits } from '@/lib/unit-actions';
 import GlobalUnitList from '@/components/global-unit-list';
-import Header from '@/components/header';
 import UnitSummary from '@/components/unit-summary';
 
 export default async function GlobalUnitsPage() {
@@ -28,8 +27,7 @@ export default async function GlobalUnitsPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header title="Todas las Unidades" />
+    <div className="flex flex-col h-full">
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         <UnitSummary 
           totalUnits={totalUnits}
