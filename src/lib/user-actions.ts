@@ -87,7 +87,7 @@ export async function saveUser(
         userDataToUpdate.password = await hashPassword(password);
       }
       
-      await updateDoc(userDocRef, userDataToUpdate);
+      await updateDoc(userDocRef, userDataToUpdate as Record<string, any>);
       const updatedDoc = await getDoc(userDocRef);
       const { password: _, ...userWithoutPassword } = { id, ...updatedDoc.data() } as User;
       
