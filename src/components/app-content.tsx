@@ -29,7 +29,6 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // Si está autenticado y no es la página de login, muestra el layout principal
   if (isAuthenticated && pathname !== '/login') {
     return (
       <MainLayout 
@@ -42,6 +41,5 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
   
-  // Para la página de login o si no está autenticado, muestra solo el contenido
   return <>{children}</>;
 }

@@ -18,39 +18,30 @@ type AuthContextType = {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = React.useState<User | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+type AuthProviderProps = {
+    children: React.ReactNode;
+    initialUser: User | null;
+};
+
+export function AuthProvider({ children, initialUser }: AuthProviderProps) {
+  const [user, setUser] = React.useState<User | null>(initialUser);
+  const [isLoading, setIsLoading] = React.useState(false); 
   const router = useRouter();
 
-  React.useEffect(() => {
-    const checkUser = async () => {
-        setIsLoading(true);
-        try {
-            const response = await fetch('/api/auth/session');
-            if (response.ok) {
-                const data = await response.json();
-                setUser(data.user);
-            } else {
-                setUser(null);
-            }
-        } catch (error) {
-            console.error("Failed to fetch user session", error);
-            setUser(null);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    checkUser();
-  }, []);
-
   const login = async (username: string, password: string) => {
-    const result = await loginUser({ username, password });
-    if (result.success && result.user) {
-      setUser(result.user);
-      router.push('/');
-    } else {
-      throw new Error(result.message);
+    setIsLoading(true);
+    try {
+        const result = await loginUser({ username, password });
+        if (result.success && result.user) {
+            setUser(result.user);
+            router.push('/');
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (error) {
+        throw error;
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -61,14 +52,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/login');
     } else {
         console.error('Logout failed');
-        // Even if server fails, clear client state and redirect
         setUser(null);
         router.push('/login');
     }
   };
   
   const updateUserContext = (newUser: User) => {
-    setUser(newUser);
+    setUser(currentUser => currentUser ? { ...currentUser, ...newUser } : newUser);
   }
 
   const value = {

@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import AppContent from '@/components/app-content';
+import { getCurrentUser } from '@/lib/auth';
 
 
 export const metadata: Metadata = {
@@ -11,11 +12,13 @@ export const metadata: Metadata = {
   description: 'Sistema de gestion de cliente.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialUser = await getCurrentUser();
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -27,7 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
+        <AuthProvider initialUser={initialUser}>
             <AppContent>
               {children}
             </AppContent>
