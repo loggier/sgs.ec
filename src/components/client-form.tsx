@@ -40,7 +40,7 @@ type ClientFormProps = {
   onCancel: () => void;
 };
 
-const formSchema = ClientSchema.omit({ id: true });
+const formSchema = ClientSchema.omit({ id: true, ownerId: true });
 type FormSchemaType = z.infer<typeof formSchema>;
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
@@ -323,7 +323,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Valor de Operación</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="5000" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)} />
+                          <Input type="number" placeholder="5000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -336,7 +336,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Valor del Pago</FormLabel>
                         <FormControl>
-                           <Input type="number" placeholder="5000" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)} />
+                           <Input type="number" placeholder="5000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -352,7 +352,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                       <FormItem>
                         <FormLabel>Valor Vencido</FormLabel>
                         <FormControl>
-                           <Input type="number" placeholder="0" {...field} onChange={e => field.onChange(e.target.value === '' ? null : e.target.valueAsNumber)} />
+                           <Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

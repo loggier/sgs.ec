@@ -12,10 +12,13 @@ import {
   getDoc,
   collectionGroup,
   query,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
-import type { Client } from './schema';
+import type { Client, ClientWithOwner } from './schema';
+import { getCurrentUser } from './auth';
+import type { User } from './user-schema';
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -28,7 +31,21 @@ const convertTimestamps = (docData: any) => {
 };
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+
   try {
+    // Security check: Make sure user owns the client or is a master
+    const clientDocRef = doc(db, 'clients', clientId);
+    const clientDoc = await getDoc(clientDocRef);
+    if (!clientDoc.exists()) return [];
+
+    const clientData = clientDoc.data() as Client;
+    if (user.role !== 'master' && clientData.ownerId !== user.id) {
+        console.warn(`Security violation: User ${user.id} attempting to access units for client ${clientId}`);
+        return [];
+    }
+
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
     const unitsList = unitSnapshot.docs.map(doc => {
@@ -43,9 +60,22 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
 }
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
+    const user = await getCurrentUser();
+    if (!user) return null;
+
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
+
+    const clientDocRef = doc(db, 'clients', clientId);
+    const clientDoc = await getDoc(clientDocRef);
+    if (!clientDoc.exists()) return null;
+
+    const clientData = clientDoc.data() as Client;
+    if (user.role !== 'master' && clientData.ownerId !== user.id) {
+        return null; // Security check
+    }
+
     const data = convertTimestamps(unitDoc.data());
     return { id: unitDoc.id, clientId, ...data } as Unit;
 }
@@ -56,6 +86,15 @@ export async function saveUnit(
   clientId: string,
   unitId?: string
 ): Promise<{ success: boolean; message:string; unit?: Unit }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, message: 'No autenticado.' };
+
+  const clientDocRef = doc(db, 'clients', clientId);
+  const clientDoc = await getDoc(clientDocRef);
+  if (!clientDoc.exists() || (user.role !== 'master' && clientDoc.data().ownerId !== user.id)) {
+      return { success: false, message: 'No tiene permiso para modificar este cliente.' };
+  }
+  
   const validation = UnitFormSchema.safeParse(data);
 
   if (!validation.success) {
@@ -64,7 +103,6 @@ export async function saveUnit(
   }
   
   try {
-    // Create a new object for Firestore to avoid passing undefined, which is not allowed.
     const unitDataForFirestore: any = {
       ...validation.data,
       ultimoPago: null,
@@ -104,7 +142,16 @@ export async function saveUnit(
 }
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, message: 'No autenticado.' };
+
   try {
+    const clientDocRef = doc(db, 'clients', clientId);
+    const clientDoc = await getDoc(clientDocRef);
+    if (!clientDoc.exists() || (user.role !== 'master' && clientDoc.data().ownerId !== user.id)) {
+        return { success: false, message: 'No tiene permiso para eliminar unidades de este cliente.' };
+    }
+
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);
@@ -116,27 +163,42 @@ export async function deleteUnit(unitId: string, clientId: string): Promise<{ su
   }
 }
 
-export async function getAllUnits(): Promise<(Unit & { clientName: string })[]> {
+export async function getAllUnits(): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
+    const user = await getCurrentUser();
+    if (!user) return [];
+
     try {
         const clientsCollection = collection(db, 'clients');
         const clientsSnapshot = await getDocs(clientsCollection);
-        const allClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Omit<Client, 'placaVehiculo'>));
-        const clientMap = new Map(allClients.map(c => [c.id, c.nomSujeto]));
+        const allClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClientWithOwner));
+        const clientMap = new Map(allClients.map(c => [c.id, c]));
+
+        const usersCollection = collection(db, 'users');
+        const usersSnapshot = await getDocs(usersCollection);
+        const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
         const unitsQuery = query(collectionGroup(db, 'units'));
         const unitsSnapshot = await getDocs(unitsQuery);
 
-        const allUnits = unitsSnapshot.docs.map(doc => {
+        let allUnits = unitsSnapshot.docs.map(doc => {
             const data = convertTimestamps(doc.data());
             const clientId = doc.ref.parent.parent!.id;
-            const clientName = clientMap.get(clientId) || 'Cliente Desconocido';
+            const client = clientMap.get(clientId);
+            const owner = client ? usersMap.get(client.ownerId) : undefined;
+            
             return {
                 id: doc.id,
                 clientId,
-                clientName,
+                clientName: client?.nomSujeto || 'Cliente Desconocido',
+                ownerId: client?.ownerId,
+                ownerName: owner?.nombre || 'Propietario Desconocido',
                 ...data
-            } as Unit & { clientName: string };
+            } as Unit & { clientName: string; ownerId: string; ownerName?: string };
         });
+
+        if (user.role !== 'master') {
+            allUnits = allUnits.filter(unit => unit.ownerId === user.id);
+        }
 
         return allUnits;
     } catch (error) {

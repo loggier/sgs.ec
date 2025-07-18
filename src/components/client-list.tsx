@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Search } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Search, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
-import type { Client } from '@/lib/schema';
+import type { Client, ClientWithOwner } from '@/lib/schema';
+import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -34,7 +35,7 @@ import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
 
 type ClientListProps = {
-  initialClients: Omit<Client, 'placaVehiculo'>[];
+  initialClients: ClientWithOwner[];
 };
 
 function formatCurrency(amount?: number | null) {
@@ -52,12 +53,13 @@ function formatDate(date?: Date | string | null) {
 }
 
 export default function ClientList({ initialClients }: ClientListProps) {
+  const { user } = useAuth();
   const [clients, setClients] = React.useState(initialClients);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [selectedClient, setSelectedClient] = React.useState<Omit<Client, 'placaVehiculo'> | null>(null);
+  const [selectedClient, setSelectedClient] = React.useState<ClientWithOwner | null>(null);
 
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
@@ -73,29 +75,30 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setIsSheetOpen(true);
   };
 
-  const handleEditClient = (client: Omit<Client, 'placaVehiculo'>) => {
+  const handleEditClient = (client: ClientWithOwner) => {
     setSelectedClient(client);
     setIsSheetOpen(true);
   };
 
-  const handleDeleteClient = (client: Omit<Client, 'placaVehiculo'>) => {
+  const handleDeleteClient = (client: ClientWithOwner) => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
 
-  const handleRegisterPayment = (client: Omit<Client, 'placaVehiculo'>) => {
+  const handleRegisterPayment = (client: ClientWithOwner) => {
     setSelectedClient(client);
     setIsPaymentDialogOpen(true);
   }
 
-  const handleFormSave = (result: { client?: Omit<Client, 'placaVehiculo'> }) => {
+  const handleFormSave = (result: { client?: ClientWithOwner }) => {
     if (result.client) {
       setClients(currentClients => {
-        const existing = currentClients.find(c => c.id === result.client!.id);
+        const newClient = { ...result.client, ownerName: result.client.ownerName || user?.nombre };
+        const existing = currentClients.find(c => c.id === newClient.id);
         if (existing) {
-          return currentClients.map(c => c.id === result.client!.id ? result.client! : c);
+          return currentClients.map(c => c.id === newClient.id ? newClient : c);
         }
-        return [...currentClients, result.client!];
+        return [...currentClients, newClient];
       });
     }
     
@@ -142,7 +145,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
         client.codIdSujeto.toLowerCase().includes(lowercasedTerm) ||
         (client.ciudad && client.ciudad.toLowerCase().includes(lowercasedTerm)) ||
         (client.telefono && client.telefono.includes(lowercasedTerm)) ||
-        client.numOperacion.toLowerCase().includes(lowercasedTerm)
+        client.numOperacion.toLowerCase().includes(lowercasedTerm) ||
+        (client.ownerName && client.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, clients]);
 
@@ -163,7 +167,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar por nombre, cédula, ciudad..."
+                placeholder="Buscar por nombre, cédula, ciudad, propietario..."
                 className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -181,6 +185,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 <TableHead>Valores</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Vencimiento</TableHead>
+                {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -215,6 +220,9 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     <TableCell>
                       {hasMounted ? formatDate(client.fecVencimiento) : ''}
                     </TableCell>
+                    {user?.role === 'master' && (
+                        <TableCell>{client.ownerName || 'N/A'}</TableCell>
+                    )}
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -246,7 +254,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 8 : 7} className="text-center">
                     No se encontraron clientes.
                   </TableCell>
                 </TableRow>

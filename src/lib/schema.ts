@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
@@ -7,6 +8,7 @@ const optionalDateOrTimestamp = dateOrTimestamp.nullable().optional();
 
 export const ClientSchema = z.object({
   id: z.string().optional(),
+  ownerId: z.string(), // Added owner field
   codTipoId: z.enum(['C', 'R'], { required_error: 'Tipo de ID es requerido.' }),
   codIdSujeto: z.string().min(1, 'Cédula o RUC es requerido.'),
   nomSujeto: z.string().min(1, 'Nombre es requerido.'),
@@ -26,3 +28,6 @@ export const ClientSchema = z.object({
 });
 
 export type Client = z.infer<typeof ClientSchema>;
+
+// New type for client lists that includes the owner's name
+export type ClientWithOwner = Omit<Client, 'placaVehiculo'> & { ownerName?: string };

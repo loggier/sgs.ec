@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
 import type { Unit } from '@/lib/unit-schema';
+import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -33,7 +34,7 @@ import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 
-type GlobalUnit = Unit & { clientName: string };
+type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
 type GlobalUnitListProps = {
   initialUnits: GlobalUnit[];
@@ -54,6 +55,7 @@ function formatCurrency(amount?: number) {
 }
 
 export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
+  const { user } = useAuth();
   const [units, setUnits] = React.useState(initialUnits);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -88,7 +90,8 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
   const handleFormSave = (savedUnit: Unit) => {
     setUnits(currentUnits => {
         const clientName = currentUnits.find(u => u.clientId === savedUnit.clientId)?.clientName || 'N/A';
-        const newSavedUnit = { ...savedUnit, clientName };
+        const ownerName = currentUnits.find(u => u.clientId === savedUnit.clientId)?.ownerName || user?.nombre;
+        const newSavedUnit = { ...savedUnit, clientName, ownerName };
         const existing = currentUnits.find(u => u.id === savedUnit.id);
         if (existing) {
             return currentUnits.map(u => u.id === savedUnit.id ? newSavedUnit : u);
@@ -128,7 +131,8 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
     return units.filter(unit =>
         unit.placa.toLowerCase().includes(lowercasedTerm) ||
         unit.imei.toLowerCase().includes(lowercasedTerm) ||
-        unit.clientName.toLowerCase().includes(lowercasedTerm)
+        unit.clientName.toLowerCase().includes(lowercasedTerm) ||
+        (unit.ownerName && unit.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, units]);
 
@@ -146,7 +150,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar por placa, IMEI, cliente..."
+                placeholder="Buscar por placa, IMEI, cliente, propietario..."
                 className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -160,6 +164,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
               <TableRow>
                 <TableHead>Placa</TableHead>
                 <TableHead>Cliente</TableHead>
+                {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
@@ -180,6 +185,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
                         {unit.clientName}
                       </Link>
                     </TableCell>
+                    {user?.role === 'master' && <TableCell>{unit.ownerName}</TableCell>}
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
@@ -224,7 +230,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="text-center">
                     No se encontraron unidades.
                   </TableCell>
                 </TableRow>
