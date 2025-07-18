@@ -33,15 +33,14 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     try {
         const result = await loginUser({ username, password });
         if (result.success && result.user) {
-            setUser(result.user);
-            router.push('/');
+            // Force a full page reload to ensure the new cookie is read by the server layout
+            window.location.href = '/';
         } else {
             throw new Error(result.message);
         }
     } catch (error) {
+        setIsLoading(false); // Only set loading to false on error
         throw error;
-    } finally {
-        setIsLoading(false);
     }
   };
 
@@ -49,11 +48,11 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     const response = await fetch('/api/logout', { method: 'POST' });
     if (response.ok) {
         setUser(null);
-        router.push('/login');
+        window.location.href = '/login';
     } else {
         console.error('Logout failed');
         setUser(null);
-        router.push('/login');
+        window.location.href = '/login';
     }
   };
   
@@ -64,7 +63,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const value = {
     user,
     isAuthenticated: !!user,
-    isLoading,
+    isLoading: isLoading,
     login,
     logout,
     updateUserContext,
