@@ -17,6 +17,7 @@ import {
 import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput } from './user-schema';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
@@ -158,6 +159,14 @@ export async function loginUser(credentials: {username: string; password: string
         }
         
         const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
+        
+        // Set cookie
+        cookies().set('user', JSON.stringify(userWithoutPassword), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          maxAge: 60 * 60 * 24 * 7, // 1 week
+          path: '/',
+        });
 
         return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
 
@@ -196,6 +205,14 @@ export async function updateProfile(
             return { success: false, message: 'No se pudo encontrar el usuario actualizado.' };
         }
         const { password: _, ...updatedUser } = { id: userId, ...updatedUserDoc.data() } as User;
+        
+        // Re-set the cookie with updated information
+        cookies().set('user', JSON.stringify(updatedUser), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 60 * 24 * 7, // 1 week
+            path: '/',
+        });
 
         return { success: true, message: 'Perfil actualizado con éxito.', user: updatedUser };
 

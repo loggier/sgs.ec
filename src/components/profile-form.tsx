@@ -7,7 +7,6 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
 
 import { ProfileFormSchema, type ProfileFormInput, type User } from '@/lib/user-schema';
-import { updateProfile } from '@/lib/user-actions';
 import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -19,6 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/context/auth-context';
 
 type ProfileFormProps = {
   user: User;
@@ -28,6 +28,7 @@ type ProfileFormProps = {
 
 export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps) {
   const { toast } = useToast();
+  const { updateUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<ProfileFormInput>({
@@ -44,7 +45,7 @@ export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps
   async function onSubmit(values: ProfileFormInput) {
     setIsSubmitting(true);
     try {
-      const result = await updateProfile(user.id, values);
+      const result = await updateUser(user.id, values);
       if (result.success && result.user) {
         toast({
           title: 'Éxito',

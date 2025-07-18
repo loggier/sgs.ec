@@ -24,7 +24,7 @@ import ProfileForm from './profile-form';
 import type { User } from '@/lib/user-schema';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  const { logout, user, updateUser } = useAuth();
+  const { logout, user, updateUserContext } = useAuth();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
 
   const getInitials = (name?: string) => {
@@ -33,7 +33,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
   
   const handleProfileSave = (updatedUser: User) => {
-    updateUser(updatedUser);
+    updateUserContext(updatedUser);
     setIsProfileDialogOpen(false);
   }
 
@@ -104,7 +104,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <Edit className="mr-2 h-4 w-4" />
                         <span>Editar Perfil</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={logout}>
+                    <DropdownMenuItem onClick={() => logout()}>
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Cerrar Sesión</span>
                     </DropdownMenuItem>
