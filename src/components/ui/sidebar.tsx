@@ -206,18 +206,10 @@ SidebarFooter.displayName = "SidebarFooter"
 const SidebarInset = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  const { isCollapsed } = useSidebar()
-
+>((props, ref) => {
   return (
     <main
       ref={ref}
-      className={cn(
-        "transition-all duration-300 ease-in-out",
-        "md:ml-64",
-        isCollapsed ? "md:ml-16" : "md:ml-64",
-        className
-      )}
       {...props}
     />
   )
