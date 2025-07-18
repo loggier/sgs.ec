@@ -16,14 +16,12 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarFooter,
-  SidebarInset,
 } from './ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import ProfileForm from './profile-form';
-import Header from './header';
 
 type NavLinkProps = {
   href: string;
@@ -134,11 +132,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </SidebarFooter>
         </Sidebar>
 
-        <SidebarInset>
-            <main className="p-4 md:p-6 h-full overflow-auto">
-                {children}
-            </main>
-        </SidebarInset>
+        <main className="flex-1 p-4 md:p-6 h-screen overflow-auto">
+            {children}
+        </main>
 
         <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
           <DialogContent className="sm:max-w-xl">
