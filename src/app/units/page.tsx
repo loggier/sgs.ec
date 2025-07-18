@@ -1,3 +1,4 @@
+
 import { getAllUnits } from '@/lib/unit-actions';
 import GlobalUnitList from '@/components/global-unit-list';
 import UnitSummary from '@/components/unit-summary';
@@ -18,12 +19,14 @@ export default async function GlobalUnitsPage() {
   }, 0);
   
   const unitsByPlan = units.reduce((acc, unit) => {
-    acc[unit.tipoPlan] = (acc[unit.tipoPlan] || 0) + 1;
+    const plan = unit.tipoPlan || 'desconocido';
+    acc[plan] = (acc[plan] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   const unitsByContractType = units.reduce((acc, unit) => {
-    acc[unit.tipoContrato] = (acc[unit.tipoContrato] || 0) + 1;
+    const contractType = unit.tipoContrato || 'desconocido';
+    acc[contractType] = (acc[contractType] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 

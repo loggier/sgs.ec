@@ -1,15 +1,14 @@
+
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/context/auth-context';
 import MainLayout from './main-layout';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
 
-  // The middleware protects routes, so if we're not on the login page,
-  // we can assume we are authenticated and should show the main layout.
+  // The middleware protects routes. If we are not on the login page,
+  // it means we are authenticated and should show the main layout.
   if (pathname !== '/login') {
     return (
       <MainLayout>
@@ -18,6 +17,6 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
   
-  // This will render the login page, as it's the only case left.
+  // This will render the login page itself, as it's the only other case.
   return <>{children}</>;
 }

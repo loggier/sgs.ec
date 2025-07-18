@@ -1,7 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Search, User } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -33,7 +34,6 @@ import { Input } from '@/components/ui/input';
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
-import Header from './header';
 
 type ClientListProps = {
   initialClients: ClientWithOwner[];
@@ -153,7 +153,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
 
   return (
     <>
-      <Header title="Clientes" />
       <div className="flex flex-col gap-6 mt-4">
         <Card>
           <CardHeader>

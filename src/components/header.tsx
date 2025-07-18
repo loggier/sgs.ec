@@ -1,14 +1,15 @@
+
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 
 type HeaderProps = {
-  title?: string;
+  title: string;
   showBackButton?: boolean;
   backButtonHref?: string;
 };
 
-export default function Header({ title = 'Clientes', showBackButton = false, backButtonHref = '/' }: HeaderProps) {
+export default function Header({ title, showBackButton = false, backButtonHref = '/' }: HeaderProps) {
   return (
     <header className="flex h-16 items-center gap-4 px-4 md:px-0">
       {showBackButton && (
