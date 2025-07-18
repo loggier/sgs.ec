@@ -17,7 +17,7 @@ import {
 import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput } from './user-schema';
 import bcrypt from 'bcryptjs';
-import { getLoginSession } from './auth';
+import { createSession, deleteSession, getCurrentUser } from './auth';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
@@ -62,6 +62,9 @@ export async function loginUser(credentials: {username: string; password: string
         }
         
         const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
+        
+        // Create session cookie
+        await createSession(userWithoutPassword);
 
         return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
 
@@ -70,6 +73,12 @@ export async function loginUser(credentials: {username: string; password: string
         return { success: false, message: 'Ocurrió un error en el servidor.' };
     }
 }
+
+export async function logoutUser() {
+    deleteSession();
+    revalidatePath('/login');
+}
+
 
 export async function getUsers(): Promise<User[]> {
   try {

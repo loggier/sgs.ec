@@ -6,11 +6,14 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const secretKey = process.env.SECRET_KEY;
+if (!secretKey) {
+    throw new Error('La variable de entorno SECRET_KEY no está definida.');
+}
 const encodedKey = new TextEncoder().encode(secretKey);
 const TOKEN_NAME = 'user-token';
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
 
-export async function setLoginSession(user: Omit<User, 'password'>) {
+export async function createSession(user: Omit<User, 'password'>) {
     const token = await new SignJWT(user)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
@@ -26,7 +29,15 @@ export async function setLoginSession(user: Omit<User, 'password'>) {
     });
 }
 
-export async function getLoginSession(): Promise<User | null> {
+export function deleteSession() {
+    cookies().set(TOKEN_NAME, '', {
+        maxAge: -1,
+        path: '/',
+    });
+}
+
+
+export async function getCurrentUser(): Promise<User | null> {
     const token = cookies().get(TOKEN_NAME)?.value;
 
     if (!token) return null;

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { loginUser, updateProfile } from '@/lib/user-actions';
+import { loginUser, logoutUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
 
 type AuthContextType = {
@@ -23,40 +23,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   React.useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    async function checkSession() {
+      try {
+        const response = await fetch('/api/me');
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user session", error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('user');
-    } finally {
-      setIsLoading(false);
     }
+    checkSession();
   }, []);
 
   const login = async (username: string, password: string) => {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
-      localStorage.setItem('user', JSON.stringify(result.user));
       router.push('/');
     } else {
       throw new Error(result.message);
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await logoutUser();
     setUser(null);
-    localStorage.removeItem('user');
     router.push('/login');
   };
   
   const updateUserContext = (newUser: User) => {
       setUser(currentUser => {
         const updatedUser = currentUser ? { ...currentUser, ...newUser } : newUser;
-        localStorage.setItem('user', JSON.stringify(updatedUser));
         return updatedUser;
       });
   }

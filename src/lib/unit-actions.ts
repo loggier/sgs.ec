@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -17,7 +18,7 @@ import {
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientWithOwner } from './schema';
-import { getLoginSession } from './auth';
+import { getCurrentUser } from './auth';
 import type { User } from './user-schema';
 
 const convertTimestamps = (docData: any) => {
@@ -31,7 +32,7 @@ const convertTimestamps = (docData: any) => {
 };
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
-  const session = await getLoginSession();
+  const session = await getCurrentUser();
   if (!session) return [];
 
   try {
@@ -60,7 +61,7 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
 }
 
 const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
-    const session = await getLoginSession();
+    const session = await getCurrentUser();
     if (!session) return null;
 
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
@@ -86,7 +87,7 @@ export async function saveUnit(
   clientId: string,
   unitId?: string
 ): Promise<{ success: boolean; message:string; unit?: Unit }> {
-  const session = await getLoginSession();
+  const session = await getCurrentUser();
   if (!session) return { success: false, message: 'No autenticado.' };
 
   const clientDocRef = doc(db, 'clients', clientId);
@@ -142,7 +143,7 @@ export async function saveUnit(
 }
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
-  const session = await getLoginSession();
+  const session = await getCurrentUser();
   if (!session) return { success: false, message: 'No autenticado.' };
 
   try {
@@ -164,7 +165,7 @@ export async function deleteUnit(unitId: string, clientId: string): Promise<{ su
 }
 
 export async function getAllUnits(): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
-    const session = await getLoginSession();
+    const session = await getCurrentUser();
     if (!session) return [];
 
     try {
