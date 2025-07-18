@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { loginUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
 
@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     const checkUser = async () => {
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(data.user);
             } else {
                 setUser(null);
+                // The middleware handles redirection, no need to push here
             }
         } catch (error) {
             console.error("Failed to fetch user session", error);
@@ -40,14 +42,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsLoading(false);
         }
     };
-    checkUser();
-  }, []);
+    // Only check session if not on the login page to avoid race conditions during login
+    if (pathname !== '/login') {
+        checkUser();
+    } else {
+        setIsLoading(false);
+    }
+  }, [pathname]);
 
   const login = async (username: string, password: string) => {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
-      router.refresh();
+      router.push('/');
     } else {
       throw new Error(result.message);
     }
@@ -57,10 +64,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await fetch('/api/logout', { method: 'POST' });
     if (response.ok) {
         setUser(null);
-        router.refresh(); // Force a refresh to re-run middleware
+        router.push('/login');
     } else {
         console.error('Logout failed');
-        // Even if server fails, clear client state
+        // Even if server fails, clear client state and redirect
         setUser(null);
         router.push('/login');
     }
