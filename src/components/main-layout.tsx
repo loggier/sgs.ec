@@ -60,7 +60,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen">
-        <Sidebar className="flex-col border-r">
+        <Sidebar className="flex-col border-r bg-secondary/20">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
