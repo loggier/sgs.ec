@@ -10,11 +10,14 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const router = useRouter();
 
   useEffect(() => {
+    // Redirect only when loading is complete and user is not authenticated.
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // While loading, or if not authenticated, don't render children.
+  // The redirect will happen in the useEffect.
   if (isLoading || !isAuthenticated) {
     return (
         <div className="flex h-screen items-center justify-center">
@@ -23,5 +26,6 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
+  // If authenticated, render the protected content.
   return <>{children}</>;
 }

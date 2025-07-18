@@ -8,7 +8,7 @@ import MainLayout from './main-layout';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isLoading } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -20,6 +20,10 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
 
   if (pathname === '/login') {
     return <>{children}</>;
+  }
+  
+  if (!isAuthenticated) {
+    return null; // The ProtectedRoute will handle the redirect
   }
   
   return (
