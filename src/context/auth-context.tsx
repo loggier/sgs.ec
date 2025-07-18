@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -48,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
-      setIsLoading(false); // Fix: Ensure loading is set to false after login
+      router.refresh(); // Force a refresh to re-run middleware with new cookie
       router.push('/');
     } else {
       throw new Error(result.message);
@@ -59,13 +58,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await fetch('/api/logout', { method: 'POST' });
     if (response.ok) {
         setUser(null);
-        setIsLoading(false); // Fix: Ensure loading is set to false after logout
+        router.refresh(); // Force a refresh to re-run middleware
         router.push('/login');
     } else {
         console.error('Logout failed');
         // Even if server fails, clear client state
         setUser(null);
-        setIsLoading(false);
         router.push('/login');
     }
   };

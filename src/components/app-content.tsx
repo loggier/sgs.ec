@@ -1,9 +1,7 @@
-
 'use client';
 
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
-import ProtectedRoute from './protected-route';
 import MainLayout from './main-layout';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
@@ -22,13 +20,13 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
   
+  // The middleware handles redirection, so we just need to ensure
+  // we don't render the layout if the user is not authenticated.
   if (!isAuthenticated) {
-    return null; // The ProtectedRoute will handle the redirect
+     return null;
   }
   
   return (
-    <ProtectedRoute>
       <MainLayout>{children}</MainLayout>
-    </ProtectedRoute>
   );
 }
