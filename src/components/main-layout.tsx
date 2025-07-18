@@ -18,7 +18,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarFooter,
-  SidebarTrigger,
   SidebarInset,
 } from './ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,7 @@ function NavLink({ href, children }: NavLinkProps) {
     const pathname = usePathname();
     const isActive = pathname === href;
     return (
-      <Link href={href}>
+      <Link href={href} className="block">
         <Button variant={isActive ? "secondary" : "ghost"} className="w-full justify-start gap-2">
             {children}
         </Button>
@@ -94,7 +93,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               )}
             </SidebarMenu>
           </SidebarContent>
-          <SidebarFooter className="p-2">
+          <SidebarFooter className="p-2 border-t">
              {user && (
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
