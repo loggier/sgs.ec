@@ -2,14 +2,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { loginUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
 
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUserContext: (newUser: User) => void;
@@ -25,21 +23,18 @@ type AuthProviderProps = {
 
 export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const [user, setUser] = React.useState<User | null>(initialUser);
-  const [isLoading, setIsLoading] = React.useState(false); 
-  const router = useRouter();
 
   const login = async (username: string, password: string) => {
-    setIsLoading(true);
     try {
         const result = await loginUser({ username, password });
         if (result.success && result.user) {
             // Force a full page reload to ensure the new cookie is read by the server layout
+            // and the entire app state is reset correctly.
             window.location.href = '/';
         } else {
             throw new Error(result.message);
         }
     } catch (error) {
-        setIsLoading(false); // Only set loading to false on error
         throw error;
     }
   };
@@ -51,6 +46,7 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
         window.location.href = '/login';
     } else {
         console.error('Logout failed');
+        // Still force redirect even if API call fails
         setUser(null);
         window.location.href = '/login';
     }
@@ -63,7 +59,6 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
   const value = {
     user,
     isAuthenticated: !!user,
-    isLoading: isLoading,
     login,
     logout,
     updateUserContext,

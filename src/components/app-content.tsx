@@ -6,17 +6,11 @@ import MainLayout from './main-layout';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  if (isLoading) {
-    return (
-        <div className="flex h-screen items-center justify-center bg-background">
-            <div className="text-lg font-semibold">Cargando...</div>
-        </div>
-    );
-  }
-
-  if (isAuthenticated && pathname !== '/login') {
+  // The middleware protects routes, so if we're not on the login page,
+  // we can assume we are authenticated and should show the main layout.
+  if (pathname !== '/login') {
     return (
       <MainLayout>
         {children}
@@ -24,5 +18,6 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
   
+  // This will render the login page, as it's the only case left.
   return <>{children}</>;
 }
