@@ -83,32 +83,15 @@ export async function saveUnit(
   }
   
   try {
-    // Separate data that is calculated vs. what comes from form
     const { fechaInicioContrato, tipoContrato, mesesContrato, ...restOfData } = validation.data;
     
     const unitDataForFirestore: any = {
       ...restOfData,
-      fechaInicioContrato,
+      fechaInicioContrato: new Date(fechaInicioContrato),
       tipoContrato,
       mesesContrato,
     };
-
-    if (!unitId) { // Only set these dates for new units
-      // The overall contract expiration date
-      if (tipoContrato === 'con_contrato' && mesesContrato) {
-        unitDataForFirestore.fechaVencimiento = addMonths(new Date(fechaInicioContrato), mesesContrato);
-      } else {
-        unitDataForFirestore.fechaVencimiento = addMonths(new Date(fechaInicioContrato), 1);
-      }
-      
-      // The next *monthly* payment due date is always 1 month after start for new units
-      unitDataForFirestore.fechaSiguientePago = addMonths(new Date(fechaInicioContrato), 1);
-      
-      // New units have no payment history
-      unitDataForFirestore.ultimoPago = null;
-    }
     
-    // Clean up fields based on contract type
     if (tipoContrato === 'sin_contrato') {
       delete unitDataForFirestore.costoTotalContrato;
       delete unitDataForFirestore.mesesContrato;
@@ -119,12 +102,41 @@ export async function saveUnit(
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     let savedUnitId = unitId;
 
-    if (unitId) {
-      // On edit, we don't recalculate dates. They are only changed by payments.
-      // We just save the other form data.
+    if (unitId) { // Editing existing unit
       const unitDocRef = doc(unitsCollectionRef, unitId);
+      const currentUnitDoc = await getDoc(unitDocRef);
+      if (!currentUnitDoc.exists()) {
+          return { success: false, message: 'Unidad no encontrada.' };
+      }
+      const currentUnitData = convertTimestamps(currentUnitDoc.data()) as Unit;
+
+      const newStartDate = new Date(fechaInicioContrato);
+      const oldStartDate = new Date(currentUnitData.fechaInicioContrato);
+
+      // If start date has changed, reset the payment cycle
+      if (newStartDate.getTime() !== oldStartDate.getTime()) {
+        unitDataForFirestore.ultimoPago = null;
+        unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
+        
+        if (tipoContrato === 'con_contrato' && mesesContrato) {
+          unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
+        } else { // sin_contrato or contract without months
+          unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
+        }
+      }
+
       await updateDoc(unitDocRef, unitDataForFirestore);
-    } else {
+    } else { // Creating new unit
+      const newStartDate = new Date(fechaInicioContrato);
+      unitDataForFirestore.ultimoPago = null;
+      unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
+      
+      if (tipoContrato === 'con_contrato' && mesesContrato) {
+        unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
+      } else {
+        unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
+      }
+      
       const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
       savedUnitId = newUnitRef.id;
     }

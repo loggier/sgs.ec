@@ -7,7 +7,7 @@ import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form
 import { z } from 'zod';
 import { format, addMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
@@ -38,6 +38,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from './ui/textarea';
 import { Combobox } from './ui/combobox';
+import { Alert, AlertDescription } from './ui/alert';
 
 type UnitFormProps = {
   unit: Unit | null;
@@ -61,14 +62,21 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 };
 
 function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector: boolean, isEditing: boolean }) {
-  const { control, setValue } = useFormContext<UnitFormInput>();
-  const tipoContrato = useWatch({
+  const { control, setValue, getValues } = useFormContext<UnitFormInput>();
+  
+  const [
+    tipoContrato,
+    fechaInicioContrato,
+    mesesContrato
+  ] = useWatch({
     control,
-    name: 'tipoContrato',
+    name: ['tipoContrato', 'fechaInicioContrato', 'mesesContrato'],
   });
 
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
+  const [showWarning, setShowWarning] = React.useState(false);
+  const initialStartDate = React.useRef(getValues('fechaInicioContrato'));
 
   React.useEffect(() => {
     if (showClientSelector && user) {
@@ -91,6 +99,28 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
       setValue('costoMensual', undefined);
     }
   }, [tipoContrato, setValue, isEditing]);
+
+  React.useEffect(() => {
+    if (isEditing) {
+      const currentStartDate = new Date(fechaInicioContrato).getTime();
+      const originalStartDate = new Date(initialStartDate.current).getTime();
+      
+      if (currentStartDate !== originalStartDate) {
+        setShowWarning(true);
+        // Recalculate dates visually
+        const newStartDate = new Date(fechaInicioContrato);
+        setValue('fechaSiguientePago', addMonths(newStartDate, 1));
+
+        if (tipoContrato === 'con_contrato' && mesesContrato) {
+          setValue('fechaVencimiento', addMonths(newStartDate, mesesContrato));
+        } else {
+          setValue('fechaVencimiento', addMonths(newStartDate, 1));
+        }
+      } else {
+        setShowWarning(false);
+      }
+    }
+  }, [fechaInicioContrato, mesesContrato, tipoContrato, isEditing, setValue]);
   
   return (
     <div className="space-y-4 py-4">
@@ -252,67 +282,74 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
       )}
 
       
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={control}
-            name="fechaInicioContrato"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Inicio de Contrato</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground'
-                        )}
-                      >
-                        {field.value ? (
-                          format(new Date(field.value), 'PPP', { locale: es })
-                        ) : (
-                          <span>Elige una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value as Date}
-                      onSelect={field.onChange}
-                      initialFocus
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {isEditing && (
-             <FormField
-                control={control}
-                name="fechaVencimiento"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Vencimiento de Contrato</FormLabel>
-                    <FormControl>
-                      <Input
-                        readOnly
-                        value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
-                        className="bg-muted cursor-default"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={control}
+          name="fechaInicioContrato"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Fecha de Inicio de Contrato</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={'outline'}
+                      className={cn(
+                        'w-full pl-3 text-left font-normal',
+                        !field.value && 'text-muted-foreground'
+                      )}
+                    >
+                      {field.value ? (
+                        format(new Date(field.value), 'PPP', { locale: es })
+                      ) : (
+                        <span>Elige una fecha</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value as Date}
+                    onSelect={field.onChange}
+                    initialFocus
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
           )}
-        </div>
+        />
+        <FormField
+          control={control}
+          name="fechaVencimiento"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Vencimiento de Contrato</FormLabel>
+              <FormControl>
+                <Input
+                  readOnly
+                  value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                  className="bg-muted cursor-default"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
       
+      {showWarning && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Al cambiar la fecha de inicio, el ciclo de pagos se reiniciará. El último pago se anulará y la fecha de siguiente pago se recalculará.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isEditing && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
@@ -404,9 +441,9 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           mesesContrato: undefined,
           fechaInicioContrato: new Date(),
           // These will be calculated on the server on creation
-          fechaVencimiento: new Date(), 
+          fechaVencimiento: addMonths(new Date(), 1), 
           ultimoPago: null,
-          fechaSiguientePago: new Date(),
+          fechaSiguientePago: addMonths(new Date(), 1),
           observacion: '',
         },
   });
