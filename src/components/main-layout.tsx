@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, History } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard } from 'lucide-react';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -83,7 +83,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <NavLink href="/payments">
-                    <History className="h-4 w-4" />
+                    <CreditCard className="h-4 w-4" />
                     <span>Gestión de Pagos</span>
                 </NavLink>
               </SidebarMenuItem>
