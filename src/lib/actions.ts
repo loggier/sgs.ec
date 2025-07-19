@@ -106,7 +106,7 @@ export async function getClientById(id: string, currentUserId: string, currentUs
 }
 
 export async function saveClient(
-    data: Omit<Client, 'id' | 'ownerId'>,
+    data: Omit<Client, 'id'>,
     ownerId: string, // ownerId is now passed explicitly
     clientId?: string
   ): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
@@ -114,7 +114,6 @@ export async function saveClient(
         return { success: false, message: 'No se pudo identificar al propietario.' };
     }
 
-    // You might want to verify the user exists and has the right role, but for now we trust the client-side check.
     const userDoc = await getDoc(doc(db, 'users', ownerId));
     if (!userDoc.exists() || !['master', 'manager'].includes(userDoc.data()?.role)) {
         return { success: false, message: 'No tiene permiso para guardar clientes.' };
@@ -146,7 +145,6 @@ export async function saveClient(
         if (!currentClientDoc.exists()) {
             return { success: false, message: 'Cliente no encontrado.' };
         }
-        // Security check for editing
         if (userDoc.data()?.role !== 'master' && currentClientDoc.data()?.ownerId !== ownerId) {
             return { success: false, message: 'No tiene permiso para editar este cliente.' };
         }
@@ -183,7 +181,6 @@ export async function deleteClient(id: string, currentUserId: string, currentUse
         return { success: false, message: 'Cliente no encontrado.' };
       }
      
-      // Security check: Only master or the owner can delete
       if (currentUserRole !== 'master' && clientDoc.data()?.ownerId !== currentUserId) {
           return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
       }

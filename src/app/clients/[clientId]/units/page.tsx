@@ -41,6 +41,9 @@ export default function UnitsPage({ params }: UnitsPageProps) {
           setUnits(unitsData);
         }
         setIsLoading(false);
+      }).catch(() => {
+        setIsLoading(false);
+        notFound();
       });
     }
   }, [clientId, user]);
