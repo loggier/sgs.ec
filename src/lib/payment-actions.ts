@@ -63,17 +63,25 @@ export async function registerPayment(
             continue;
         }
 
-        const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Omit<Unit, 'id' | 'clientId'>;
-        const unit = { id: unitSnapshot.id, clientId, ...unitDataFromDB } as Unit;
+        const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
+        const now = new Date();
         
         const unitUpdateData: Partial<Record<keyof Unit, any>> = {
             ultimoPago: fechaPago,
-            fechaSiguientePago: addMonths(new Date(unit.fechaSiguientePago), mesesPagados)
         };
 
-        if (unit.tipoContrato === 'sin_contrato') {
-            const newVencimiento = addMonths(new Date(unit.fechaVencimiento), mesesPagados);
-            unitUpdateData.fechaVencimiento = newVencimiento;
+        // Determine the base date for calculation
+        const baseDateForNextPayment = new Date(unitDataFromDB.fechaSiguientePago) < now 
+            ? fechaPago 
+            : new Date(unitDataFromDB.fechaSiguientePago);
+        
+        unitUpdateData.fechaSiguientePago = addMonths(baseDateForNextPayment, mesesPagados);
+        
+        if (unitDataFromDB.tipoContrato === 'sin_contrato') {
+            const baseDateForExpiration = new Date(unitDataFromDB.fechaVencimiento) < now
+                ? fechaPago
+                : new Date(unitDataFromDB.fechaVencimiento);
+            unitUpdateData.fechaVencimiento = addMonths(baseDateForExpiration, mesesPagados);
         }
         
         batch.update(unitDocRef, unitUpdateData);
@@ -88,7 +96,7 @@ export async function registerPayment(
         const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitId, 'payments'));
         batch.set(paymentDocRef, newPayment);
         
-        updatedUnits.push({ ...unit, ...unitUpdateData });
+        updatedUnits.push({ ...unitDataFromDB, ...unitUpdateData });
         processedCount++;
     }
     
@@ -177,7 +185,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         
         const unitData = convertTimestamps(unitDoc.data()) as Unit;
 
-        const unitUpdate: Partial<Unit> = {
+        const unitUpdate: Partial<Record<keyof Unit, any>> = {
             fechaSiguientePago: subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados)
         };
 
