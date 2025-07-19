@@ -11,6 +11,8 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
 import { saveUnit } from '@/lib/unit-actions';
+import { getClients } from '@/lib/actions';
+import type { ClientWithOwner } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 
@@ -34,10 +36,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from './ui/textarea';
+import { Combobox } from './ui/combobox';
 
 type UnitFormProps = {
   unit: Unit | null;
-  clientId: string;
+  clientId?: string; // Optional: provided when adding/editing from a client's page
   onSave: (unit: Unit) => void;
   onCancel: () => void;
 };
@@ -56,12 +59,26 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
   'con_contrato': 'Con Contrato',
 };
 
-function UnitFormFields() {
+function UnitFormFields({ showClientSelector }: { showClientSelector: boolean }) {
   const { control, setValue, watch } = useFormContext<UnitFormInput>();
   const tipoContrato = useWatch({
     control,
     name: 'tipoContrato',
   });
+
+  const { user } = useAuth();
+  const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
+
+  React.useEffect(() => {
+    if (showClientSelector && user) {
+      getClients(user.id, user.role).then(setClients);
+    }
+  }, [showClientSelector, user]);
+  
+  const clientOptions = clients.map(c => ({
+    value: c.id!,
+    label: `${c.nomSujeto} (${c.codIdSujeto})`,
+  }));
 
   const fechaInicioContrato = watch('fechaInicioContrato');
   const mesesContrato = watch('mesesContrato');
@@ -92,6 +109,26 @@ function UnitFormFields() {
 
   return (
     <div className="space-y-4 py-4">
+      {showClientSelector && (
+        <FormField
+          control={control}
+          name="clientId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cliente</FormLabel>
+                <Combobox
+                  options={clientOptions}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Seleccione un cliente..."
+                  searchPlaceholder="Buscar cliente por nombre o ID..."
+                  disabled={clients.length === 0}
+                />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={control}
@@ -348,12 +385,16 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  // Show client selector only when creating a new unit from the global page (clientId is undefined)
+  const isGlobalAdd = !unit && !clientId;
 
   const form = useForm<UnitFormInput>({
     resolver: zodResolver(UnitFormSchema),
     defaultValues: unit
       ? { 
           ...unit,
+          clientId: unit.clientId, // Ensure clientId is in form values for editing
           costoMensual: unit.costoMensual ?? '',
           costoTotalContrato: unit.costoTotalContrato ?? '',
           mesesContrato: unit.mesesContrato ?? '',
@@ -363,6 +404,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           fechaSiguientePago: new Date(unit.fechaSiguientePago),
         }
       : {
+          clientId: clientId ?? '', // Pre-fill if provided, else empty for the selector
           imei: '',
           placa: '',
           modelo: '',
@@ -381,8 +423,20 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
 
   async function onSubmit(values: UnitFormInput) {
     setIsSubmitting(true);
+    // Use clientId from form values for global add, otherwise use prop
+    const finalClientId = isGlobalAdd ? values.clientId : clientId!;
+    if (!finalClientId) {
+      toast({
+        title: 'Error',
+        description: 'Debe seleccionar un cliente.',
+        variant: 'destructive'
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const result = await saveUnit(values, clientId, user, unit?.id);
+      const result = await saveUnit(values, finalClientId, user, unit?.id);
       if (result.success && result.unit) {
         toast({
           title: 'Éxito',
@@ -411,7 +465,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields />
+          <UnitFormFields showClientSelector={isGlobalAdd} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>

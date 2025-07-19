@@ -34,9 +34,10 @@ export type Unit = z.infer<typeof UnitSchema>;
 
 export const UnitFormSchema = UnitSchema.omit({ 
   id: true, 
-  clientId: true, 
   ultimoPago: true, 
   fechaSiguientePago: true 
+}).extend({
+  clientId: z.string().optional(), // Make clientId optional in the base for refinement
 }).superRefine((data, ctx) => {
     if (data.tipoContrato === 'sin_contrato') {
         if (!data.costoMensual || data.costoMensual <= 0) {

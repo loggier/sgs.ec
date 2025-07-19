@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -73,6 +73,11 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
   React.useEffect(() => {
     setUnits(initialUnits);
   }, [initialUnits]);
+  
+  const handleAddUnit = () => {
+    setSelectedUnit(null);
+    setIsSheetOpen(true);
+  };
 
   const handleEditUnit = (unit: GlobalUnit) => {
     setSelectedUnit(unit);
@@ -147,6 +152,12 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
                 <CardTitle>Inventario Global de Unidades</CardTitle>
                 <CardDescription>Gestione todas las unidades de todos los clientes.</CardDescription>
             </div>
+             {user && ['master', 'manager'].includes(user.role) && (
+              <Button onClick={handleAddUnit} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nueva Unidad
+              </Button>
+            )}
         </div>
       </CardHeader>
       <CardContent>
@@ -242,14 +253,12 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
           <SheetHeader>
             <SheetTitle>{selectedUnit ? 'Editar Unidad' : 'Agregar Nueva Unidad'}</SheetTitle>
           </SheetHeader>
-          {selectedUnit && (
-             <UnitForm
-                unit={selectedUnit}
-                clientId={selectedUnit.clientId}
-                onSave={handleFormSave}
-                onCancel={() => setIsSheetOpen(false)}
-            />
-          )}
+           <UnitForm
+              unit={selectedUnit}
+              clientId={selectedUnit?.clientId} // Pass clientId if editing, undefined if adding
+              onSave={handleFormSave}
+              onCancel={() => setIsSheetOpen(false)}
+          />
         </SheetContent>
       </Sheet>
 
