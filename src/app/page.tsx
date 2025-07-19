@@ -40,7 +40,7 @@ export default function Home() {
     if (!clients || clients.length === 0) {
       return {
         totalClients: 0,
-        totalOperationValue: 0,
+        totalUnits: 0,
         totalPaidValue: 0,
         totalOverdueValue: 0,
         clientsByStatus: {},
@@ -58,7 +58,7 @@ export default function Home() {
 
     return {
       totalClients: clients.length,
-      totalOperationValue: clients.reduce((sum, c) => sum + (c.valOperacion || 0), 0),
+      totalUnits: units.length,
       totalPaidValue: clients.reduce((sum, c) => sum + (c.valorPago || 0), 0),
       totalOverdueValue: clients.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
       clientsByStatus: clients.reduce((acc, client) => {
