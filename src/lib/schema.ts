@@ -15,7 +15,7 @@ export const ClientSchema = z.object({
   direccion: z.string().min(1, 'Dirección es requerida.'),
   ciudad: z.string().optional(),
   telefono: z.string().optional(),
-  numOperacion: z.string().min(1, 'Número de operación es requerido.'),
+  numOperacion: z.string().optional(),
   fecConcesion: optionalDateOrTimestamp,
   valOperacion: z.coerce.number({invalid_type_error: "Debe ser un número"}).positive('El valor de operación debe ser positivo.').optional().nullable(),
   valorPago: z.coerce.number({invalid_type_error: "Debe ser un número"}).nonnegative('El valor de pago no puede ser negativo.').optional().nullable(),
