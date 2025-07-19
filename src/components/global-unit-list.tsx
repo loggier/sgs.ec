@@ -194,7 +194,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
             <TableBody>
               {filteredUnits.length > 0 ? (
                 filteredUnits.map(unit => (
-                  <TableRow key={unit.id} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                  <TableRow key={`${unit.clientId}-${unit.id}`} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
                     <TableCell className="font-medium">{unit.placa}</TableCell>
                     <TableCell>
                       <Link href={`/clients/${unit.clientId}/units`} className="hover:underline text-primary">
