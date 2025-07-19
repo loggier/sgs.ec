@@ -65,17 +65,14 @@ export async function registerPayment(
 
         const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Omit<Unit, 'id' | 'clientId'>;
         const unit = { id: unitSnapshot.id, clientId, ...unitDataFromDB } as Unit;
+        
+        const unitUpdateData: Partial<Record<keyof Unit, any>> = {
+            ultimoPago: fechaPago,
+            fechaSiguientePago: addMonths(new Date(unit.fechaSiguientePago), mesesPagados)
+        };
 
-        const unitUpdateData: Partial<Record<keyof Unit, any>> = {};
-
-        const currentSiguientePago = new Date(unitDataFromDB.fechaSiguientePago);
-        const newSiguientePago = addMonths(currentSiguientePago, mesesPagados);
-        unitUpdateData.fechaSiguientePago = newSiguientePago;
-        unitUpdateData.ultimoPago = fechaPago;
-
-        if (unitDataFromDB.tipoContrato === 'sin_contrato') {
-            const currentVencimiento = new Date(unitDataFromDB.fechaVencimiento);
-            const newVencimiento = addMonths(currentVencimiento, mesesPagados);
+        if (unit.tipoContrato === 'sin_contrato') {
+            const newVencimiento = addMonths(new Date(unit.fechaVencimiento), mesesPagados);
             unitUpdateData.fechaVencimiento = newVencimiento;
         }
         
@@ -180,10 +177,9 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         
         const unitData = convertTimestamps(unitDoc.data()) as Unit;
 
-        const unitUpdate: Partial<Unit> = {};
-
-        const newSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
-        unitUpdate.fechaSiguientePago = newSiguientePago;
+        const unitUpdate: Partial<Unit> = {
+            fechaSiguientePago: subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados)
+        };
 
         if (unitData.tipoContrato === 'sin_contrato') {
             const newVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
