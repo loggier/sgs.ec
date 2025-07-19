@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
 import { saveUnit } from '@/lib/unit-actions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -345,6 +346,7 @@ function UnitFormFields() {
 
 export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<UnitFormInput>({
@@ -380,7 +382,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
   async function onSubmit(values: UnitFormInput) {
     setIsSubmitting(true);
     try {
-      const result = await saveUnit(values, clientId, unit?.id);
+      const result = await saveUnit(values, clientId, user, unit?.id);
       if (result.success && result.unit) {
         toast({
           title: 'Éxito',

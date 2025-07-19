@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 type DeleteUnitDialogProps = {
   isOpen: boolean;
@@ -33,14 +34,15 @@ export default function DeleteUnitDialog({
   onDelete,
 }: DeleteUnitDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async () => {
-    if (!unit) return;
+    if (!unit || !user) return;
 
     setIsDeleting(true);
     try {
-      const result = await deleteUnit(unit.id, clientId);
+      const result = await deleteUnit(unit.id, clientId, user.id, user.role);
       if (result.success) {
         toast({
           title: 'Éxito',

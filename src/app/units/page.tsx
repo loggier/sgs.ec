@@ -1,15 +1,43 @@
+'use client';
 
+import * as React from 'react';
 import { getAllUnits } from '@/lib/unit-actions';
 import GlobalUnitList from '@/components/global-unit-list';
 import UnitSummary from '@/components/unit-summary';
 import Header from '@/components/header';
+import { useAuth } from '@/context/auth-context';
+import type { Unit } from '@/lib/unit-schema';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function GlobalUnitsPage() {
-  const units = await getAllUnits();
+type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
-  // Calculate summary data for all units
+export default function GlobalUnitsPage() {
+  const { user } = useAuth();
+  const [units, setUnits] = React.useState<GlobalUnit[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      getAllUnits(user.id, user.role)
+        .then(data => {
+          setUnits(data);
+          setIsLoading(false);
+        });
+    }
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-full space-y-6">
+        <Header title="Todas las Unidades" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
   const totalUnits = units.length;
-  
   const totalMonthlyAmount = units.reduce((sum, unit) => {
     if (unit.tipoContrato === 'con_contrato') {
       const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
