@@ -83,30 +83,33 @@ export async function saveUnit(
   }
   
   try {
-    const { fechaInicioContrato, tipoContrato, mesesContrato } = validation.data;
-    
-    // Calculate vencimiento and siguientePago for new units
-    let fechaVencimiento;
-    let fechaSiguientePago;
-
-    if (!unitId) { // Only set these dates for new units
-      if (tipoContrato === 'con_contrato' && mesesContrato) {
-        fechaVencimiento = addMonths(new Date(fechaInicioContrato), mesesContrato);
-      } else {
-        fechaVencimiento = addMonths(new Date(fechaInicioContrato), 1);
-      }
-      // For a new unit, the first payment is due one month after start
-      fechaSiguientePago = addMonths(new Date(fechaInicioContrato), 1);
-    }
+    // Separate data that is calculated vs. what comes from form
+    const { fechaInicioContrato, tipoContrato, mesesContrato, ...restOfData } = validation.data;
     
     const unitDataForFirestore: any = {
-      ...validation.data,
-      ultimoPago: unitId ? (await getUnit(clientId, unitId))?.ultimoPago || null : null, // Preserve existing on edit, null on create
-      ...(fechaVencimiento && { fechaVencimiento }),
-      ...(fechaSiguientePago && { fechaSiguientePago }),
+      ...restOfData,
+      fechaInicioContrato,
+      tipoContrato,
+      mesesContrato,
     };
 
-    if (validation.data.tipoContrato === 'sin_contrato') {
+    if (!unitId) { // Only set these dates for new units
+      // The overall contract expiration date
+      if (tipoContrato === 'con_contrato' && mesesContrato) {
+        unitDataForFirestore.fechaVencimiento = addMonths(new Date(fechaInicioContrato), mesesContrato);
+      } else {
+        unitDataForFirestore.fechaVencimiento = addMonths(new Date(fechaInicioContrato), 1);
+      }
+      
+      // The next *monthly* payment due date is always 1 month after start for new units
+      unitDataForFirestore.fechaSiguientePago = addMonths(new Date(fechaInicioContrato), 1);
+      
+      // New units have no payment history
+      unitDataForFirestore.ultimoPago = null;
+    }
+    
+    // Clean up fields based on contract type
+    if (tipoContrato === 'sin_contrato') {
       delete unitDataForFirestore.costoTotalContrato;
       delete unitDataForFirestore.mesesContrato;
     } else {
@@ -117,9 +120,8 @@ export async function saveUnit(
     let savedUnitId = unitId;
 
     if (unitId) {
-      // Don't overwrite key dates on edit unless they are changed in the form
-      delete unitDataForFirestore.fechaVencimiento;
-      delete unitDataForFirestore.fechaSiguientePago;
+      // On edit, we don't recalculate dates. They are only changed by payments.
+      // We just save the other form data.
       const unitDocRef = doc(unitsCollectionRef, unitId);
       await updateDoc(unitDocRef, unitDataForFirestore);
     } else {

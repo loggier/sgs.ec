@@ -61,7 +61,7 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 };
 
 function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector: boolean, isEditing: boolean }) {
-  const { control, setValue, watch } = useFormContext<UnitFormInput>();
+  const { control, setValue } = useFormContext<UnitFormInput>();
   const tipoContrato = useWatch({
     control,
     name: 'tipoContrato',
@@ -81,9 +81,6 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
     label: `${c.nomSujeto} (${c.codIdSujeto})`,
   }));
 
-  const fechaInicioContrato = watch('fechaInicioContrato');
-  const mesesContrato = watch('mesesContrato');
-
   React.useEffect(() => {
     if (isEditing) return; // Don't auto-set values when editing
 
@@ -95,22 +92,6 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
     }
   }, [tipoContrato, setValue, isEditing]);
   
-  React.useEffect(() => {
-    if (isEditing || !fechaInicioContrato) return;
-
-    if (tipoContrato === 'con_contrato' && mesesContrato) {
-      const months = Number(mesesContrato);
-      if (!isNaN(months) && months > 0) {
-        setValue('fechaVencimiento', addMonths(new Date(fechaInicioContrato), months));
-      }
-    } else { // sin_contrato or contract with no months yet
-      setValue('fechaVencimiento', addMonths(new Date(fechaInicioContrato), 1));
-    }
-    // Siguiente pago is always 1 month after start for new contracts
-    setValue('fechaSiguientePago', addMonths(new Date(fechaInicioContrato), 1));
-
-  }, [fechaInicioContrato, mesesContrato, tipoContrato, setValue, isEditing]);
-
   return (
     <div className="space-y-4 py-4">
       {showClientSelector && (
@@ -271,7 +252,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
       )}
 
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={control}
             name="fechaInicioContrato"
@@ -311,48 +292,26 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
               </FormItem>
             )}
           />
-          <FormField
-            control={control}
-            name="fechaVencimiento"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Vencimiento de Contrato</FormLabel>
-                 <Popover>
-                  <PopoverTrigger asChild>
+          {isEditing && (
+             <FormField
+                control={control}
+                name="fechaVencimiento"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Vencimiento de Contrato</FormLabel>
                     <FormControl>
-                      <Button
-                        variant={'outline'}
-                        className={cn(
-                          'w-full pl-3 text-left font-normal',
-                          !field.value && 'text-muted-foreground',
-                          isEditing && 'bg-muted cursor-default'
-                        )}
-                        disabled={isEditing}
-                      >
-                        {field.value ? (
-                          format(new Date(field.value), 'PPP', { locale: es })
-                        ) : (
-                          <span>Elige una fecha</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
+                      <Input
+                        readOnly
+                        value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                        className="bg-muted cursor-default"
+                      />
                     </FormControl>
-                  </PopoverTrigger>
-                  {!isEditing && <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value as Date}
-                      onSelect={field.onChange}
-                      initialFocus
-                      locale={es}
-                    />
-                  </PopoverContent>}
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-      </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+          )}
+        </div>
       
       {isEditing && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -444,9 +403,10 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoTotalContrato: undefined,
           mesesContrato: undefined,
           fechaInicioContrato: new Date(),
-          fechaVencimiento: addMonths(new Date(), 1),
+          // These will be calculated on the server on creation
+          fechaVencimiento: new Date(), 
           ultimoPago: null,
-          fechaSiguientePago: addMonths(new Date(), 1),
+          fechaSiguientePago: new Date(),
           observacion: '',
         },
   });

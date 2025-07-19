@@ -69,16 +69,12 @@ export async function registerPayment(
             ultimoPago: fechaPago,
         };
 
-        const currentSiguientePago = unit.fechaSiguientePago;
-        // The base date for calculation is the *next payment date*, not the contract expiration.
-        // If the next payment date is in the past, we start calculating from today.
-        const baseDateForNextPayment = currentSiguientePago > new Date() ? currentSiguientePago : new Date();
-        const newSiguientePago = addMonths(baseDateForNextPayment, mesesPagados);
+        const currentSiguientePago = new Date(unit.fechaSiguientePago);
+        // The base date for calculation is always the *current next payment date*.
+        // This correctly advances the payment schedule month by month.
+        const newSiguientePago = addMonths(currentSiguientePago, mesesPagados);
         
         unitUpdateData.fechaSiguientePago = newSiguientePago;
-        
-        // The contract's main expiration date is NOT updated on monthly payments.
-        // It's only set when the unit is created/edited.
         
         batch.update(unitDocRef, unitUpdateData);
 
