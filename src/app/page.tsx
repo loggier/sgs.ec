@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -5,8 +6,9 @@ import { getClients } from '@/lib/actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
-import type { ClientWithOwner } from '@/lib/schema';
+import type { Client, ClientWithOwner } from '@/lib/schema';
 import { Skeleton } from '@/components/ui/skeleton';
+import ClientSummary from '@/components/client-summary';
 
 export default function Home() {
   const { user } = useAuth();
@@ -24,22 +26,50 @@ export default function Home() {
     }
   }, [user]);
 
+  const summaryData = React.useMemo(() => {
+    if (!clients || clients.length === 0) {
+      return {
+        totalClients: 0,
+        totalOperationValue: 0,
+        totalPaidValue: 0,
+        totalOverdueValue: 0,
+        clientsByStatus: {},
+      };
+    }
+
+    return {
+      totalClients: clients.length,
+      totalOperationValue: clients.reduce((sum, c) => sum + (c.valOperacion || 0), 0),
+      totalPaidValue: clients.reduce((sum, c) => sum + (c.valorPago || 0), 0),
+      totalOverdueValue: clients.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
+      clientsByStatus: clients.reduce((acc, client) => {
+        const status = client.estado || 'desconocido';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+    };
+  }, [clients]);
+
   if (isLoading) {
       return (
-          <div>
+          <div className="flex flex-col h-full space-y-6">
               <Header title="Clientes" />
-              <div className="flex flex-col gap-6 mt-4">
-                  <Skeleton className="h-48 w-full" />
-                  <Skeleton className="h-64 w-full" />
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
               </div>
+              <Skeleton className="h-96 w-full" />
           </div>
       )
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full space-y-6">
       <Header title="Clientes" />
+      <ClientSummary {...summaryData} />
       <ClientList initialClients={clients} />
-    </>
+    </div>
   );
 }
