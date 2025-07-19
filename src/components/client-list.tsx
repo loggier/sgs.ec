@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, Search } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, Search, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -28,10 +28,13 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
+import ClientPaymentForm from './client-payment-form';
+
 
 type ClientListProps = {
   initialClients: ClientWithOwner[];
@@ -57,6 +60,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientWithOwner | null>(null);
 
   const [hasMounted, setHasMounted] = React.useState(false);
@@ -82,6 +86,11 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
+  
+  const handleRegisterPayment = (client: ClientWithOwner) => {
+    setSelectedClient(client);
+    setIsPaymentDialogOpen(true);
+  }
 
   const handleFormSave = (result: { client?: ClientWithOwner }) => {
     if (result.client) {
@@ -97,6 +106,13 @@ export default function ClientList({ initialClients }: ClientListProps) {
     
     setIsSheetOpen(false);
     setSelectedClient(null);
+  };
+  
+  const handlePaymentSave = () => {
+      setIsPaymentDialogOpen(false);
+      setSelectedClient(null);
+      // We could potentially refetch clients here if payment affects client status,
+      // but the dynamic status calculation should handle it.
   };
 
   const onClientDeleted = (clientId: string) => {
@@ -234,6 +250,9 @@ export default function ClientList({ initialClients }: ClientListProps) {
                                   <Car className="mr-2 h-4 w-4" /> Ver Unidades
                                 </Link>
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                                <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+                              </DropdownMenuItem>
                               {user && (user.role === 'master' || user.id === client.ownerId) && (
                                 <>
                                   <DropdownMenuSeparator />
@@ -285,6 +304,25 @@ export default function ClientList({ initialClients }: ClientListProps) {
               }
             }}
           />
+          
+          <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+              <DialogContent className="sm:max-w-xl">
+                  <DialogHeader>
+                      <DialogTitle>Registrar Pago para {selectedClient?.nomSujeto}</DialogTitle>
+                      <DialogDescription>
+                          Seleccione una o más unidades y complete los detalles del pago. El monto total se calculará automáticamente.
+                      </DialogDescription>
+                  </DialogHeader>
+                  {selectedClient && (
+                      <ClientPaymentForm 
+                          client={selectedClient}
+                          onSave={handlePaymentSave}
+                          onCancel={() => setIsPaymentDialogOpen(false)}
+                      />
+                  )}
+              </DialogContent>
+          </Dialog>
+
         </Card>
       </div>
     </>
