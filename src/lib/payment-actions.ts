@@ -70,11 +70,15 @@ export async function registerPayment(
         };
 
         const currentSiguientePago = new Date(unit.fechaSiguientePago);
-        // The base date for calculation is always the *current next payment date*.
-        // This correctly advances the payment schedule month by month.
         const newSiguientePago = addMonths(currentSiguientePago, mesesPagados);
-        
         unitUpdateData.fechaSiguientePago = newSiguientePago;
+
+        // Conditional logic for "sin_contrato"
+        if (unit.tipoContrato === 'sin_contrato') {
+            const currentVencimiento = new Date(unit.fechaVencimiento);
+            const newVencimiento = addMonths(currentVencimiento, mesesPagados);
+            unitUpdateData.fechaVencimiento = newVencimiento;
+        }
         
         batch.update(unitDocRef, unitUpdateData);
 
@@ -182,6 +186,12 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         // Revertimos la fecha del siguiente pago.
         const newSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
         unitUpdate.fechaSiguientePago = newSiguientePago;
+
+        // Revertimos la fecha de vencimiento si es sin contrato
+        if (unitData.tipoContrato === 'sin_contrato') {
+            const newVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
+            unitUpdate.fechaVencimiento = newVencimiento;
+        }
 
         // Buscamos el pago anterior para revertir ultimoPago
         const paymentsCollectionRef = collection(unitDocRef, 'payments');
