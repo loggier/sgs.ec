@@ -8,13 +8,14 @@ import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { Skeleton } from '@/components/ui/skeleton';
+import NewPaymentSection from '@/components/new-payment-section';
 
 export default function PaymentsPage() {
   const { user } = useAuth();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
+  const fetchPayments = React.useCallback(() => {
     if (user) {
       setIsLoading(true);
       getAllPayments(user.id, user.role)
@@ -25,19 +26,25 @@ export default function PaymentsPage() {
     }
   }, [user]);
 
-  if (isLoading) {
+  React.useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
+  if (isLoading && payments.length === 0) {
     return (
       <div className="flex flex-col h-full space-y-6">
-        <Header title="Historial de Pagos" />
+        <Header title="Gestión de Pagos" />
+        <Skeleton className="h-48 w-full" />
         <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      <Header title="Historial de Pagos" />
-      <PaymentHistoryList initialPayments={payments} />
+    <div className="flex flex-col h-full space-y-8">
+      <Header title="Gestión de Pagos" />
+      <NewPaymentSection onPaymentSaved={fetchPayments} />
+      <PaymentHistoryList initialPayments={payments} onPaymentDeleted={fetchPayments} isLoading={isLoading} />
     </div>
   );
 }

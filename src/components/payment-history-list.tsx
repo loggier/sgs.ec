@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Search, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -26,6 +26,8 @@ import DeletePaymentDialog from './delete-payment-dialog';
 
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
+  onPaymentDeleted: () => void;
+  isLoading: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -38,7 +40,7 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, isLoading }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const [payments, setPayments] = React.useState(initialPayments);
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -65,10 +67,10 @@ export default function PaymentHistoryList({ initialPayments }: PaymentHistoryLi
     setIsDeleteDialogOpen(true);
   };
   
-  const onPaymentDeleted = (paymentId: string) => {
-    setPayments(currentPayments => currentPayments.filter(p => p.id !== paymentId));
+  const handlePaymentDeleted = () => {
     setIsDeleteDialogOpen(false);
     setSelectedPayment(null);
+    onPaymentDeleted(); // Call the callback to refetch data
   }
 
   return (
@@ -77,7 +79,7 @@ export default function PaymentHistoryList({ initialPayments }: PaymentHistoryLi
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Todos los Pagos</CardTitle>
+              <CardTitle>Historial de Pagos</CardTitle>
               <CardDescription>Busque y filtre todos los pagos registrados en el sistema.</CardDescription>
             </div>
           </div>
@@ -93,7 +95,12 @@ export default function PaymentHistoryList({ initialPayments }: PaymentHistoryLi
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+             {isLoading && (
+              <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -160,11 +167,7 @@ export default function PaymentHistoryList({ initialPayments }: PaymentHistoryLi
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         payment={selectedPayment}
-        onDelete={() => {
-            if (selectedPayment) {
-                onPaymentDeleted(selectedPayment.id);
-            }
-        }}
+        onDelete={handlePaymentDeleted}
       />
     </>
   );
