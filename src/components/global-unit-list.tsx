@@ -96,15 +96,22 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
 
   const handleFormSave = (savedUnit: Unit) => {
     setUnits(currentUnits => {
-        const clientName = currentUnits.find(u => u.clientId === savedUnit.clientId)?.clientName || 'N/A';
-        const ownerName = currentUnits.find(u => u.clientId === savedUnit.clientId)?.ownerName || user?.nombre;
-        const newSavedUnit = { ...savedUnit, clientName, ownerName };
-        const existing = currentUnits.find(u => u.id === savedUnit.id);
-        if (existing) {
-            return currentUnits.map(u => u.id === savedUnit.id ? newSavedUnit : u);
+        const existingUnitIndex = currentUnits.findIndex(u => u.id === savedUnit.id);
+        
+        if (existingUnitIndex !== -1) {
+            // Update existing unit
+            const clientName = currentUnits[existingUnitIndex].clientName;
+            const ownerName = currentUnits[existingUnitIndex].ownerName;
+            const updatedUnits = [...currentUnits];
+            updatedUnits[existingUnitIndex] = { ...savedUnit, clientName, ownerName };
+            return updatedUnits;
+        } else {
+            // Add new unit (should have clientName and ownerName from server)
+            const newSavedUnit = savedUnit as GlobalUnit;
+            return [...currentUnits, newSavedUnit];
         }
-        return [...currentUnits, newSavedUnit];
     });
+
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setSelectedUnit(null);
