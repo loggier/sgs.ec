@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useAuth } from '@/context/auth-context';
 
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
@@ -51,6 +53,7 @@ function formatCurrency(amount?: number) {
 }
 
 export default function UnitList({ initialUnits, clientId }: UnitListProps) {
+  const { user } = useAuth();
   const [units, setUnits] = React.useState(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -127,10 +130,12 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Unidades del Cliente</CardTitle>
-          <Button onClick={handleAddUnit} size="sm">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nueva Unidad
-          </Button>
+          {user && ['master', 'manager'].includes(user.role) && (
+            <Button onClick={handleAddUnit} size="sm">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nueva Unidad
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -184,13 +189,17 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                            <DropdownMenuItem onClick={() => handleRegisterPayment(unit)}>
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
-                            <Edit className="mr-2 h-4 w-4" /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                          </DropdownMenuItem>
+                          {user && ['master', 'manager'].includes(user.role) && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

@@ -35,9 +35,18 @@ export async function getClients(): Promise<ClientWithOwner[]> {
   if (!currentUser) return [];
 
   try {
+    let clientsQuery;
     const clientsCollectionRef = collection(db, 'clients');
-    // All authenticated users can see all clients
-    const clientSnapshot = await getDocs(clientsCollectionRef);
+
+    if (currentUser.role === 'master') {
+      // Master users see all clients
+      clientsQuery = query(clientsCollectionRef);
+    } else {
+      // Other users only see their own clients
+      clientsQuery = query(clientsCollectionRef, where('ownerId', '==', currentUser.id));
+    }
+    
+    const clientSnapshot = await getDocs(clientsQuery);
 
     let clientsList: ClientWithOwner[] = clientSnapshot.docs.map(doc => {
         const data = convertTimestamps(doc.data());
@@ -76,7 +85,11 @@ export async function getClientById(id: string): Promise<ClientWithOwner | undef
 
     const data = convertTimestamps(clientDoc.data()) as Client;
     
-    // Any authenticated user can view the client details
+    // Security check: non-master users can only access their own clients
+    if (currentUser.role !== 'master' && data.ownerId !== currentUser.id) {
+        return undefined;
+    }
+    
     let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
     
     // For master users, show owner name
@@ -100,7 +113,8 @@ export async function saveClient(
   id?: string
 ): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
   const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'master') {
+  // Allow master and manager roles to create/edit clients
+  if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
     return { success: false, message: 'No tiene permiso para guardar clientes.' };
   }
 
@@ -126,11 +140,17 @@ export async function saveClient(
     });
     
     if (id) {
-      // Editing an existing client - still requires master role
-      const existingClientRef = doc(db, 'clients', id);
-      await updateDoc(existingClientRef, dataToSave);
+      const clientDocRef = doc(db, 'clients', id);
+      const clientDoc = await getDoc(clientDocRef);
+      if (!clientDoc.exists()) {
+          return { success: false, message: 'Cliente no encontrado.' };
+      }
+      // Security check for editing
+      if (currentUser.role !== 'master' && clientDoc.data()?.ownerId !== currentUser.id) {
+          return { success: false, message: 'No tiene permiso para editar este cliente.' };
+      }
+      await updateDoc(clientDocRef, dataToSave);
     } else {
-      // Creating a new client, ownerId is set from current master user
       const clientsCollection = collection(db, 'clients');
       const newClientRef = await addDoc(clientsCollection, dataToSave);
       savedClientId = newClientRef.id;
@@ -152,8 +172,8 @@ export async function saveClient(
 
 export async function deleteClient(id: string): Promise<{ success: boolean; message: string }> {
    const currentUser = await getCurrentUser();
-   if (!currentUser || currentUser.role !== 'master') {
-      return { success: false, message: 'No tiene permiso para eliminar clientes.' };
+   if (!currentUser) {
+       return { success: false, message: 'Acción no permitida.' };
    }
 
    try {
@@ -161,6 +181,11 @@ export async function deleteClient(id: string): Promise<{ success: boolean; mess
     const clientDoc = await getDoc(clientDocRef);
     if (!clientDoc.exists()) {
       return { success: false, message: 'Cliente no encontrado.' };
+    }
+   
+    // Security check: Only master or the owner can delete
+    if (currentUser.role !== 'master' && clientDoc.data()?.ownerId !== currentUser.id) {
+        return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
     }
 
     const unitsCollectionRef = collection(db, 'clients', id, 'units');

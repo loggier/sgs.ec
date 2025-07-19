@@ -13,6 +13,7 @@ import {
   getDoc,
   collectionGroup,
   query,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
@@ -38,6 +39,11 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
     const clientDocRef = doc(db, 'clients', clientId);
     const clientDoc = await getDoc(clientDocRef);
     if (!clientDoc.exists()) return [];
+
+    // Security Check: Ensure non-master user owns the client
+    if (session.role !== 'master' && clientDoc.data().ownerId !== session.id) {
+        return [];
+    }
     
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
@@ -60,6 +66,15 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
 
+    const clientDocRef = doc(db, 'clients', clientId);
+    const clientDoc = await getDoc(clientDocRef);
+    if (!clientDoc.exists()) return null;
+    
+    // Security check
+    if (session.role !== 'master' && clientDoc.data().ownerId !== session.id) {
+        return null;
+    }
+
     const data = convertTimestamps(unitDoc.data());
     return { id: unitDoc.id, clientId, ...data } as Unit;
 }
@@ -71,10 +86,19 @@ export async function saveUnit(
   unitId?: string
 ): Promise<{ success: boolean; message:string; unit?: Unit }> {
   const session = await getCurrentUser();
-  if (!session || session.role !== 'master') {
+  if (!session || !['master', 'manager'].includes(session.role)) {
       return { success: false, message: 'No tiene permiso para modificar unidades.' };
   }
   
+  const clientDocRef = doc(db, 'clients', clientId);
+  const clientDoc = await getDoc(clientDocRef);
+  if (!clientDoc.exists()) {
+      return { success: false, message: 'El cliente especificado no existe.' };
+  }
+  if (session.role !== 'master' && clientDoc.data().ownerId !== session.id) {
+      return { success: false, message: 'No tiene permiso para añadir unidades a este cliente.' };
+  }
+
   const validation = UnitFormSchema.safeParse(data);
 
   if (!validation.success) {
@@ -85,7 +109,7 @@ export async function saveUnit(
   try {
     const unitDataForFirestore: any = {
       ...validation.data,
-      ultimoPago: null,
+      ultimoPago: validation.data.ultimoPago || null,
       fechaSiguientePago: validation.data.fechaSiguientePago || new Date(),
     };
     
@@ -100,11 +124,9 @@ export async function saveUnit(
     let savedUnitId = unitId;
 
     if (unitId) {
-      // Update
       const unitDocRef = doc(unitsCollectionRef, unitId);
       await updateDoc(unitDocRef, unitDataForFirestore);
     } else {
-      // Create
       const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
       savedUnitId = newUnitRef.id;
     }
@@ -123,8 +145,17 @@ export async function saveUnit(
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
   const session = await getCurrentUser();
-  if (!session || session.role !== 'master') {
-      return { success: false, message: 'No tiene permiso para eliminar unidades.' };
+  if (!session) {
+      return { success: false, message: 'Acción no permitida.' };
+  }
+  
+  const clientDocRef = doc(db, 'clients', clientId);
+  const clientDoc = await getDoc(clientDocRef);
+  if (!clientDoc.exists()) {
+      return { success: false, message: 'El cliente especificado no existe.' };
+  }
+  if (session.role !== 'master' && clientDoc.data().ownerId !== session.id) {
+      return { success: false, message: 'No tiene permiso para eliminar unidades de este cliente.' };
   }
 
   try {
@@ -172,8 +203,10 @@ export async function getAllUnits(): Promise<(Unit & { clientName: string; owner
             } as Unit & { clientName: string; ownerId: string; ownerName?: string };
         });
 
-        // The list is no longer filtered by owner, all authenticated users can see all units
-        // If master, the owner's name is attached.
+        // If user is not master, filter units to only show their own
+        if (session.role !== 'master') {
+            allUnits = allUnits.filter(unit => unit.ownerId === session.id);
+        }
 
         return allUnits;
     } catch (error) {

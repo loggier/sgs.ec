@@ -161,10 +161,12 @@ export default function ClientList({ initialClients }: ClientListProps) {
                   <CardTitle>Gestión de Clientes</CardTitle>
                   <CardDescription>Busque, agregue, edite o elimine clientes.</CardDescription>
                 </div>
-                <Button onClick={handleAddClient} size="sm">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nuevo Cliente
-                </Button>
+                {user && ['master', 'manager'].includes(user.role) && (
+                  <Button onClick={handleAddClient} size="sm">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Nuevo Cliente
+                  </Button>
+                )}
             </div>
             <div className="relative mt-4">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -243,13 +245,17 @@ export default function ClientList({ initialClients }: ClientListProps) {
                               <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
                                 <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                                <Edit className="mr-2 h-4 w-4" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                              </DropdownMenuItem>
+                              {user && (user.role === 'master' || user.id === client.ownerId) && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
