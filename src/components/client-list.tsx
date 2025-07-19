@@ -302,7 +302,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                   <DialogHeader>
                       <DialogTitle>Registrar Pago para {selectedClient?.nomSujeto}</DialogTitle>
                       <DialogDescription>
-                          Seleccione la unidad y complete los detalles del pago.
+                          Seleccione una o más unidades y complete los detalles del pago.
                       </DialogDescription>
                   </DialogHeader>
                   {selectedClient && (
