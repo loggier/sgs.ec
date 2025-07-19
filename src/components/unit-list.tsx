@@ -252,7 +252,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                   <DialogDescription>
                       Complete los detalles del pago. Al guardar, las fechas de la unidad se actualizarán automáticamente.
                   </DialogDescription>
-              </Header>
+              </DialogHeader>
               {selectedUnit && (
                   <PaymentForm 
                       unit={selectedUnit}
