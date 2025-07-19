@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Search } from 'lucide-react';
+import { Search, MoreHorizontal, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -20,6 +20,9 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { Button } from './ui/button';
+import DeletePaymentDialog from './delete-payment-dialog';
 
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
@@ -39,6 +42,8 @@ export default function PaymentHistoryList({ initialPayments }: PaymentHistoryLi
   const { user } = useAuth();
   const [payments, setPayments] = React.useState(initialPayments);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
 
   React.useEffect(() => {
     setPayments(initialPayments);
@@ -54,73 +59,113 @@ export default function PaymentHistoryList({ initialPayments }: PaymentHistoryLi
       (p.ownerName && p.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, payments]);
+  
+  const handleDeletePayment = (payment: PaymentHistoryEntry) => {
+    setSelectedPayment(payment);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const onPaymentDeleted = (paymentId: string) => {
+    setPayments(currentPayments => currentPayments.filter(p => p.id !== paymentId));
+    setIsDeleteDialogOpen(false);
+    setSelectedPayment(null);
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Todos los Pagos</CardTitle>
-            <CardDescription>Busque y filtre todos los pagos registrados en el sistema.</CardDescription>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Todos los Pagos</CardTitle>
+              <CardDescription>Busque y filtre todos los pagos registrados en el sistema.</CardDescription>
+            </div>
           </div>
-        </div>
-        <div className="relative mt-4">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Buscar por cliente, placa, factura, propietario..."
-            className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha de Pago</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Placa</TableHead>
-                {user?.role === 'master' && <TableHead>Propietario</TableHead>}
-                <TableHead>Monto</TableHead>
-                <TableHead>Meses Pagados</TableHead>
-                <TableHead>Forma de Pago</TableHead>
-                <TableHead>Factura No.</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPayments.length > 0 ? (
-                filteredPayments.map(payment => (
-                  <TableRow key={payment.id}>
-                    <TableCell>{formatDate(payment.fechaPago)}</TableCell>
-                    <TableCell>
-                      <Link href={`/clients/${payment.clientId}/units`} className="hover:underline text-primary font-medium">
-                        {payment.clientName}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{payment.unitPlaca}</TableCell>
-                    {user?.role === 'master' && <TableCell>{payment.ownerName}</TableCell>}
-                    <TableCell className="font-semibold">{formatCurrency(payment.monto)}</TableCell>
-                    <TableCell>{payment.mesesPagados}</TableCell>
-                    <TableCell>
-                        <Badge variant="secondary" className="capitalize">{payment.formaPago}</Badge>
-                    </TableCell>
-                    <TableCell>{payment.numeroFactura}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
+          <div className="relative mt-4">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Buscar por cliente, placa, factura, propietario..."
+              className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 8 : 7} className="text-center">
-                    No se encontraron pagos.
-                  </TableCell>
+                  <TableHead>Fecha de Pago</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Placa</TableHead>
+                  {user?.role === 'master' && <TableHead>Propietario</TableHead>}
+                  <TableHead>Monto</TableHead>
+                  <TableHead>Meses Pagados</TableHead>
+                  <TableHead>Forma de Pago</TableHead>
+                  <TableHead>Factura No.</TableHead>
+                  <TableHead><span className="sr-only">Acciones</span></TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {filteredPayments.length > 0 ? (
+                  filteredPayments.map(payment => (
+                    <TableRow key={payment.id}>
+                      <TableCell>{formatDate(payment.fechaPago)}</TableCell>
+                      <TableCell>
+                        <Link href={`/clients/${payment.clientId}/units`} className="hover:underline text-primary font-medium">
+                          {payment.clientName}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{payment.unitPlaca}</TableCell>
+                      {user?.role === 'master' && <TableCell>{payment.ownerName}</TableCell>}
+                      <TableCell className="font-semibold">{formatCurrency(payment.monto)}</TableCell>
+                      <TableCell>{payment.mesesPagados}</TableCell>
+                      <TableCell>
+                          <Badge variant="secondary" className="capitalize">{payment.formaPago}</Badge>
+                      </TableCell>
+                      <TableCell>{payment.numeroFactura}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Alternar menú</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleDeletePayment(payment)} className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar Pago
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="text-center">
+                      No se encontraron pagos.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <DeletePaymentDialog
+        isOpen={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        payment={selectedPayment}
+        onDelete={() => {
+            if (selectedPayment) {
+                onPaymentDeleted(selectedPayment.id);
+            }
+        }}
+      />
+    </>
   );
 }

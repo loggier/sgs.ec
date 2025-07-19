@@ -85,7 +85,7 @@ export async function saveUnit(
     const unitDataForFirestore: any = {
       ...validation.data,
       ultimoPago: validation.data.ultimoPago || null,
-      fechaSiguientePago: validation.data.fechaSiguientePago || new Date(),
+      fechaSiguientePago: validation.data.fechaSiguientePago || validation.data.fechaVencimiento,
     };
     
     if (validation.data.tipoContrato === 'sin_contrato') {

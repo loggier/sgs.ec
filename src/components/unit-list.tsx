@@ -194,7 +194,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                            <DropdownMenuItem onClick={() => handleRegisterPayment(unit)}>
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
-                          {user && ['master', 'manager'].includes(user.role) && (
+                          {user && ['master', 'manager', 'usuario'].includes(user.role) && (
                             <>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
@@ -252,7 +252,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                   <DialogDescription>
                       Complete los detalles del pago. Al guardar, las fechas de la unidad se actualizarán automáticamente.
                   </DialogDescription>
-              </DialogHeader>
+              </Header>
               {selectedUnit && (
                   <PaymentForm 
                       unit={selectedUnit}
