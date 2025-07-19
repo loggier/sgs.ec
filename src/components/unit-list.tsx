@@ -123,13 +123,13 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
   
   const getContractDisplay = (unit: Unit) => {
     const baseText = unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato';
-    const variant = unit.tipoContrato === 'con_contrato' ? 'default' : 'secondary';
-    const duration = unit.mesesContrato ? `(${unit.mesesContrato} meses)` : '';
+    const duration = unit.mesesContrato ? `${unit.mesesContrato} meses` : null;
 
     return (
-      <Badge variant={variant} className="capitalize">
-        {`${baseText} ${duration}`}
-      </Badge>
+      <div>
+        <div className="font-medium">{baseText}</div>
+        {duration && <div className="text-xs text-muted-foreground">{duration}</div>}
+      </div>
     );
   };
 
