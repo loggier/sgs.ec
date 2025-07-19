@@ -73,7 +73,6 @@ export async function registerPayment(
         const newSiguientePago = addMonths(currentSiguientePago, mesesPagados);
         unitUpdateData.fechaSiguientePago = newSiguientePago;
 
-        // Conditional logic for "sin_contrato"
         if (unit.tipoContrato === 'sin_contrato') {
             const currentVencimiento = new Date(unit.fechaVencimiento);
             const newVencimiento = addMonths(currentVencimiento, mesesPagados);
@@ -183,28 +182,23 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
 
         const unitUpdate: Partial<Unit> = {};
 
-        // Revertimos la fecha del siguiente pago.
         const newSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
         unitUpdate.fechaSiguientePago = newSiguientePago;
 
-        // Revertimos la fecha de vencimiento si es sin contrato
         if (unitData.tipoContrato === 'sin_contrato') {
             const newVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
             unitUpdate.fechaVencimiento = newVencimiento;
         }
 
-        // Buscamos el pago anterior para revertir ultimoPago
         const paymentsCollectionRef = collection(unitDocRef, 'payments');
         const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
         const paymentsSnapshot = await getDocs(q);
         
-        // El pago anterior será el segundo en la lista (si existe), ya que el primero es el que estamos eliminando.
         const previousPaymentDoc = paymentsSnapshot.docs.find(doc => doc.id !== paymentId);
 
         if (previousPaymentDoc) {
             unitUpdate.ultimoPago = convertTimestamps(previousPaymentDoc.data()).fechaPago;
         } else {
-            // Si no hay pagos anteriores, podemos setearlo a null.
             unitUpdate.ultimoPago = null;
         }
         
