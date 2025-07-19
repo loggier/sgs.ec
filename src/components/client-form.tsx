@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { ClientSchema, type Client } from '@/lib/schema';
 import { saveClient } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -45,6 +47,7 @@ type FormSchemaType = z.infer<typeof formSchema>;
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<FormSchemaType>({
@@ -75,9 +78,19 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
   });
 
   async function onSubmit(values: FormSchemaType) {
+    if (!user) {
+        toast({
+            title: 'Error de autenticación',
+            description: 'No se pudo identificar al usuario. Por favor, inicie sesión de nuevo.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
     setIsSubmitting(true);
     try {
-      const result = await saveClient(values, client?.id);
+      // Pass ownerId explicitly
+      const result = await saveClient(values, user.id, client?.id);
       if (result.success) {
         toast({
           title: 'Éxito',

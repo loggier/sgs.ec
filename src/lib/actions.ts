@@ -16,7 +16,6 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientWithOwner } from './schema';
-import { getCurrentUser } from './auth';
 import type { User } from './user-schema';
 
 // Helper function to convert Firestore Timestamps to Dates in a document
@@ -30,176 +29,177 @@ const convertTimestamps = (docData: any) => {
   return data;
 };
 
-export async function getClients(): Promise<ClientWithOwner[]> {
-  const currentUser = await getCurrentUser();
-  if (!currentUser) return [];
-
-  try {
-    let clientsQuery;
-    const clientsCollectionRef = collection(db, 'clients');
-
-    if (currentUser.role === 'master') {
-      // Master users see all clients
-      clientsQuery = query(clientsCollectionRef);
-    } else {
-      // Other users only see their own clients
-      clientsQuery = query(clientsCollectionRef, where('ownerId', '==', currentUser.id));
+export async function getClients(currentUserId: string, currentUserRole: User['role']): Promise<ClientWithOwner[]> {
+    if (!currentUserId) return [];
+  
+    try {
+      let clientsQuery;
+      const clientsCollectionRef = collection(db, 'clients');
+  
+      if (currentUserRole === 'master') {
+        // Master users see all clients
+        clientsQuery = query(clientsCollectionRef);
+      } else {
+        // Other users only see their own clients
+        clientsQuery = query(clientsCollectionRef, where('ownerId', '==', currentUserId));
+      }
+      
+      const clientSnapshot = await getDocs(clientsQuery);
+  
+      let clientsList: ClientWithOwner[] = clientSnapshot.docs.map(doc => {
+          const data = convertTimestamps(doc.data());
+          return { id: doc.id, ...data } as ClientWithOwner;
+      });
+  
+      // For master users, fetch and attach the owner's name for display
+      if (currentUserRole === 'master') {
+          const usersCollection = collection(db, 'users');
+          const usersSnapshot = await getDocs(usersCollection);
+          const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+          
+          clientsList = clientsList.map(client => ({
+              ...client,
+              ownerName: usersMap.get(client.ownerId)?.nombre || 'Desconocido',
+          }));
+      }
+  
+      return clientsList;
+    } catch (error) {
+      console.error("Error getting clients:", error);
+      return [];
     }
-    
-    const clientSnapshot = await getDocs(clientsQuery);
-
-    let clientsList: ClientWithOwner[] = clientSnapshot.docs.map(doc => {
-        const data = convertTimestamps(doc.data());
-        return { id: doc.id, ...data } as ClientWithOwner;
-    });
-
-    // For master users, fetch and attach the owner's name for display
-    if (currentUser.role === 'master') {
-        const usersCollection = collection(db, 'users');
-        const usersSnapshot = await getDocs(usersCollection);
-        const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-        
-        clientsList = clientsList.map(client => ({
-            ...client,
-            ownerName: usersMap.get(client.ownerId)?.nombre || 'Desconocido',
-        }));
-    }
-
-    return clientsList;
-  } catch (error) {
-    console.error("Error getting clients:", error);
-    return [];
-  }
 }
-
-export async function getClientById(id: string): Promise<ClientWithOwner | undefined> {
-   const currentUser = await getCurrentUser();
-   if (!currentUser) return undefined;
-
-  try {
-    const clientDocRef = doc(db, 'clients', id);
-    const clientDoc = await getDoc(clientDocRef);
-    if (!clientDoc.exists()) {
-      return undefined;
-    }
-
-    const data = convertTimestamps(clientDoc.data()) as Client;
-    
-    // Security check: non-master users can only access their own clients
-    if (currentUser.role !== 'master' && data.ownerId !== currentUser.id) {
-        return undefined;
-    }
-    
-    let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
-    
-    // For master users, show owner name
-    if (currentUser.role === 'master' && data.ownerId) {
-        const ownerDocRef = doc(db, 'users', data.ownerId);
-        const ownerDoc = await getDoc(ownerDocRef);
-        if (ownerDoc.exists()) {
-            clientData.ownerName = (ownerDoc.data() as User).nombre;
-        }
-    }
-
-    return clientData;
-  } catch (error) {
-    console.error("Error getting client by ID:", error);
-    return undefined;
-  }
-}
-
-export async function saveClient(
-  data: Omit<Client, 'id' | 'ownerId'>,
-  id?: string
-): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
-  const currentUser = await getCurrentUser();
-  // Allow master and manager roles to create/edit clients
-  if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
-    return { success: false, message: 'No tiene permiso para guardar clientes.' };
-  }
-
-  // Add ownerId to the data before validation
-  const dataWithOwner = { ...data, ownerId: currentUser.id };
-  const validation = ClientSchema.omit({ id: true }).safeParse(dataWithOwner);
-
-  if (!validation.success) {
-    console.error(validation.error.flatten().fieldErrors);
-    return { success: false, message: 'Datos proporcionados no válidos.' };
-  }
-
-  const { ...clientData } = validation.data;
-
-  try {
-    let savedClientId = id;
-    const dataToSave: { [key: string]: any } = { ...clientData };
-    Object.keys(dataToSave).forEach(key => {
-        const K = key as keyof typeof dataToSave;
-        if (dataToSave[K] === null || dataToSave[K] === undefined || dataToSave[K] === '') {
-            delete dataToSave[K];
-        }
-    });
-    
-    if (id) {
+  
+export async function getClientById(id: string, currentUserId: string, currentUserRole: User['role']): Promise<ClientWithOwner | undefined> {
+     if (!currentUserId) return undefined;
+  
+    try {
       const clientDocRef = doc(db, 'clients', id);
       const clientDoc = await getDoc(clientDocRef);
       if (!clientDoc.exists()) {
-          return { success: false, message: 'Cliente no encontrado.' };
+        return undefined;
       }
-      // Security check for editing
-      if (currentUser.role !== 'master' && clientDoc.data()?.ownerId !== currentUser.id) {
-          return { success: false, message: 'No tiene permiso para editar este cliente.' };
+  
+      const data = convertTimestamps(clientDoc.data()) as Client;
+      
+      // Security check: non-master users can only access their own clients
+      if (currentUserRole !== 'master' && data.ownerId !== currentUserId) {
+          return undefined;
       }
-      await updateDoc(clientDocRef, dataToSave);
-    } else {
-      const clientsCollection = collection(db, 'clients');
-      const newClientRef = await addDoc(clientsCollection, dataToSave);
-      savedClientId = newClientRef.id;
+      
+      let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
+      
+      // For master users, show owner name
+      if (currentUserRole === 'master' && data.ownerId) {
+          const ownerDocRef = doc(db, 'users', data.ownerId);
+          const ownerDoc = await getDoc(ownerDocRef);
+          if (ownerDoc.exists()) {
+              clientData.ownerName = (ownerDoc.data() as User).nombre;
+          }
+      }
+  
+      return clientData;
+    } catch (error) {
+      console.error("Error getting client by ID:", error);
+      return undefined;
     }
-
-    revalidatePath('/');
-    const savedClient = await getClientById(savedClientId!);
-    return {
-      success: true,
-      message: `Cliente ${id ? 'actualizado' : 'creado'} con éxito.`,
-      client: savedClient,
-    };
-  } catch (error) {
-    console.error(error);
-    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-    return { success: false, message: `Error al guardar el cliente: ${errorMessage}` };
-  }
 }
 
-export async function deleteClient(id: string): Promise<{ success: boolean; message: string }> {
-   const currentUser = await getCurrentUser();
-   if (!currentUser) {
-       return { success: false, message: 'Acción no permitida.' };
-   }
-
-   try {
-    const clientDocRef = doc(db, 'clients', id);
-    const clientDoc = await getDoc(clientDocRef);
-    if (!clientDoc.exists()) {
-      return { success: false, message: 'Cliente no encontrado.' };
-    }
-   
-    // Security check: Only master or the owner can delete
-    if (currentUser.role !== 'master' && clientDoc.data()?.ownerId !== currentUser.id) {
-        return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
+export async function saveClient(
+    data: Omit<Client, 'id' | 'ownerId'>,
+    ownerId: string, // ownerId is now passed explicitly
+    clientId?: string
+  ): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
+    if (!ownerId) {
+        return { success: false, message: 'No se pudo identificar al propietario.' };
     }
 
-    const unitsCollectionRef = collection(db, 'clients', id, 'units');
-    const unitsSnapshot = await getDocs(unitsCollectionRef);
-    const deletePromises = unitsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
-    await Promise.all(deletePromises);
-
-    await deleteDoc(doc(db, 'clients', id));
-    
-    revalidatePath('/');
-    revalidatePath(`/clients/${id}/units`);
-    return { success: true, message: 'Cliente y todas sus unidades eliminados con éxito.' };
-  } catch (error) {
-    console.error("Error deleting client:", error);
-    return { success: false, message: 'Error al eliminar el cliente.' };
-  }
+    // You might want to verify the user exists and has the right role, but for now we trust the client-side check.
+    const userDoc = await getDoc(doc(db, 'users', ownerId));
+    if (!userDoc.exists() || !['master', 'manager'].includes(userDoc.data()?.role)) {
+        return { success: false, message: 'No tiene permiso para guardar clientes.' };
+    }
+  
+    const dataWithOwner = { ...data, ownerId: ownerId };
+    const validation = ClientSchema.omit({ id: true }).safeParse(dataWithOwner);
+  
+    if (!validation.success) {
+      console.error(validation.error.flatten().fieldErrors);
+      return { success: false, message: 'Datos proporcionados no válidos.' };
+    }
+  
+    const { ...clientData } = validation.data;
+  
+    try {
+      let savedClientId = clientId;
+      const dataToSave: { [key: string]: any } = { ...clientData };
+      Object.keys(dataToSave).forEach(key => {
+          const K = key as keyof typeof dataToSave;
+          if (dataToSave[K] === null || dataToSave[K] === undefined || dataToSave[K] === '') {
+              delete dataToSave[K];
+          }
+      });
+      
+      if (clientId) {
+        const clientDocRef = doc(db, 'clients', clientId);
+        const currentClientDoc = await getDoc(clientDocRef);
+        if (!currentClientDoc.exists()) {
+            return { success: false, message: 'Cliente no encontrado.' };
+        }
+        // Security check for editing
+        if (userDoc.data()?.role !== 'master' && currentClientDoc.data()?.ownerId !== ownerId) {
+            return { success: false, message: 'No tiene permiso para editar este cliente.' };
+        }
+        await updateDoc(clientDocRef, dataToSave);
+      } else {
+        const clientsCollection = collection(db, 'clients');
+        const newClientRef = await addDoc(clientsCollection, dataToSave);
+        savedClientId = newClientRef.id;
+      }
+  
+      revalidatePath('/');
+      const savedClient = await getClientById(savedClientId!, ownerId, userDoc.data()?.role);
+      return {
+        success: true,
+        message: `Cliente ${clientId ? 'actualizado' : 'creado'} con éxito.`,
+        client: savedClient,
+      };
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+      return { success: false, message: `Error al guardar el cliente: ${errorMessage}` };
+    }
+}
+  
+export async function deleteClient(id: string, currentUserId: string, currentUserRole: User['role']): Promise<{ success: boolean; message: string }> {
+     if (!currentUserId) {
+         return { success: false, message: 'Acción no permitida.' };
+     }
+  
+     try {
+      const clientDocRef = doc(db, 'clients', id);
+      const clientDoc = await getDoc(clientDocRef);
+      if (!clientDoc.exists()) {
+        return { success: false, message: 'Cliente no encontrado.' };
+      }
+     
+      // Security check: Only master or the owner can delete
+      if (currentUserRole !== 'master' && clientDoc.data()?.ownerId !== currentUserId) {
+          return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
+      }
+  
+      const unitsCollectionRef = collection(db, 'clients', id, 'units');
+      const unitsSnapshot = await getDocs(unitsCollectionRef);
+      const deletePromises = unitsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+  
+      await deleteDoc(doc(db, 'clients', id));
+      
+      revalidatePath('/');
+      revalidatePath(`/clients/${id}/units`);
+      return { success: true, message: 'Cliente y todas sus unidades eliminados con éxito.' };
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      return { success: false, message: 'Error al eliminar el cliente.' };
+    }
 }

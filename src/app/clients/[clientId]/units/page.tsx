@@ -1,9 +1,17 @@
+
+'use client';
+
+import * as React from 'react';
 import { getClientById } from '@/lib/actions';
 import { getUnitsByClientId } from '@/lib/unit-actions';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
 import { notFound } from 'next/navigation';
 import Header from '@/components/header';
+import { useAuth } from '@/context/auth-context';
+import type { ClientWithOwner } from '@/lib/schema';
+import type { Unit } from '@/lib/unit-schema';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type UnitsPageProps = {
   params: {
@@ -11,13 +19,40 @@ type UnitsPageProps = {
   };
 };
 
-export default async function UnitsPage({ params }: UnitsPageProps) {
+export default function UnitsPage({ params }: UnitsPageProps) {
+  const { user } = useAuth();
   const { clientId } = params;
-  const client = await getClientById(clientId);
-  const units = await getUnitsByClientId(clientId);
 
-  if (!client) {
-    notFound();
+  const [client, setClient] = React.useState<ClientWithOwner | null>(null);
+  const [units, setUnits] = React.useState<Unit[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (user) {
+      setIsLoading(true);
+      Promise.all([
+        getClientById(clientId, user.id, user.role),
+        getUnitsByClientId(clientId, user.id, user.role)
+      ]).then(([clientData, unitsData]) => {
+        if (!clientData) {
+          notFound();
+        } else {
+          setClient(clientData);
+          setUnits(unitsData);
+        }
+        setIsLoading(false);
+      });
+    }
+  }, [clientId, user]);
+
+  if (isLoading || !client) {
+    return (
+      <div className="flex flex-col h-full space-y-6">
+        <Header title="Cargando..." showBackButton backButtonHref="/" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
   }
 
   // Calculate summary data

@@ -1,9 +1,11 @@
+
 'use client';
 
 import * as React from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { deleteClient } from '@/lib/actions';
 import type { Client } from '@/lib/schema';
+import { useAuth } from '@/context/auth-context';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,14 +33,15 @@ export default function DeleteClientDialog({
   onDelete,
 }: DeleteClientDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async () => {
-    if (!client) return;
+    if (!client || !user) return;
 
     setIsDeleting(true);
     try {
-      const result = await deleteClient(client.id!);
+      const result = await deleteClient(client.id!, user.id, user.role);
       if (result.success) {
         toast({
           title: 'Éxito',
