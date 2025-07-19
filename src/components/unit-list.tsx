@@ -37,6 +37,7 @@ import PaymentStatusBadge from './payment-status-badge';
 type UnitListProps = {
   initialUnits: Unit[];
   clientId: string;
+  onDataChange: () => void;
 };
 
 const planDisplayNames: Record<Unit['tipoPlan'], string> = {
@@ -53,7 +54,7 @@ function formatCurrency(amount?: number) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
-export default function UnitList({ initialUnits, clientId }: UnitListProps) {
+export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
   const [units, setUnits] = React.useState(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -90,21 +91,15 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
     setIsPaymentDialogOpen(true);
   };
 
-  const handleFormSave = (savedUnit: Unit) => {
-    setUnits(currentUnits => {
-        const existing = currentUnits.find(u => u.id === savedUnit.id);
-        if (existing) {
-            return currentUnits.map(u => u.id === savedUnit.id ? savedUnit : u);
-        }
-        return [...currentUnits, savedUnit];
-    });
+  const handleFormSave = () => {
+    onDataChange();
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setSelectedUnit(null);
   };
   
-  const onUnitDeleted = (unitId: string) => {
-    setUnits(currentUnits => currentUnits.filter(u => u.id !== unitId));
+  const onUnitDeleted = () => {
+    onDataChange();
     setIsDeleteDialogOpen(false);
   };
 

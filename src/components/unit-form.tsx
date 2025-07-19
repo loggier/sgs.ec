@@ -42,7 +42,7 @@ import { Combobox } from './ui/combobox';
 type UnitFormProps = {
   unit: Unit | null;
   clientId?: string; // Optional: provided when adding/editing from a client's page
-  onSave: (unit: Unit) => void;
+  onSave: () => void;
   onCancel: () => void;
 };
 
@@ -431,7 +431,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           title: 'Éxito',
           description: result.message,
         });
-        onSave(result.unit);
+        onSave();
       } else {
         toast({
           title: 'Error',

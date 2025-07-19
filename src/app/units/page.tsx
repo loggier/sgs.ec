@@ -17,7 +17,7 @@ export default function GlobalUnitsPage() {
   const [units, setUnits] = React.useState<GlobalUnit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
+  const fetchUnits = React.useCallback(() => {
     if (user) {
       setIsLoading(true);
       getAllUnits(user.id, user.role)
@@ -27,6 +27,10 @@ export default function GlobalUnitsPage() {
         });
     }
   }, [user]);
+
+  React.useEffect(() => {
+    fetchUnits();
+  }, [fetchUnits]);
 
   if (isLoading) {
     return (
@@ -69,7 +73,7 @@ export default function GlobalUnitsPage() {
           unitsByPlan={unitsByPlan}
           unitsByContractType={unitsByContractType}
         />
-        <GlobalUnitList initialUnits={units} />
+        <GlobalUnitList initialUnits={units} onDataChange={fetchUnits} />
       </div>
     </div>
   );

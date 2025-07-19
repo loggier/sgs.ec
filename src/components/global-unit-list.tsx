@@ -40,6 +40,7 @@ type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
 type GlobalUnitListProps = {
   initialUnits: GlobalUnit[];
+  onDataChange: () => void;
 };
 
 const planDisplayNames: Record<Unit['tipoPlan'], string> = {
@@ -56,7 +57,7 @@ function formatCurrency(amount?: number) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
-export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
+export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUnitListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [units, setUnits] = React.useState(initialUnits);
@@ -94,31 +95,15 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
     setIsPaymentDialogOpen(true);
   };
 
-  const handleFormSave = (savedUnit: Unit) => {
-    setUnits(currentUnits => {
-        const existingUnitIndex = currentUnits.findIndex(u => u.id === savedUnit.id);
-        
-        if (existingUnitIndex !== -1) {
-            // Update existing unit
-            const clientName = currentUnits[existingUnitIndex].clientName;
-            const ownerName = currentUnits[existingUnitIndex].ownerName;
-            const updatedUnits = [...currentUnits];
-            updatedUnits[existingUnitIndex] = { ...savedUnit, clientName, ownerName };
-            return updatedUnits;
-        } else {
-            // Add new unit (should have clientName and ownerName from server)
-            const newSavedUnit = savedUnit as GlobalUnit;
-            return [...currentUnits, newSavedUnit];
-        }
-    });
-
+  const handleFormSave = () => {
+    onDataChange();
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setSelectedUnit(null);
   };
   
-  const onUnitDeleted = (unitId: string) => {
-    setUnits(currentUnits => currentUnits.filter(u => u.id !== unitId));
+  const onUnitDeleted = () => {
+    onDataChange();
     setIsDeleteDialogOpen(false);
   };
 
@@ -272,7 +257,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
           </SheetHeader>
            <UnitForm
               unit={selectedUnit}
-              clientId={selectedUnit?.clientId} // Pass clientId if editing, undefined if adding
+              clientId={selectedUnit?.clientId} 
               onSave={handleFormSave}
               onCancel={() => setIsSheetOpen(false)}
           />
@@ -284,7 +269,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
         onOpenChange={setIsDeleteDialogOpen}
         unit={selectedUnit}
         clientId={selectedUnit?.clientId ?? ''}
-        onDelete={() => onUnitDeleted(selectedUnit!.id)}
+        onDelete={onUnitDeleted}
       />
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>

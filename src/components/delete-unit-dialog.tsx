@@ -23,7 +23,7 @@ type DeleteUnitDialogProps = {
   onOpenChange: (open: boolean) => void;
   unit: Unit | null;
   clientId: string;
-  onDelete: (unitId: string) => void;
+  onDelete: () => void;
 };
 
 export default function DeleteUnitDialog({
@@ -48,7 +48,7 @@ export default function DeleteUnitDialog({
           title: 'Éxito',
           description: result.message,
         });
-        onDelete(unit.id);
+        onDelete();
       } else {
         toast({
           title: 'Error',

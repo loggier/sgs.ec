@@ -35,7 +35,7 @@ import { Calendar } from '@/components/ui/calendar';
 
 type PaymentFormProps = {
   unit: Unit;
-  onSave: (updatedUnit: Unit) => void;
+  onSave: () => void;
   onCancel: () => void;
 };
 
@@ -78,7 +78,7 @@ export default function PaymentForm({ unit, onSave, onCancel }: PaymentFormProps
           title: 'Éxito',
           description: result.message,
         });
-        onSave(result.units[0]);
+        onSave();
       } else {
         toast({
           title: 'Error',

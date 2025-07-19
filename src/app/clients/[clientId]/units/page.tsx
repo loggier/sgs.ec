@@ -27,7 +27,7 @@ export default function UnitsPage({ params }: UnitsPageProps) {
   const [units, setUnits] = React.useState<Unit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
+  const fetchData = React.useCallback(() => {
     if (user) {
       setIsLoading(true);
       Promise.all([
@@ -47,6 +47,10 @@ export default function UnitsPage({ params }: UnitsPageProps) {
       });
     }
   }, [clientId, user]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (isLoading || !client) {
     return (
@@ -90,7 +94,7 @@ export default function UnitsPage({ params }: UnitsPageProps) {
           unitsByPlan={unitsByPlan}
           unitsByContractType={unitsByContractType}
         />
-        <UnitList initialUnits={units} clientId={clientId} />
+        <UnitList initialUnits={units} clientId={clientId} onDataChange={fetchData} />
       </div>
     </div>
   );
