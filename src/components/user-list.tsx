@@ -37,8 +37,9 @@ export default function UserList({ initialUsers }: UserListProps) {
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
 
   React.useEffect(() => {
-    const usersWithoutPasswords = initialUsers.map(({ password, ...user }) => user as User);
-    setUsers(usersWithoutPasswords);
+    // The user object from the server via initialUsers already lacks the password.
+    // No need to map and remove it again.
+    setUsers(initialUsers);
   }, [initialUsers]);
 
   const handleAddUser = () => {
