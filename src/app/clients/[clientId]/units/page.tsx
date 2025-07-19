@@ -14,14 +14,14 @@ import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type UnitsPageProps = {
-  params: {
+  params: Promise<{
     clientId: string;
-  };
+  }>;
 };
 
 export default function UnitsPage({ params }: UnitsPageProps) {
   const { user } = useAuth();
-  const { clientId } = params;
+  const { clientId } = React.use(params);
 
   const [client, setClient] = React.useState<ClientWithOwner | null>(null);
   const [units, setUnits] = React.useState<Unit[]>([]);
@@ -32,7 +32,7 @@ export default function UnitsPage({ params }: UnitsPageProps) {
       setIsLoading(true);
       Promise.all([
         getClientById(clientId, user.id, user.role),
-        getUnitsByClientId(clientId, user.id, user.role)
+        getUnitsByClientId(clientId)
       ]).then(([clientData, unitsData]) => {
         if (!clientData) {
           notFound();
