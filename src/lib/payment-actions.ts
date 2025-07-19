@@ -6,7 +6,6 @@ import { addMonths, subMonths } from 'date-fns';
 import {
   collection,
   doc,
-  updateDoc,
   getDoc,
   Timestamp,
   writeBatch,
@@ -18,7 +17,6 @@ import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
-import type { Client } from './schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 
@@ -64,24 +62,16 @@ export async function registerPayment(
         }
 
         const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
-        const now = new Date();
         
         const unitUpdateData: Partial<Record<keyof Unit, any>> = {
             ultimoPago: fechaPago,
+            // The next payment date is always calculated from the PREVIOUS next payment date
+            fechaSiguientePago: addMonths(new Date(unitDataFromDB.fechaSiguientePago), mesesPagados),
         };
-
-        // Determine the base date for calculation
-        const baseDateForNextPayment = new Date(unitDataFromDB.fechaSiguientePago) < now 
-            ? fechaPago 
-            : new Date(unitDataFromDB.fechaSiguientePago);
         
-        unitUpdateData.fechaSiguientePago = addMonths(baseDateForNextPayment, mesesPagados);
-        
+        // For non-contract units, the expiration date also moves forward
         if (unitDataFromDB.tipoContrato === 'sin_contrato') {
-            const baseDateForExpiration = new Date(unitDataFromDB.fechaVencimiento) < now
-                ? fechaPago
-                : new Date(unitDataFromDB.fechaVencimiento);
-            unitUpdateData.fechaVencimiento = addMonths(baseDateForExpiration, mesesPagados);
+            unitUpdateData.fechaVencimiento = addMonths(new Date(unitDataFromDB.fechaVencimiento), mesesPagados);
         }
         
         batch.update(unitDocRef, unitUpdateData);
@@ -138,7 +128,7 @@ export async function getAllPayments(
       const units = await getUnitsByClientId(client.id);
       for (const unit of units) {
         const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
-        const paymentsSnapshot = await getDocs(paymentsCollectionRef);
+        const paymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
 
         paymentsSnapshot.forEach(paymentDoc => {
           const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
@@ -156,6 +146,7 @@ export async function getAllPayments(
       }
     }
     
+    // The query already sorts them by date for each unit, but we need a global sort.
     allPayments.sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
 
     return allPayments;
@@ -190,8 +181,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         };
 
         if (unitData.tipoContrato === 'sin_contrato') {
-            const newVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
-            unitUpdate.fechaVencimiento = newVencimiento;
+            unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
         }
 
         const paymentsCollectionRef = collection(unitDocRef, 'payments');
