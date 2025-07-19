@@ -37,7 +37,6 @@ export async function registerPayment(
   unitIds: string[],
   clientId: string
 ): Promise<{ success: boolean; message: string; units?: Unit[] }> {
-  // Use the base schema as client/batch forms provide the necessary data
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
@@ -70,12 +69,16 @@ export async function registerPayment(
             ultimoPago: fechaPago,
         };
 
-        const currentVencimiento = unit.fechaVencimiento;
-        const baseDateForVencimiento = currentVencimiento > new Date() ? currentVencimiento : new Date();
-        const newVencimiento = addMonths(baseDateForVencimiento, mesesPagados);
+        const currentSiguientePago = unit.fechaSiguientePago;
+        // The base date for calculation is the *next payment date*, not the contract expiration.
+        // If the next payment date is in the past, we start calculating from today.
+        const baseDateForNextPayment = currentSiguientePago > new Date() ? currentSiguientePago : new Date();
+        const newSiguientePago = addMonths(baseDateForNextPayment, mesesPagados);
         
-        unitUpdateData.fechaVencimiento = newVencimiento;
-        unitUpdateData.fechaSiguientePago = newVencimiento;
+        unitUpdateData.fechaSiguientePago = newSiguientePago;
+        
+        // The contract's main expiration date is NOT updated on monthly payments.
+        // It's only set when the unit is created/edited.
         
         batch.update(unitDocRef, unitUpdateData);
 
@@ -180,10 +183,9 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
 
         const unitUpdate: Partial<Unit> = {};
 
-        // Revertimos fechaVencimiento y fechaSiguientePago
-        const newVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
-        unitUpdate.fechaVencimiento = newVencimiento;
-        unitUpdate.fechaSiguientePago = newVencimiento;
+        // Revertimos la fecha del siguiente pago.
+        const newSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
+        unitUpdate.fechaSiguientePago = newSiguientePago;
 
         // Buscamos el pago anterior para revertir ultimoPago
         const paymentsCollectionRef = collection(unitDocRef, 'payments');
@@ -196,7 +198,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         if (previousPaymentDoc) {
             unitUpdate.ultimoPago = convertTimestamps(previousPaymentDoc.data()).fechaPago;
         } else {
-            // Si no hay pagos anteriores, volvemos a la fecha de inicio del contrato
+            // Si no hay pagos anteriores, podemos setearlo a null.
             unitUpdate.ultimoPago = null;
         }
         

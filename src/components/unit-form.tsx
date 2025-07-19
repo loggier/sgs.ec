@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -59,7 +60,7 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
   'con_contrato': 'Con Contrato',
 };
 
-function UnitFormFields({ showClientSelector }: { showClientSelector: boolean }) {
+function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector: boolean, isEditing: boolean }) {
   const { control, setValue, watch } = useFormContext<UnitFormInput>();
   const tipoContrato = useWatch({
     control,
@@ -84,28 +85,31 @@ function UnitFormFields({ showClientSelector }: { showClientSelector: boolean })
   const mesesContrato = watch('mesesContrato');
 
   React.useEffect(() => {
+    if (isEditing) return; // Don't auto-set values when editing
+
     if (tipoContrato === 'sin_contrato') {
-      setValue('costoTotalContrato', '');
-      setValue('mesesContrato', '');
+      setValue('costoTotalContrato', undefined);
+      setValue('mesesContrato', undefined);
     } else if (tipoContrato === 'con_contrato') {
-      setValue('costoMensual', '');
+      setValue('costoMensual', undefined);
     }
-  }, [tipoContrato, setValue]);
+  }, [tipoContrato, setValue, isEditing]);
   
   React.useEffect(() => {
-    if (!fechaInicioContrato) return;
+    if (isEditing || !fechaInicioContrato) return;
 
     if (tipoContrato === 'con_contrato' && mesesContrato) {
       const months = Number(mesesContrato);
       if (!isNaN(months) && months > 0) {
-        const newVencimiento = addMonths(new Date(fechaInicioContrato), months);
-        setValue('fechaVencimiento', newVencimiento, { shouldValidate: true });
+        setValue('fechaVencimiento', addMonths(new Date(fechaInicioContrato), months));
       }
-    } else if (tipoContrato === 'sin_contrato') {
-      const newVencimiento = addMonths(new Date(fechaInicioContrato), 1);
-      setValue('fechaVencimiento', newVencimiento, { shouldValidate: true });
+    } else { // sin_contrato or contract with no months yet
+      setValue('fechaVencimiento', addMonths(new Date(fechaInicioContrato), 1));
     }
-  }, [fechaInicioContrato, mesesContrato, tipoContrato, setValue]);
+    // Siguiente pago is always 1 month after start for new contracts
+    setValue('fechaSiguientePago', addMonths(new Date(fechaInicioContrato), 1));
+
+  }, [fechaInicioContrato, mesesContrato, tipoContrato, setValue, isEditing]);
 
   return (
     <div className="space-y-4 py-4">
@@ -227,7 +231,7 @@ function UnitFormFields({ showClientSelector }: { showClientSelector: boolean })
             <FormItem>
               <FormLabel>Costo Mensual</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="25.00" {...field} />
+                <Input type="number" placeholder="25.00" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -244,7 +248,7 @@ function UnitFormFields({ showClientSelector }: { showClientSelector: boolean })
               <FormItem>
                 <FormLabel>Costo Total del Contrato</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="300.00" {...field} />
+                  <Input type="number" placeholder="300.00" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -257,7 +261,7 @@ function UnitFormFields({ showClientSelector }: { showClientSelector: boolean })
               <FormItem>
                 <FormLabel>Meses de Contrato</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="12" {...field} />
+                  <Input type="number" placeholder="12" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -312,56 +316,82 @@ function UnitFormFields({ showClientSelector }: { showClientSelector: boolean })
             name="fechaVencimiento"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Vencimiento</FormLabel>
-                <FormControl>
-                  <Input
-                    readOnly
-                    value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
-                    className="bg-muted cursor-default"
-                  />
-                </FormControl>
+                <FormLabel>Vencimiento de Contrato</FormLabel>
+                 <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full pl-3 text-left font-normal',
+                          !field.value && 'text-muted-foreground',
+                          isEditing && 'bg-muted cursor-default'
+                        )}
+                        disabled={isEditing}
+                      >
+                        {field.value ? (
+                          format(new Date(field.value), 'PPP', { locale: es })
+                        ) : (
+                          <span>Elige una fecha</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  {!isEditing && <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value as Date}
+                      onSelect={field.onChange}
+                      initialFocus
+                      locale={es}
+                    />
+                  </PopoverContent>}
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}
           />
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={control}
-            name="ultimoPago"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Último Pago</FormLabel>
-                <FormControl>
-                  <Input
-                    readOnly
-                    value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
-                    className="bg-muted cursor-default"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={control}
-            name="fechaSiguientePago"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Fecha de Siguiente Pago</FormLabel>
-                <FormControl>
-                  <Input
-                    readOnly
-                    value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
-                    className="bg-muted cursor-default"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-      </div>
+      {isEditing && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={control}
+              name="ultimoPago"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Último Pago</FormLabel>
+                  <FormControl>
+                    <Input
+                      readOnly
+                      value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                      className="bg-muted cursor-default"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="fechaSiguientePago"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Fecha de Siguiente Pago</FormLabel>
+                  <FormControl>
+                    <Input
+                      readOnly
+                      value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                      className="bg-muted cursor-default"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+        </div>
+      )}
 
         <FormField
         control={control}
@@ -386,7 +416,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  // Show client selector only when creating a new unit from the global page (clientId is undefined)
+  const isEditing = !!unit;
   const isGlobalAdd = !unit && !clientId;
 
   const form = useForm<UnitFormInput>({
@@ -394,36 +424,35 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     defaultValues: unit
       ? { 
           ...unit,
-          clientId: unit.clientId, // Ensure clientId is in form values for editing
-          costoMensual: unit.costoMensual ?? '',
-          costoTotalContrato: unit.costoTotalContrato ?? '',
-          mesesContrato: unit.mesesContrato ?? '',
+          clientId: unit.clientId,
+          costoMensual: unit.costoMensual ?? undefined,
+          costoTotalContrato: unit.costoTotalContrato ?? undefined,
+          mesesContrato: unit.mesesContrato ?? undefined,
           fechaInicioContrato: new Date(unit.fechaInicioContrato),
           fechaVencimiento: new Date(unit.fechaVencimiento),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: new Date(unit.fechaSiguientePago),
         }
       : {
-          clientId: clientId ?? '', // Pre-fill if provided, else empty for the selector
+          clientId: clientId ?? '',
           imei: '',
           placa: '',
           modelo: '',
           tipoPlan: 'estandar-sc',
           tipoContrato: 'sin_contrato',
-          costoMensual: '',
-          costoTotalContrato: '',
-          mesesContrato: '',
+          costoMensual: undefined,
+          costoTotalContrato: undefined,
+          mesesContrato: undefined,
           fechaInicioContrato: new Date(),
-          fechaVencimiento: addMonths(new Date(), 1), // Default to 1 month for new 'sin_contrato'
+          fechaVencimiento: addMonths(new Date(), 1),
           ultimoPago: null,
-          fechaSiguientePago: new Date(),
+          fechaSiguientePago: addMonths(new Date(), 1),
           observacion: '',
         },
   });
 
   async function onSubmit(values: UnitFormInput) {
     setIsSubmitting(true);
-    // Use clientId from form values for global add, otherwise use prop
     const finalClientId = isGlobalAdd ? values.clientId : clientId!;
     if (!finalClientId) {
       toast({
@@ -465,7 +494,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields showClientSelector={isGlobalAdd} />
+          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>

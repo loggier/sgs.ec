@@ -2,6 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { addMonths } from 'date-fns';
 import {
   collection,
   getDocs,
@@ -82,12 +83,29 @@ export async function saveUnit(
   }
   
   try {
+    const { fechaInicioContrato, tipoContrato, mesesContrato } = validation.data;
+    
+    // Calculate vencimiento and siguientePago for new units
+    let fechaVencimiento;
+    let fechaSiguientePago;
+
+    if (!unitId) { // Only set these dates for new units
+      if (tipoContrato === 'con_contrato' && mesesContrato) {
+        fechaVencimiento = addMonths(new Date(fechaInicioContrato), mesesContrato);
+      } else {
+        fechaVencimiento = addMonths(new Date(fechaInicioContrato), 1);
+      }
+      // For a new unit, the first payment is due one month after start
+      fechaSiguientePago = addMonths(new Date(fechaInicioContrato), 1);
+    }
+    
     const unitDataForFirestore: any = {
       ...validation.data,
-      ultimoPago: validation.data.ultimoPago || null,
-      fechaSiguientePago: validation.data.fechaSiguientePago || validation.data.fechaVencimiento,
+      ultimoPago: unitId ? (await getUnit(clientId, unitId))?.ultimoPago || null : null, // Preserve existing on edit, null on create
+      ...(fechaVencimiento && { fechaVencimiento }),
+      ...(fechaSiguientePago && { fechaSiguientePago }),
     };
-    
+
     if (validation.data.tipoContrato === 'sin_contrato') {
       delete unitDataForFirestore.costoTotalContrato;
       delete unitDataForFirestore.mesesContrato;
@@ -99,6 +117,9 @@ export async function saveUnit(
     let savedUnitId = unitId;
 
     if (unitId) {
+      // Don't overwrite key dates on edit unless they are changed in the form
+      delete unitDataForFirestore.fechaVencimiento;
+      delete unitDataForFirestore.fechaSiguientePago;
       const unitDocRef = doc(unitsCollectionRef, unitId);
       await updateDoc(unitDocRef, unitDataForFirestore);
     } else {

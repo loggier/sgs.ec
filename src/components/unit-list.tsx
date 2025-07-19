@@ -120,6 +120,18 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
     }
     return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
   };
+  
+  const getContractDisplay = (unit: Unit) => {
+    const baseText = unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato';
+    const variant = unit.tipoContrato === 'con_contrato' ? 'default' : 'secondary';
+    const duration = unit.mesesContrato ? `(${unit.mesesContrato} meses)` : '';
+
+    return (
+      <Badge variant={variant} className="capitalize">
+        {`${baseText} ${duration}`}
+      </Badge>
+    );
+  };
 
   const isExpired = (date: Date) => {
     return new Date(date) < new Date();
@@ -149,7 +161,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
-                <TableHead>Vencimiento</TableHead>
+                <TableHead>Vencimiento Contrato</TableHead>
                 <TableHead>Estado de Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
@@ -166,9 +178,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
                     <TableCell>
-                       <Badge variant={unit.tipoContrato === 'con_contrato' ? 'default' : 'secondary'} className="capitalize">
-                            {unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato'}
-                        </Badge>
+                       {getContractDisplay(unit)}
                     </TableCell>
                     <TableCell>
                       {getCostForUnit(unit)}

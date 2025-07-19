@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
@@ -24,7 +25,7 @@ export const UnitSchema = z.object({
   costoTotalContrato: z.coerce.number().optional(),
   mesesContrato: z.coerce.number().optional(),
   fechaInicioContrato: dateOrTimestamp.refine(val => val !== null, 'Fecha de inicio es requerida.'),
-  fechaVencimiento: dateOrTimestamp.refine(val => val !== null, 'Fecha de vencimiento es requerida.'),
+  fechaVencimiento: dateOrTimestamp.refine(val => val !== null, 'Fecha de vencimiento del contrato es requerida.'),
   ultimoPago: nullableDateOrTimestamp,
   fechaSiguientePago: dateOrTimestamp.refine(val => val !== null, 'Fecha de siguiente pago es requerida.'),
   observacion: z.string().optional(),
@@ -34,8 +35,6 @@ export type Unit = z.infer<typeof UnitSchema>;
 
 export const UnitFormSchema = UnitSchema.omit({ 
   id: true, 
-  ultimoPago: true, 
-  fechaSiguientePago: true 
 }).extend({
   clientId: z.string().optional(), // Make clientId optional in the base for refinement
 }).superRefine((data, ctx) => {
