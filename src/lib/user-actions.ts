@@ -82,9 +82,6 @@ export async function logoutUser() {
 
 
 export async function getUsers(): Promise<User[]> {
-  const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== 'master') return [];
-
   try {
     const users = await fetchUsersFromFirestore();
     // Ensure password is not returned
