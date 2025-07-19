@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, Search } from 'lucide-react';
 import type { User } from '@/lib/user-schema';
+import { useSearch } from '@/context/search-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -30,8 +31,8 @@ type UserListProps = {
 };
 
 export default function UserList({ initialUsers }: UserListProps) {
+  const { searchTerm, setSearchTerm } = useSearch();
   const [users, setUsers] = React.useState(initialUsers);
-  const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);

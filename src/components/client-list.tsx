@@ -9,6 +9,7 @@ import Link from 'next/link';
 
 import type { Client, ClientWithOwner } from '@/lib/schema';
 import { useAuth } from '@/context/auth-context';
+import { useSearch } from '@/context/search-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -56,8 +57,8 @@ function formatDate(date?: Date | string | null) {
 
 export default function ClientList({ initialClients }: ClientListProps) {
   const { user } = useAuth();
+  const { searchTerm, setSearchTerm } = useSearch();
   const [clients, setClients] = React.useState(initialClients);
-  const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);

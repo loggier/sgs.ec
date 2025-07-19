@@ -9,6 +9,7 @@ import Link from 'next/link';
 
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
+import { useSearch } from '@/context/search-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
@@ -42,8 +43,8 @@ function formatDate(date?: Date | string) {
 
 export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, isLoading }: PaymentHistoryListProps) {
   const { user } = useAuth();
+  const { searchTerm, setSearchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
-  const [searchTerm, setSearchTerm] = React.useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
 

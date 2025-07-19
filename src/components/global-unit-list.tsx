@@ -9,6 +9,7 @@ import Link from 'next/link';
 
 import type { Unit } from '@/lib/unit-schema';
 import { useAuth } from '@/context/auth-context';
+import { useSearch } from '@/context/search-context';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -58,8 +59,8 @@ function formatCurrency(amount?: number) {
 
 export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
   const { user } = useAuth();
+  const { searchTerm, setSearchTerm } = useSearch();
   const [units, setUnits] = React.useState(initialUnits);
-  const [searchTerm, setSearchTerm] = React.useState('');
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);

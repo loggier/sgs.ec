@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -6,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import MainLayout from './main-layout';
 import { Loader2 } from 'lucide-react';
+import { SearchProvider } from '@/context/search-context';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,7 +40,11 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
 
   // Renderizar el layout principal si está autenticado y no en login.
   if (isAuthenticated && pathname !== '/login') {
-     return <MainLayout>{children}</MainLayout>;
+     return (
+      <SearchProvider>
+        <MainLayout>{children}</MainLayout>
+      </SearchProvider>
+     )
   }
 
   // Renderizar la página de login si no está autenticado.
