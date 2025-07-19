@@ -1,5 +1,8 @@
+
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
+import type { Unit } from './unit-schema';
+import type { Client } from './schema';
 
 const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]);
 
@@ -28,3 +31,12 @@ export const ClientPaymentFormSchema = PaymentFormSchema.extend({
     unitId: z.string().min(1, 'Debe seleccionar una unidad.'),
 });
 export type ClientPaymentFormInput = z.infer<typeof ClientPaymentFormSchema>;
+
+
+// Type for enriched payment history records
+export type PaymentHistoryEntry = Payment & {
+  clientName: string;
+  unitPlaca: string;
+  ownerId?: string;
+  ownerName?: string;
+};

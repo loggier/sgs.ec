@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -10,11 +11,15 @@ import {
   getDoc,
   Timestamp,
   writeBatch,
+  collectionGroup,
+  query,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { PaymentFormSchema, type PaymentFormInput, type Payment } from './payment-schema';
+import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
-import { z } from 'zod';
+import type { User } from './user-schema';
+import type { Client } from './schema';
 
 const convertTimestamps = (docData: any): any => {
     const data = { ...docData };
@@ -25,15 +30,6 @@ const convertTimestamps = (docData: any): any => {
     }
     return data;
 };
-
-const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
-    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
-    const unitDoc = await getDoc(unitDocRef);
-    if (!unitDoc.exists()) return null;
-    const data = convertTimestamps(unitDoc.data());
-    return { id: unitDoc.id, clientId, ...data } as Unit;
-}
-
 
 export async function registerPayment(
   data: PaymentFormInput,
@@ -69,7 +65,6 @@ export async function registerPayment(
 
         const unit = { id: unitSnapshot.id, clientId, ...convertTimestamps(unitSnapshot.data()) } as Unit;
         
-        // 1. Update unit dates
         const unitUpdateData: Partial<Record<keyof Unit, any>> = {
             ultimoPago: fechaPago,
         };
@@ -83,7 +78,6 @@ export async function registerPayment(
         
         batch.update(unitDocRef, unitUpdateData);
 
-        // 2. Create and save the payment record
         const newPayment: Omit<Payment, 'id'> = {
             unitId,
             clientId,
@@ -103,6 +97,7 @@ export async function registerPayment(
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
     revalidatePath('/units');
+    revalidatePath('/payments');
 
     return { 
         success: true, 
@@ -114,5 +109,60 @@ export async function registerPayment(
     console.error("Error registering payment:", error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return { success: false, message: `Error al registrar el pago: ${errorMessage}` };
+  }
+}
+
+
+export async function getAllPayments(
+  currentUserId: string,
+  currentUserRole: User['role']
+): Promise<PaymentHistoryEntry[]> {
+  if (!currentUserId) return [];
+
+  try {
+    // 1. Fetch all necessary data in parallel
+    const [clientsSnapshot, unitsSnapshot, usersSnapshot, paymentsSnapshot] = await Promise.all([
+      getDocs(collection(db, 'clients')),
+      getDocs(collectionGroup(db, 'units')),
+      getDocs(collection(db, 'users')),
+      getDocs(collectionGroup(db, 'payments'))
+    ]);
+
+    // 2. Create maps for efficient lookups
+    const clientMap = new Map(clientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
+    const unitMap = new Map(unitsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Unit]));
+    const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+
+    // 3. Process payments
+    let paymentList: PaymentHistoryEntry[] = paymentsSnapshot.docs.map(doc => {
+      const payment = convertTimestamps(doc.data()) as Payment;
+      payment.id = doc.id; // Manually add the payment ID
+
+      const unit = unitMap.get(payment.unitId);
+      const client = clientMap.get(payment.clientId);
+      const owner = client ? userMap.get(client.ownerId) : undefined;
+      
+      return {
+        ...payment,
+        clientName: client?.nomSujeto ?? 'Cliente no encontrado',
+        unitPlaca: unit?.placa ?? 'Placa no encontrada',
+        ownerId: client?.ownerId,
+        ownerName: owner?.nombre ?? 'Propietario no encontrado',
+      };
+    });
+
+    // 4. Filter based on user role
+    if (currentUserRole !== 'master') {
+      paymentList = paymentList.filter(p => p.ownerId === currentUserId);
+    }
+    
+    // 5. Sort by most recent payment date
+    paymentList.sort((a, b) => (b.fechaPago as Date).getTime() - (a.fechaPago as Date).getTime());
+
+    return paymentList;
+
+  } catch (error) {
+    console.error("Error fetching payment history:", error);
+    return [];
   }
 }

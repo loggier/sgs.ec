@@ -1,9 +1,10 @@
+
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, History } from 'lucide-react';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -78,6 +79,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <NavLink href="/units">
                     <Car className="h-4 w-4" />
                     <span>Unidades</span>
+                </NavLink>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <NavLink href="/payments">
+                    <History className="h-4 w-4" />
+                    <span>Historial de Pagos</span>
                 </NavLink>
               </SidebarMenuItem>
               {user?.role === 'master' && (
