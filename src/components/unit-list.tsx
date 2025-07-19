@@ -32,6 +32,7 @@ import { useAuth } from '@/context/auth-context';
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
+import PaymentStatusBadge from './payment-status-badge';
 
 type UnitListProps = {
   initialUnits: Unit[];
@@ -149,6 +150,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Vencimiento</TableHead>
+                <TableHead>Estado de Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -176,6 +178,9 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                         <span>{hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}</span>
                         {isExpired(unit.fechaVencimiento) && <span className="text-xs text-red-600">Vencido</span>}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                        <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -207,7 +212,7 @@ export default function UnitList({ initialUnits, clientId }: UnitListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Este cliente no tiene unidades registradas.
                   </TableCell>
                 </TableRow>

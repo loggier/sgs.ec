@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -33,6 +34,7 @@ import { Input } from '@/components/ui/input';
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
+import PaymentStatusBadge from './payment-status-badge';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
@@ -170,6 +172,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Vencimiento</TableHead>
+                <TableHead>Estado de Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -205,6 +208,9 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
                       </div>
                     </TableCell>
                     <TableCell>
+                      <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -230,7 +236,7 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 10 : 9} className="text-center">
                     No se encontraron unidades.
                   </TableCell>
                 </TableRow>
