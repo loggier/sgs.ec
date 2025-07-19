@@ -6,22 +6,21 @@ import { addMonths, subMonths } from 'date-fns';
 import {
   collection,
   doc,
-  addDoc,
   updateDoc,
   getDoc,
   Timestamp,
   writeBatch,
-  collectionGroup,
   query,
   getDocs,
   orderBy,
-  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
 import type { Client } from './schema';
+import { getClients } from './actions';
+import { getUnitsByClientId } from './unit-actions';
 
 const convertTimestamps = (docData: any): any => {
     const data = { ...docData };
@@ -122,59 +121,55 @@ export async function getAllPayments(
   if (!currentUserId) return [];
 
   try {
-    const [clientsSnapshot, unitsSnapshot, usersSnapshot, paymentsSnapshot] = await Promise.all([
-      getDocs(collection(db, 'clients')),
-      getDocs(collectionGroup(db, 'units')),
-      getDocs(collection(db, 'users')),
-      getDocs(query(collectionGroup(db, 'payments'), orderBy('fechaPago', 'desc')))
-    ]);
-
-    const clientMap = new Map(clientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
-    const unitMap = new Map(unitsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Unit]));
+    const userClients = await getClients(currentUserId, currentUserRole);
+    const usersSnapshot = await getDocs(collection(db, 'users'));
     const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-    let paymentList: PaymentHistoryEntry[] = paymentsSnapshot.docs.map(doc => {
-      const payment = convertTimestamps(doc.data()) as Payment;
-      payment.id = doc.id; 
+    const allPayments: PaymentHistoryEntry[] = [];
 
-      const unit = unitMap.get(payment.unitId);
-      const client = clientMap.get(payment.clientId);
-      const owner = client ? userMap.get(client.ownerId) : undefined;
-      
-      return {
-        ...payment,
-        clientName: client?.nomSujeto ?? 'Cliente no encontrado',
-        unitPlaca: unit?.placa ?? 'Placa no encontrada',
-        ownerId: client?.ownerId,
-        ownerName: owner?.nombre ?? 'Propietario no encontrado',
-      };
-    });
+    for (const client of userClients) {
+      const units = await getUnitsByClientId(client.id);
+      for (const unit of units) {
+        const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
+        const paymentsSnapshot = await getDocs(paymentsCollectionRef);
 
-    if (currentUserRole !== 'master') {
-      paymentList = paymentList.filter(p => p.ownerId === currentUserId);
+        paymentsSnapshot.forEach(paymentDoc => {
+          const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
+          const owner = userMap.get(client.ownerId);
+
+          allPayments.push({
+            ...paymentData,
+            id: paymentDoc.id,
+            clientName: client.nomSujeto,
+            unitPlaca: unit.placa,
+            ownerId: client.ownerId,
+            ownerName: owner?.nombre,
+          });
+        });
+      }
     }
+    
+    allPayments.sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
 
-    return paymentList;
-
+    return allPayments;
   } catch (error) {
     console.error("Error fetching payment history:", error);
     return [];
   }
 }
 
-export async function deletePayment(paymentId: string): Promise<{ success: boolean; message: string }> {
+export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
-        const paymentQuery = query(collectionGroup(db, 'payments'), where('__name__', '==', paymentId), limit(1));
-        const paymentSnapshot = await getDocs(paymentQuery);
-        if (paymentSnapshot.empty) {
+        const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
+        const paymentDoc = await getDoc(paymentDocRef);
+
+        if (!paymentDoc.exists()) {
             return { success: false, message: 'Pago no encontrado.' };
         }
         
-        const paymentDoc = paymentSnapshot.docs[0];
         const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-        const paymentDocRef = paymentDoc.ref;
 
-        const unitDocRef = doc(db, 'clients', paymentData.clientId, 'units', paymentData.unitId);
+        const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
         const unitDoc = await getDoc(unitDocRef);
 
         if (!unitDoc.exists()) {
@@ -192,11 +187,11 @@ export async function deletePayment(paymentId: string): Promise<{ success: boole
 
         // Buscamos el pago anterior para revertir ultimoPago
         const paymentsCollectionRef = collection(unitDocRef, 'payments');
-        const prevPaymentQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), limit(2));
-        const prevPaymentSnapshot = await getDocs(prevPaymentQuery);
+        const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
+        const paymentsSnapshot = await getDocs(q);
         
         // El pago anterior será el segundo en la lista (si existe), ya que el primero es el que estamos eliminando.
-        const previousPaymentDoc = prevPaymentSnapshot.docs.find(doc => doc.id !== paymentId);
+        const previousPaymentDoc = paymentsSnapshot.docs.find(doc => doc.id !== paymentId);
 
         if (previousPaymentDoc) {
             unitUpdate.ultimoPago = convertTimestamps(previousPaymentDoc.data()).fechaPago;
@@ -210,7 +205,7 @@ export async function deletePayment(paymentId: string): Promise<{ success: boole
         batch.delete(paymentDocRef);
         await batch.commit();
 
-        revalidatePath(`/clients/${paymentData.clientId}/units`);
+        revalidatePath(`/clients/${clientId}/units`);
         revalidatePath('/units');
         revalidatePath('/payments');
         revalidatePath('/');

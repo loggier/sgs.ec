@@ -39,7 +39,7 @@ export default function DeletePaymentDialog({
 
     setIsDeleting(true);
     try {
-      const result = await deletePayment(payment.id);
+      const result = await deletePayment(payment.id, payment.clientId, payment.unitId);
       if (result.success) {
         toast({
           title: 'Éxito',
