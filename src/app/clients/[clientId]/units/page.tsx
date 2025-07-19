@@ -50,10 +50,10 @@ export default function UnitsPage({ params }: UnitsPageProps) {
 
   if (isLoading || !client) {
     return (
-      <div className="flex flex-col h-full space-y-6">
+      <div className="flex flex-col h-full">
         <Header title="Cargando..." showBackButton backButtonHref="/" />
         <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full mt-6" />
       </div>
     );
   }
@@ -81,15 +81,17 @@ export default function UnitsPage({ params }: UnitsPageProps) {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full">
       <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/" />
-      <UnitSummary 
-        totalUnits={totalUnits}
-        totalAmount={totalMonthlyAmount}
-        unitsByPlan={unitsByPlan}
-        unitsByContractType={unitsByContractType}
-      />
-      <UnitList initialUnits={units} clientId={clientId} />
+      <div className="space-y-6">
+        <UnitSummary 
+          totalUnits={totalUnits}
+          totalAmount={totalMonthlyAmount}
+          unitsByPlan={unitsByPlan}
+          unitsByContractType={unitsByContractType}
+        />
+        <UnitList initialUnits={units} clientId={clientId} />
+      </div>
     </div>
   );
 }

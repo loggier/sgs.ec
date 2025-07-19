@@ -30,10 +30,10 @@ export default function GlobalUnitsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full space-y-6">
+      <div className="flex flex-col h-full">
         <Header title="Todas las Unidades" />
         <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-64 w-full mt-6" />
       </div>
     );
   }
@@ -60,15 +60,17 @@ export default function GlobalUnitsPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full">
       <Header title="Todas las Unidades" />
-      <UnitSummary 
-        totalUnits={totalUnits}
-        totalAmount={totalMonthlyAmount}
-        unitsByPlan={unitsByPlan}
-        unitsByContractType={unitsByContractType}
-      />
-      <GlobalUnitList initialUnits={units} />
+      <div className="space-y-6">
+        <UnitSummary 
+          totalUnits={totalUnits}
+          totalAmount={totalMonthlyAmount}
+          unitsByPlan={unitsByPlan}
+          unitsByContractType={unitsByContractType}
+        />
+        <GlobalUnitList initialUnits={units} />
+      </div>
     </div>
   );
 }

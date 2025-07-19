@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard, Search } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Input } from '@/components/ui/input';
 
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
@@ -59,7 +58,7 @@ function formatCurrency(amount?: number) {
 
 export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
   const { user } = useAuth();
-  const { searchTerm, setSearchTerm } = useSearch();
+  const { searchTerm } = useSearch();
   const [units, setUnits] = React.useState(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -146,19 +145,9 @@ export default function GlobalUnitList({ initialUnits }: GlobalUnitListProps) {
         <div className="flex items-center justify-between">
             <div>
                 <CardTitle>Inventario Global de Unidades</CardTitle>
-                <CardDescription>Busque y gestione todas las unidades de todos los clientes.</CardDescription>
+                <CardDescription>Gestione todas las unidades de todos los clientes.</CardDescription>
             </div>
         </div>
-         <div className="relative mt-4">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por placa, IMEI, cliente, propietario..."
-                className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">

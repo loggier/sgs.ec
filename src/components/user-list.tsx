@@ -1,7 +1,8 @@
+
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Search } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import type { User } from '@/lib/user-schema';
 import { useSearch } from '@/context/search-context';
 import { Button } from '@/components/ui/button';
@@ -24,14 +25,13 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import UserForm from './user-form';
 import DeleteUserDialog from './delete-user-dialog';
-import { Input } from './ui/input';
 
 type UserListProps = {
   initialUsers: User[];
 };
 
 export default function UserList({ initialUsers }: UserListProps) {
-  const { searchTerm, setSearchTerm } = useSearch();
+  const { searchTerm } = useSearch();
   const [users, setUsers] = React.useState(initialUsers);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -114,23 +114,13 @@ export default function UserList({ initialUsers }: UserListProps) {
           <div className="flex items-center justify-between gap-4">
             <div>
                 <CardTitle>Gestión de Usuarios</CardTitle>
-                <CardDescription>Busque, agregue, edite o elimine usuarios.</CardDescription>
+                <CardDescription>Agregue, edite o elimine usuarios.</CardDescription>
             </div>
             <Button onClick={handleAddUser} size="sm">
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuevo Usuario
             </Button>
           </div>
-           <div className="relative mt-4">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar por nombre, correo, teléfono..."
-                className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

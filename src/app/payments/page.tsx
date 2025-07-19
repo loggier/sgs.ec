@@ -32,19 +32,21 @@ export default function PaymentsPage() {
 
   if (isLoading && payments.length === 0) {
     return (
-      <div className="flex flex-col h-full space-y-6">
+      <div className="flex flex-col h-full">
         <Header title="Gestión de Pagos" />
         <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-96 w-full mt-6" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full space-y-8">
+    <div className="flex flex-col h-full">
       <Header title="Gestión de Pagos" />
-      <NewPaymentSection onPaymentSaved={fetchPayments} />
-      <PaymentHistoryList initialPayments={payments} onPaymentDeleted={fetchPayments} isLoading={isLoading} />
+      <div className="space-y-8">
+        <NewPaymentSection onPaymentSaved={fetchPayments} />
+        <PaymentHistoryList initialPayments={payments} onPaymentDeleted={fetchPayments} isLoading={isLoading} />
+      </div>
     </div>
   );
 }

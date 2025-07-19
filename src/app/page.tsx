@@ -90,7 +90,7 @@ export default function Home() {
 
   if (isLoading) {
       return (
-          <div className="flex flex-col h-full space-y-6">
+          <div className="flex flex-col h-full">
               <Header title="Clientes" />
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Skeleton className="h-28 w-full" />
@@ -98,17 +98,18 @@ export default function Home() {
                   <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
               </div>
-              <Skeleton className="h-96 w-full" />
+              <Skeleton className="h-96 w-full mt-6" />
           </div>
       )
   }
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full">
       <Header title="Clientes" />
-      <ClientSummary {...summaryData} />
-      <ClientList initialClients={clientsWithDynamicStatus} />
+      <div className="space-y-6">
+        <ClientSummary {...summaryData} />
+        <ClientList initialClients={clientsWithDynamicStatus} />
+      </div>
     </div>
   );
 }
-

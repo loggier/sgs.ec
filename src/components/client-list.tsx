@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, Search, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
@@ -57,7 +56,7 @@ function formatDate(date?: Date | string | null) {
 
 export default function ClientList({ initialClients }: ClientListProps) {
   const { user } = useAuth();
-  const { searchTerm, setSearchTerm } = useSearch();
+  const { searchTerm } = useSearch();
   const [clients, setClients] = React.useState(initialClients);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -168,7 +167,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
             <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Gestión de Clientes</CardTitle>
-                  <CardDescription>Busque, agregue, edite o elimine clientes.</CardDescription>
+                  <CardDescription>Agregue, edite o elimine clientes.</CardDescription>
                 </div>
                 {user && ['master', 'manager'].includes(user.role) && (
                   <Button onClick={handleAddClient} size="sm">
@@ -177,16 +176,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                   </Button>
                 )}
             </div>
-            <div className="relative mt-4">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar por nombre, cédula, ciudad, propietario..."
-                    className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">

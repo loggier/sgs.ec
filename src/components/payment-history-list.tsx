@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { Search, MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -20,7 +20,6 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
 import DeletePaymentDialog from './delete-payment-dialog';
@@ -43,7 +42,7 @@ function formatDate(date?: Date | string) {
 
 export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, isLoading }: PaymentHistoryListProps) {
   const { user } = useAuth();
-  const { searchTerm, setSearchTerm } = useSearch();
+  const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
@@ -81,18 +80,8 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Historial de Pagos</CardTitle>
-              <CardDescription>Busque y filtre todos los pagos registrados en el sistema.</CardDescription>
+              <CardDescription>Todos los pagos registrados en el sistema.</CardDescription>
             </div>
-          </div>
-          <div className="relative mt-4">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar por cliente, placa, factura, propietario..."
-              className="w-full rounded-lg bg-background pl-8 md:w-[300px]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
           </div>
         </CardHeader>
         <CardContent>

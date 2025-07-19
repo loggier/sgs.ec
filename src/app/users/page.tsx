@@ -7,9 +7,9 @@ export default async function UsersPage() {
   const users = await getUsers();
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col h-full">
        <Header title="Usuarios" />
-      <UserList initialUsers={users} />
+       <UserList initialUsers={users} />
     </div>
   );
 }
