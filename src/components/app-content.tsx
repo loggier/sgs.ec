@@ -14,17 +14,15 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
 
   React.useEffect(() => {
     if (isLoading) {
-      return; // No hacer nada mientras se carga la sesión
+      return; 
     }
-
-    // Si la carga ha finalizado y el usuario no está autenticado,
-    // y no está en la página de login, redirigir a login.
+    
+    // Si no está autenticado y no está en la página de login, redirigir a login.
     if (!isAuthenticated && pathname !== '/login') {
       router.push('/login');
     }
     
-    // Si la carga ha finalizado y el usuario SÍ está autenticado,
-    // pero está en la página de login, redirigir al inicio.
+    // Si está autenticado y está en la página de login, redirigir al inicio.
     if (isAuthenticated && pathname === '/login') {
       router.push('/');
     }
@@ -40,18 +38,18 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
     );
   }
 
-  // Si está autenticado y NO está en la página de login, mostrar el layout principal.
+  // Renderizar el layout principal si está autenticado y no en login.
   if (isAuthenticated && pathname !== '/login') {
      return <MainLayout>{children}</MainLayout>;
   }
 
-  // Si NO está autenticado y está en la página de login, mostrarla.
+  // Renderizar la página de login si no está autenticado.
   if (!isAuthenticated && pathname === '/login') {
     return <>{children}</>;
   }
   
-  // Para cualquier otro caso (como durante la redirección),
-  // mostramos un loader para evitar parpadeos.
+  // Durante el breve momento de la redirección, mostrar un loader
+  // para evitar parpadeos de contenido no deseado.
   return (
     <div className="flex h-screen items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin" />

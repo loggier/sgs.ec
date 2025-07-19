@@ -63,8 +63,10 @@ export async function loginUser(credentials: {username: string; password: string
         
         const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
         
-        // Create session cookie
+        // La creación de la sesión (cookie) se manejará por separado si es necesario,
+        // pero la respuesta principal para el cliente es el objeto de usuario.
         await createSession(userWithoutPassword);
+
 
         return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
 
@@ -76,11 +78,13 @@ export async function loginUser(credentials: {username: string; password: string
 
 export async function logoutUser() {
     deleteSession();
-    revalidatePath('/login');
 }
 
 
 export async function getUsers(): Promise<User[]> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== 'master') return [];
+
   try {
     const users = await fetchUsersFromFirestore();
     // Ensure password is not returned
@@ -95,6 +99,11 @@ export async function saveUser(
   data: UserFormInput,
   id?: string
 ): Promise<{ success: boolean; message: string; user?: User }> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== 'master') {
+    return { success: false, message: 'No tiene permiso para realizar esta acción.' };
+  }
+  
   const isEditing = !!id;
   const validation = UserFormSchema(isEditing).safeParse(data);
 
@@ -154,6 +163,11 @@ export async function saveUser(
 }
 
 export async function deleteUser(id: string): Promise<{ success: boolean; message: string }> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser || currentUser.role !== 'master') {
+    return { success: false, message: 'No tiene permiso para realizar esta acción.' };
+  }
+
   try {
     const userDocRef = doc(db, 'users', id);
     const userDoc = await getDoc(userDocRef);

@@ -5,6 +5,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { loginUser, logoutUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
+import { Loader2 } from 'lucide-react';
 
 type AuthContextType = {
   user: User | null;
@@ -20,39 +21,30 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const router = useRouter();
 
   React.useEffect(() => {
-    async function checkSession() {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/me');
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user session", error);
-        setUser(null);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
+    // Intenta cargar el usuario desde localStorage al iniciar la app
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
+    } catch (error) {
+      console.error("Fallo al leer usuario de localStorage", error);
+      localStorage.removeItem('user');
+    } finally {
+      setIsLoading(false);
     }
-    checkSession();
   }, []);
 
   const login = async (username: string, password: string) => {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
-      setIsAuthenticated(true);
+      // Guardar usuario en localStorage para persistir la sesión
+      localStorage.setItem('user', JSON.stringify(result.user));
       router.push('/');
     } else {
       throw new Error(result.message);
@@ -60,25 +52,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await logoutUser();
     setUser(null);
-    setIsAuthenticated(false);
+    // Limpiar localStorage al cerrar sesión
+    localStorage.removeItem('user');
+    await logoutUser(); // Llama a la acción del servidor para limpiar la cookie por si acaso
     router.push('/login');
   };
   
   const updateUserContext = (newUser: User) => {
-      setUser(newUser);
+    setUser(newUser);
+    localStorage.setItem('user', JSON.stringify(newUser));
   };
+  
+  // La función de actualizar perfil ahora también debe actualizar localStorage
+  const handleUpdateUser = async (userId: string, data: ProfileFormInput) => {
+    const result = await updateProfile(userId, data);
+    if (result.success && result.user) {
+        updateUserContext(result.user);
+    }
+    return result;
+  }
 
   const value = {
     user,
-    isAuthenticated,
+    isAuthenticated: !!user,
     isLoading,
     login,
     logout,
     updateUserContext,
-    updateUser: updateProfile,
+    updateUser: handleUpdateUser,
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
@@ -86,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = React.useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
   return context;
 }
