@@ -3,26 +3,36 @@
 
 import * as React from 'react';
 import { getClients } from '@/lib/actions';
+import { getAllUnits } from '@/lib/unit-actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
-import type { Client, ClientWithOwner } from '@/lib/schema';
+import type { ClientWithOwner } from '@/lib/schema';
+import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import ClientSummary from '@/components/client-summary';
+
+type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
 export default function Home() {
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
+  const [units, setUnits] = React.useState<UnitWithClient[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     if (user) {
       setIsLoading(true);
-      getClients(user.id, user.role)
-        .then(data => {
-          setClients(data);
+      Promise.all([
+        getClients(user.id, user.role),
+        getAllUnits(user.id, user.role)
+      ]).then(([clientData, unitData]) => {
+          setClients(clientData);
+          setUnits(unitData);
           setIsLoading(false);
-        });
+      }).catch(() => {
+          setIsLoading(false);
+      });
     }
   }, [user]);
 
@@ -34,8 +44,17 @@ export default function Home() {
         totalPaidValue: 0,
         totalOverdueValue: 0,
         clientsByStatus: {},
+        totalMonthlyIncome: 0,
       };
     }
+    
+    const totalMonthlyIncome = units.reduce((sum, unit) => {
+        if (unit.tipoContrato === 'con_contrato') {
+            const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
+            return sum + monthlyCost;
+        }
+        return sum + (unit.costoMensual ?? 0);
+    }, 0);
 
     return {
       totalClients: clients.length,
@@ -47,8 +66,9 @@ export default function Home() {
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>),
+      totalMonthlyIncome,
     };
-  }, [clients]);
+  }, [clients, units]);
 
   if (isLoading) {
       return (
