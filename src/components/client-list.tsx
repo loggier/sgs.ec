@@ -319,4 +319,3 @@ export default function ClientList({ initialClients }: ClientListProps) {
     </>
   );
 }
-

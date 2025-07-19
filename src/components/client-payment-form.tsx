@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -9,7 +10,7 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { z } from 'zod';
 
 import { cn } from '@/lib/utils';
-import { ClientPaymentFormSchema, type ClientPaymentFormInput } from '@/lib/payment-schema';
+import { PaymentFormSchema } from '@/lib/payment-schema';
 import type { Unit } from '@/lib/unit-schema';
 import type { Client } from '@/lib/schema';
 import { registerPayment } from '@/lib/payment-actions';
@@ -44,9 +45,9 @@ type ClientPaymentFormProps = {
 };
 
 // Adjust schema for multiple unit IDs
-const BatchPaymentFormSchema = ClientPaymentFormSchema.extend({
+const BatchPaymentFormSchema = PaymentFormSchema.extend({
     unitIds: z.array(z.string()).min(1, 'Debe seleccionar al menos una unidad.'),
-}).omit({ unitId: true });
+});
 type BatchPaymentFormInput = z.infer<typeof BatchPaymentFormSchema>;
 
 
