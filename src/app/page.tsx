@@ -36,8 +36,26 @@ export default function Home() {
     }
   }, [user]);
 
+  const clientsWithDynamicStatus = React.useMemo(() => {
+    if (isLoading) return [];
+    
+    const overdueClientIds = new Set(
+      units
+        .filter(unit => new Date(unit.fechaSiguientePago) < new Date())
+        .map(unit => unit.clientId)
+    );
+
+    return clients.map(client => {
+      if (overdueClientIds.has(client.id!)) {
+        return { ...client, estado: 'adeuda' };
+      }
+      return client;
+    });
+  }, [clients, units, isLoading]);
+
+
   const summaryData = React.useMemo(() => {
-    if (!clients || clients.length === 0) {
+    if (!clientsWithDynamicStatus || clientsWithDynamicStatus.length === 0) {
       return {
         totalClients: 0,
         totalUnits: 0,
@@ -57,18 +75,18 @@ export default function Home() {
     }, 0);
 
     return {
-      totalClients: clients.length,
+      totalClients: clientsWithDynamicStatus.length,
       totalUnits: units.length,
-      totalPaidValue: clients.reduce((sum, c) => sum + (c.valorPago || 0), 0),
-      totalOverdueValue: clients.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
-      clientsByStatus: clients.reduce((acc, client) => {
+      totalPaidValue: clientsWithDynamicStatus.reduce((sum, c) => sum + (c.valorPago || 0), 0),
+      totalOverdueValue: clientsWithDynamicStatus.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
+      clientsByStatus: clientsWithDynamicStatus.reduce((acc, client) => {
         const status = client.estado || 'desconocido';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>),
       totalMonthlyIncome,
     };
-  }, [clients, units]);
+  }, [clientsWithDynamicStatus, units]);
 
   if (isLoading) {
       return (
@@ -89,7 +107,8 @@ export default function Home() {
     <div className="flex flex-col h-full space-y-6">
       <Header title="Clientes" />
       <ClientSummary {...summaryData} />
-      <ClientList initialClients={clients} />
+      <ClientList initialClients={clientsWithDynamicStatus} />
     </div>
   );
 }
+

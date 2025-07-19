@@ -146,7 +146,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
         client.codIdSujeto.toLowerCase().includes(lowercasedTerm) ||
         (client.ciudad && client.ciudad.toLowerCase().includes(lowercasedTerm)) ||
         (client.telefono && client.telefono.includes(lowercasedTerm)) ||
-        client.numOperacion.toLowerCase().includes(lowercasedTerm) ||
+        (client.numOperacion && client.numOperacion.toLowerCase().includes(lowercasedTerm)) ||
         (client.ownerName && client.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, clients]);
@@ -319,3 +319,4 @@ export default function ClientList({ initialClients }: ClientListProps) {
     </>
   );
 }
+
