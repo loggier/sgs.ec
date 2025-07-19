@@ -36,21 +36,15 @@ export async function getClients(): Promise<ClientWithOwner[]> {
 
   try {
     const clientsCollectionRef = collection(db, 'clients');
-    let q;
-
-    if (currentUser.role === 'master') {
-      q = query(clientsCollectionRef);
-    } else {
-      q = query(clientsCollectionRef, where('ownerId', '==', currentUser.id));
-    }
-    
-    const clientSnapshot = await getDocs(q);
+    // All authenticated users can see all clients
+    const clientSnapshot = await getDocs(clientsCollectionRef);
 
     let clientsList: ClientWithOwner[] = clientSnapshot.docs.map(doc => {
         const data = convertTimestamps(doc.data());
         return { id: doc.id, ...data } as ClientWithOwner;
     });
 
+    // For master users, fetch and attach the owner's name for display
     if (currentUser.role === 'master') {
         const usersCollection = collection(db, 'users');
         const usersSnapshot = await getDocs(usersCollection);
@@ -82,21 +76,15 @@ export async function getClientById(id: string): Promise<ClientWithOwner | undef
 
     const data = convertTimestamps(clientDoc.data()) as Client;
     
-    // Security check: ensure user owns the client or is a master user
-    if (currentUser.role !== 'master' && data.ownerId !== currentUser.id) {
-        console.warn(`Security violation: User ${currentUser.id} attempted to access client ${id} owned by ${data.ownerId}`);
-        return undefined;
-    }
-
+    // Any authenticated user can view the client details
     let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
     
-    if (currentUser.role === 'master') {
-        if (data.ownerId) {
-            const ownerDocRef = doc(db, 'users', data.ownerId);
-            const ownerDoc = await getDoc(ownerDocRef);
-            if (ownerDoc.exists()) {
-                clientData.ownerName = (ownerDoc.data() as User).nombre;
-            }
+    // For master users, show owner name
+    if (currentUser.role === 'master' && data.ownerId) {
+        const ownerDocRef = doc(db, 'users', data.ownerId);
+        const ownerDoc = await getDoc(ownerDocRef);
+        if (ownerDoc.exists()) {
+            clientData.ownerName = (ownerDoc.data() as User).nombre;
         }
     }
 
@@ -112,8 +100,8 @@ export async function saveClient(
   id?: string
 ): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-      return { success: false, message: 'No autenticado. Inicie sesión para continuar.' };
+  if (!currentUser || currentUser.role !== 'master') {
+    return { success: false, message: 'No tiene permiso para guardar clientes.' };
   }
 
   // Add ownerId to the data before validation
@@ -129,7 +117,6 @@ export async function saveClient(
 
   try {
     let savedClientId = id;
-    // Prepare data for Firestore, removing any undefined/null/empty values
     const dataToSave: { [key: string]: any } = { ...clientData };
     Object.keys(dataToSave).forEach(key => {
         const K = key as keyof typeof dataToSave;
@@ -139,23 +126,11 @@ export async function saveClient(
     });
     
     if (id) {
-      // Editing an existing client
+      // Editing an existing client - still requires master role
       const existingClientRef = doc(db, 'clients', id);
-      const existingClientSnap = await getDoc(existingClientRef);
-      if (!existingClientSnap.exists()) {
-          return { success: false, message: 'Cliente no encontrado.' };
-      }
-      const existingClient = existingClientSnap.data();
-      // Security check: only master or the owner can edit
-      if (currentUser.role !== 'master' && existingClient.ownerId !== currentUser.id) {
-        return { success: false, message: 'No tiene permiso para editar este cliente.' };
-      }
-      
-      // Ensure ownerId is not changed on update by non-master users
-      dataToSave.ownerId = existingClient.ownerId;
       await updateDoc(existingClientRef, dataToSave);
     } else {
-      // Creating a new client, ownerId is already set from currentUser
+      // Creating a new client, ownerId is set from current master user
       const clientsCollection = collection(db, 'clients');
       const newClientRef = await addDoc(clientsCollection, dataToSave);
       savedClientId = newClientRef.id;
@@ -177,7 +152,9 @@ export async function saveClient(
 
 export async function deleteClient(id: string): Promise<{ success: boolean; message: string }> {
    const currentUser = await getCurrentUser();
-   if (!currentUser) return { success: false, message: 'No autenticado.' };
+   if (!currentUser || currentUser.role !== 'master') {
+      return { success: false, message: 'No tiene permiso para eliminar clientes.' };
+   }
 
    try {
     const clientDocRef = doc(db, 'clients', id);
@@ -185,19 +162,12 @@ export async function deleteClient(id: string): Promise<{ success: boolean; mess
     if (!clientDoc.exists()) {
       return { success: false, message: 'Cliente no encontrado.' };
     }
-    const existingClient = clientDoc.data();
-    // Security check
-    if (currentUser.role !== 'master' && existingClient.ownerId !== currentUser.id) {
-        return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
-    }
 
-    // Optional: Also delete subcollections like units if necessary
     const unitsCollectionRef = collection(db, 'clients', id, 'units');
     const unitsSnapshot = await getDocs(unitsCollectionRef);
     const deletePromises = unitsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
     await Promise.all(deletePromises);
 
-    // Delete the client document itself
     await deleteDoc(doc(db, 'clients', id));
     
     revalidatePath('/');

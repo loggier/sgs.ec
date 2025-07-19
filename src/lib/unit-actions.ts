@@ -13,7 +13,6 @@ import {
   getDoc,
   collectionGroup,
   query,
-  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
@@ -36,17 +35,10 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   if (!session) return [];
 
   try {
-    // Security check: Make sure user owns the client or is a master
     const clientDocRef = doc(db, 'clients', clientId);
     const clientDoc = await getDoc(clientDocRef);
     if (!clientDoc.exists()) return [];
-
-    const clientData = clientDoc.data() as Client;
-    if (session.role !== 'master' && clientData.ownerId !== session.id) {
-        console.warn(`Security violation: User ${session.id} attempting to access units for client ${clientId}`);
-        return [];
-    }
-
+    
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
     const unitsList = unitSnapshot.docs.map(doc => {
@@ -68,15 +60,6 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
 
-    const clientDocRef = doc(db, 'clients', clientId);
-    const clientDoc = await getDoc(clientDocRef);
-    if (!clientDoc.exists()) return null;
-
-    const clientData = clientDoc.data() as Client;
-    if (session.role !== 'master' && clientData.ownerId !== session.id) {
-        return null; // Security check
-    }
-
     const data = convertTimestamps(unitDoc.data());
     return { id: unitDoc.id, clientId, ...data } as Unit;
 }
@@ -88,12 +71,8 @@ export async function saveUnit(
   unitId?: string
 ): Promise<{ success: boolean; message:string; unit?: Unit }> {
   const session = await getCurrentUser();
-  if (!session) return { success: false, message: 'No autenticado.' };
-
-  const clientDocRef = doc(db, 'clients', clientId);
-  const clientDoc = await getDoc(clientDocRef);
-  if (!clientDoc.exists() || (session.role !== 'master' && clientDoc.data().ownerId !== session.id)) {
-      return { success: false, message: 'No tiene permiso para modificar este cliente.' };
+  if (!session || session.role !== 'master') {
+      return { success: false, message: 'No tiene permiso para modificar unidades.' };
   }
   
   const validation = UnitFormSchema.safeParse(data);
@@ -144,15 +123,11 @@ export async function saveUnit(
 
 export async function deleteUnit(unitId: string, clientId: string): Promise<{ success: boolean; message: string }> {
   const session = await getCurrentUser();
-  if (!session) return { success: false, message: 'No autenticado.' };
+  if (!session || session.role !== 'master') {
+      return { success: false, message: 'No tiene permiso para eliminar unidades.' };
+  }
 
   try {
-    const clientDocRef = doc(db, 'clients', clientId);
-    const clientDoc = await getDoc(clientDocRef);
-    if (!clientDoc.exists() || (session.role !== 'master' && clientDoc.data().ownerId !== session.id)) {
-        return { success: false, message: 'No tiene permiso para eliminar unidades de este cliente.' };
-    }
-
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
     revalidatePath(`/clients/${clientId}/units`);
@@ -197,9 +172,8 @@ export async function getAllUnits(): Promise<(Unit & { clientName: string; owner
             } as Unit & { clientName: string; ownerId: string; ownerName?: string };
         });
 
-        if (session.role !== 'master') {
-            allUnits = allUnits.filter(unit => unit.ownerId === session.id);
-        }
+        // The list is no longer filtered by owner, all authenticated users can see all units
+        // If master, the owner's name is attached.
 
         return allUnits;
     } catch (error) {
