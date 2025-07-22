@@ -1,9 +1,7 @@
 
 import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
-import { AuthProvider } from '@/context/auth-context';
-import { SearchProvider } from '@/context/search-context';
+import { AppProvider } from '@/components/app-provider';
 
 export const metadata: Metadata = {
   title: 'SGC',
@@ -27,12 +25,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          <SearchProvider>
-            {children}
-          </SearchProvider>
-        </AuthProvider>
-        <Toaster />
+        <AppProvider>
+          {children}
+        </AppProvider>
       </body>
     </html>
   );
