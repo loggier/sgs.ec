@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import MainLayout from './main-layout';
 import { Loader2 } from 'lucide-react';
-import { SearchProvider } from '@/context/search-context';
 
 export default function AppContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -41,9 +40,7 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
   // Renderizar el layout principal si está autenticado y no en login.
   if (isAuthenticated && pathname !== '/login') {
      return (
-      <SearchProvider>
         <MainLayout>{children}</MainLayout>
-      </SearchProvider>
      )
   }
 
@@ -54,6 +51,11 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
   
   // Durante el breve momento de la redirección, mostrar un loader
   // para evitar parpadeos de contenido no deseado.
+  // También maneja el caso de la página 404
+  if (pathname === '/login' || !isAuthenticated) {
+     return <>{children}</>;
+  }
+  
   return (
     <div className="flex h-screen items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin" />
