@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths, subMonths } from 'date-fns';
+import { addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import {
   collection,
   doc,
@@ -65,7 +65,6 @@ export async function registerPayment(
         
         const unitUpdateData: Partial<Record<keyof Unit, any>> = {
             ultimoPago: fechaPago,
-            // The next payment date is always calculated from the PREVIOUS next payment date
             fechaSiguientePago: addMonths(new Date(unitDataFromDB.fechaSiguientePago), mesesPagados),
         };
         
