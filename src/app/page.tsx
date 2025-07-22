@@ -42,7 +42,14 @@ function HomePageContent() {
     
     const overdueClientIds = new Set(
       units
-        .filter(unit => new Date(unit.fechaSiguientePago) < new Date())
+        .filter(unit => {
+          // Ensure we have a valid JS Date object for comparison
+          const nextPaymentDate = unit.fechaSiguientePago instanceof Date 
+            ? unit.fechaSiguientePago 
+            : (unit.fechaSiguientePago as any)?.toDate();
+            
+          return nextPaymentDate && nextPaymentDate < new Date();
+        })
         .map(unit => unit.clientId)
     );
 
