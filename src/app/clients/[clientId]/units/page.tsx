@@ -12,7 +12,6 @@ import { useAuth } from '@/context/auth-context';
 import type { ClientWithOwner } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
-import MainContent from '@/components/main-content';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +21,7 @@ type UnitsPageProps = {
   };
 };
 
-function UnitsPageContent({ params }: UnitsPageProps) {
+export default function UnitsPage({ params }: UnitsPageProps) {
   const { user } = useAuth();
   const { clientId } = params;
 
@@ -101,12 +100,4 @@ function UnitsPageContent({ params }: UnitsPageProps) {
       </div>
     </div>
   );
-}
-
-export default function UnitsPage({ params }: { params: { clientId: string }}) {
-    return (
-        <MainContent>
-            <UnitsPageContent params={params} />
-        </MainContent>
-    )
 }

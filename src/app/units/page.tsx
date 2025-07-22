@@ -9,11 +9,10 @@ import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
-import MainContent from '@/components/main-content';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
-function GlobalUnitsPageContent() {
+export default function GlobalUnitsPage() {
   const { user } = useAuth();
   const [units, setUnits] = React.useState<GlobalUnit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -78,12 +77,4 @@ function GlobalUnitsPageContent() {
       </div>
     </div>
   );
-}
-
-export default function GlobalUnitsPage() {
-    return (
-        <MainContent>
-            <GlobalUnitsPageContent />
-        </MainContent>
-    )
 }

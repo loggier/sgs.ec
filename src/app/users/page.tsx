@@ -5,11 +5,10 @@ import * as React from 'react';
 import { getUsers } from '@/lib/user-actions';
 import UserList from '@/components/user-list';
 import Header from '@/components/header';
-import MainContent from '@/components/main-content';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { User } from '@/lib/user-schema';
 
-function UsersPageContent() {
+export default function UsersPage() {
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -35,13 +34,4 @@ function UsersPageContent() {
        <UserList initialUsers={users} />
     </div>
   );
-}
-
-
-export default function UsersPage() {
-  return (
-    <MainContent>
-      <UsersPageContent />
-    </MainContent>
-  )
 }

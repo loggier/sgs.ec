@@ -9,9 +9,8 @@ import { useAuth } from '@/context/auth-context';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import NewPaymentSection from '@/components/new-payment-section';
-import MainContent from '@/components/main-content';
 
-function PaymentsPageContent() {
+export default function PaymentsPage() {
   const { user } = useAuth();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -50,12 +49,4 @@ function PaymentsPageContent() {
       </div>
     </div>
   );
-}
-
-export default function PaymentsPage() {
-    return (
-        <MainContent>
-            <PaymentsPageContent />
-        </MainContent>
-    )
 }

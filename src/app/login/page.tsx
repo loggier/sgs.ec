@@ -3,9 +3,8 @@
 
 import LoginForm from '@/components/login-form';
 import { Banknote } from 'lucide-react';
-import MainContent from '@/components/main-content';
 
-function LoginPageContent() {
+export default function LoginPage() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-md">
@@ -20,12 +19,4 @@ function LoginPageContent() {
         </div>
         </div>
     )
-}
-
-export default function LoginPage() {
-  return (
-    <MainContent>
-      <LoginPageContent />
-    </MainContent>
-  );
 }
