@@ -7,8 +7,9 @@ import UserList from '@/components/user-list';
 import Header from '@/components/header';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { User } from '@/lib/user-schema';
+import AppContent from '@/components/app-content';
 
-export default function UsersPage() {
+function UsersPageContent() {
   const [users, setUsers] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -21,17 +22,25 @@ export default function UsersPage() {
 
   if (isLoading) {
     return (
-       <div className="flex flex-col h-full">
+       <>
          <Header title="Usuarios" />
          <Skeleton className="h-96 w-full" />
-       </div>
+       </>
     )
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <>
        <Header title="Usuarios" />
        <UserList initialUsers={users} />
-    </div>
+    </>
   );
+}
+
+export default function UsersPage() {
+    return (
+        <AppContent>
+            <UsersPageContent />
+        </AppContent>
+    )
 }

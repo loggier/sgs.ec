@@ -4,7 +4,6 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/context/auth-context';
 import { SearchProvider } from '@/context/search-context';
-import AppContent from '@/components/app-content';
 
 export const metadata: Metadata = {
   title: 'SGC',
@@ -30,7 +29,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <AuthProvider>
           <SearchProvider>
-            <AppContent>{children}</AppContent>
+            {children}
           </SearchProvider>
         </AuthProvider>
         <Toaster />

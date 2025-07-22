@@ -41,7 +41,11 @@ export default function AppContent({ children }: { children: React.ReactNode }) 
   // Renderizar el layout principal si está autenticado y no en login.
   if (isAuthenticated && pathname !== '/login') {
      return (
-        <MainLayout>{children}</MainLayout>
+        <MainLayout>
+            <div className="flex flex-col flex-1 p-4 md:p-6 h-full">
+                {children}
+            </div>
+        </MainLayout>
      )
   }
 

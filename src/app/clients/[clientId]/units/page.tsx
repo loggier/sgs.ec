@@ -12,6 +12,7 @@ import { useAuth } from '@/context/auth-context';
 import type { ClientWithOwner } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
+import AppContent from '@/components/app-content';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ type UnitsPageProps = {
   };
 };
 
-export default function UnitsPage({ params }: UnitsPageProps) {
+function UnitsPageContent({ params }: UnitsPageProps) {
   const { user } = useAuth();
   const { clientId } = params;
 
@@ -56,11 +57,11 @@ export default function UnitsPage({ params }: UnitsPageProps) {
 
   if (isLoading || !client) {
     return (
-      <div className="flex flex-col h-full">
+      <>
         <Header title="Cargando..." showBackButton backButtonHref="/" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-64 w-full mt-6" />
-      </div>
+      </>
     );
   }
 
@@ -87,7 +88,7 @@ export default function UnitsPage({ params }: UnitsPageProps) {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/" />
       <div className="space-y-6">
         <UnitSummary 
@@ -98,6 +99,14 @@ export default function UnitsPage({ params }: UnitsPageProps) {
         />
         <UnitList initialUnits={units} clientId={clientId} onDataChange={fetchData} />
       </div>
-    </div>
+    </>
   );
+}
+
+export default function UnitsPage({ params }: UnitsPageProps) {
+    return (
+        <AppContent>
+            <UnitsPageContent params={params} />
+        </AppContent>
+    )
 }

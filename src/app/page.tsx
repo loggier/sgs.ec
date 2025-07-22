@@ -11,10 +11,11 @@ import type { ClientWithOwner } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import ClientSummary from '@/components/client-summary';
+import AppContent from '@/components/app-content';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
-export default function Home() {
+function HomePageContent() {
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
   const [units, setUnits] = React.useState<UnitWithClient[]>([]);
@@ -90,7 +91,7 @@ export default function Home() {
 
   if (isLoading) {
       return (
-          <div className="flex flex-col h-full">
+          <>
               <Header title="Clientes" />
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <Skeleton className="h-28 w-full" />
@@ -99,17 +100,25 @@ export default function Home() {
                   <Skeleton className="h-28 w-full" />
               </div>
               <Skeleton className="h-96 w-full mt-6" />
-          </div>
+          </>
       )
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       <Header title="Clientes" />
       <div className="space-y-6">
         <ClientSummary {...summaryData} />
         <ClientList initialClients={clientsWithDynamicStatus} />
       </div>
-    </div>
+    </>
   );
+}
+
+export default function Home() {
+    return (
+        <AppContent>
+            <HomePageContent />
+        </AppContent>
+    )
 }

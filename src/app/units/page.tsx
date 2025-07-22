@@ -9,10 +9,11 @@ import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
+import AppContent from '@/components/app-content';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
-export default function GlobalUnitsPage() {
+function GlobalUnitsPageContent() {
   const { user } = useAuth();
   const [units, setUnits] = React.useState<GlobalUnit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -34,11 +35,11 @@ export default function GlobalUnitsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col h-full">
+      <>
         <Header title="Todas las Unidades" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-64 w-full mt-6" />
-      </div>
+      </>
     );
   }
 
@@ -64,7 +65,7 @@ export default function GlobalUnitsPage() {
   }, {} as Record<string, number>);
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       <Header title="Todas las Unidades" />
       <div className="space-y-6">
         <UnitSummary 
@@ -75,6 +76,14 @@ export default function GlobalUnitsPage() {
         />
         <GlobalUnitList initialUnits={units} onDataChange={fetchUnits} />
       </div>
-    </div>
+    </>
   );
+}
+
+export default function GlobalUnitsPage() {
+    return (
+        <AppContent>
+            <GlobalUnitsPageContent />
+        </AppContent>
+    )
 }

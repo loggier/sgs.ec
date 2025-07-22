@@ -9,8 +9,9 @@ import { useAuth } from '@/context/auth-context';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import NewPaymentSection from '@/components/new-payment-section';
+import AppContent from '@/components/app-content';
 
-export default function PaymentsPage() {
+function PaymentsPageContent() {
   const { user } = useAuth();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -32,21 +33,30 @@ export default function PaymentsPage() {
 
   if (isLoading && payments.length === 0) {
     return (
-      <div className="flex flex-col h-full">
+      <>
         <Header title="Gestión de Pagos" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-96 w-full mt-6" />
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <>
       <Header title="Gestión de Pagos" />
       <div className="space-y-8">
         <NewPaymentSection onPaymentSaved={fetchPayments} />
         <PaymentHistoryList initialPayments={payments} onPaymentDeleted={fetchPayments} isLoading={isLoading} />
       </div>
-    </div>
+    </>
   );
+}
+
+
+export default function PaymentsPage() {
+    return (
+        <AppContent>
+            <PaymentsPageContent />
+        </AppContent>
+    )
 }
