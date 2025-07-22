@@ -13,6 +13,8 @@ import type { ClientWithOwner } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export const dynamic = 'force-dynamic';
+
 type UnitsPageProps = {
   params: Promise<{
     clientId: string;
