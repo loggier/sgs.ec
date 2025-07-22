@@ -11,10 +11,11 @@ import type { ClientWithOwner } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import ClientSummary from '@/components/client-summary';
+import MainContent from '@/components/main-content';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
-export default function Home() {
+function HomePageContent() {
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
   const [units, setUnits] = React.useState<UnitWithClient[]>([]);
@@ -112,4 +113,12 @@ export default function Home() {
       </div>
     </div>
   );
+}
+
+export default function Home() {
+  return (
+    <MainContent>
+      <HomePageContent />
+    </MainContent>
+  )
 }

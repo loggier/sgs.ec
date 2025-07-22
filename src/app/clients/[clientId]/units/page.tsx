@@ -12,18 +12,19 @@ import { useAuth } from '@/context/auth-context';
 import type { ClientWithOwner } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
+import MainContent from '@/components/main-content';
 
 export const dynamic = 'force-dynamic';
 
 type UnitsPageProps = {
-  params: Promise<{
+  params: {
     clientId: string;
-  }>;
+  };
 };
 
-export default function UnitsPage({ params }: UnitsPageProps) {
+function UnitsPageContent({ params }: UnitsPageProps) {
   const { user } = useAuth();
-  const { clientId } = React.use(params);
+  const { clientId } = params;
 
   const [client, setClient] = React.useState<ClientWithOwner | null>(null);
   const [units, setUnits] = React.useState<Unit[]>([]);
@@ -100,4 +101,12 @@ export default function UnitsPage({ params }: UnitsPageProps) {
       </div>
     </div>
   );
+}
+
+export default function UnitsPage({ params }: { params: { clientId: string }}) {
+    return (
+        <MainContent>
+            <UnitsPageContent params={params} />
+        </MainContent>
+    )
 }
