@@ -12,6 +12,7 @@ import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import ClientSummary from '@/components/client-summary';
 import AppContent from '@/components/app-content';
+import type { Timestamp } from 'firebase/firestore';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
@@ -43,10 +44,12 @@ function HomePageContent() {
     const overdueClientIds = new Set(
       units
         .filter(unit => {
-          // Ensure we have a valid JS Date object for comparison
-          const nextPaymentDate = unit.fechaSiguientePago instanceof Date 
-            ? unit.fechaSiguientePago 
-            : (unit.fechaSiguientePago as any)?.toDate();
+          const nextPaymentDateSource = unit.fechaSiguientePago;
+          if (!nextPaymentDateSource) return false;
+          
+          const nextPaymentDate = (nextPaymentDateSource as Timestamp).toDate 
+            ? (nextPaymentDateSource as Timestamp).toDate()
+            : new Date(nextPaymentDateSource);
             
           return nextPaymentDate && nextPaymentDate < new Date();
         })
