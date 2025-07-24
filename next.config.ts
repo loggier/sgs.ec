@@ -1,4 +1,4 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   typescript: {
@@ -15,18 +15,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Opciones clave para resolver el problema del 404:
-  skipTrailingSlashRedirect: true,
+  // Deshabilita completamente el prerenderizado automático de 404
   experimental: {
-    // ► Remueve 'missingSuspenseWithCSRBailout' (ya no existe)
-    // ► En su lugar, usa estas opciones compatibles:
-    serverActions: true,  // Necesario si usas Server Actions
-    optimizePackageImports: [  // Mejora el manejo de imports
-      '@radix-ui/react-slot'  // Especialmente útil para ShadCN/ui
-    ]
+    disableOptimizedLoading: true,
   },
-  // ► Opción recomendada para builds estáticos:
-  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
-};
+}
 
-export default nextConfig;
+export default nextConfig
