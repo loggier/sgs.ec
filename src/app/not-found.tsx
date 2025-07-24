@@ -1,15 +1,11 @@
-'use client' 
-
-import { Button } from '@/components/ui/button'
-import Link from 'next/link'
-
+// app/not-found.tsx
 export default function NotFound() {
   return (
-    <div className="text-center p-8">
-      <h1 className="text-4xl font-bold">404</h1>
-      <Button asChild className="mt-4">
-        <Link href="/">Volver al inicio</Link>
-      </Button>
-    </div>
+    <html>
+      <body style={{ textAlign: 'center', padding: '50px' }}>
+        <h1>404 - Página no encontrada</h1>
+        <a href="/">Volver al inicio</a> {/* Usa <a> en lugar de <Link> */}
+      </body>
+    </html>
   )
 }
