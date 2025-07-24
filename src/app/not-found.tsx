@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 
 export default function NotFoundPage() {
@@ -10,11 +9,12 @@ export default function NotFoundPage() {
       <p className="text-xl text-muted-foreground mb-6">
         La página que estás buscando no existe o ha sido movida.
       </p>
-      <Button asChild variant="default">
-        <Link href="/" legacyBehavior passHref>
-          <a>Volver al Inicio</a>
-        </Link>
-      </Button>
+      <Link
+        href="/"
+        className="inline-flex items-center justify-center px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+      >
+        Volver al Inicio
+      </Link>
     </div>
   );
 }
