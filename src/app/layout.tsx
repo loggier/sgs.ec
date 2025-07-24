@@ -6,6 +6,7 @@ import { AppProvider } from '@/components/app-provider';
 export const metadata: Metadata = {
   title: 'SGC',
   description: 'Sistema de gestion de cliente.',
+  icons: null,
 };
 
 export default function RootLayout({
