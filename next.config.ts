@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
   // Deshabilita completamente el prerenderizado automático de 404
   experimental: {
     disableOptimizedLoading: true,
+    missingSuspenseWithCSRBailout: false, // Desactiva warnings de CSR
   },
 }
 
