@@ -57,6 +57,15 @@ function formatCurrency(amount?: number) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
+function formatDateSafe(date: Date | string | null | undefined): string {
+    if (!date) return 'N/A';
+    try {
+        return format(new Date(date), 'P', { locale: es });
+    } catch (error) {
+        return 'Fecha inválida';
+    }
+}
+
 export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUnitListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -176,6 +185,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
+                <TableHead>Fecha de Instalación</TableHead>
                 <TableHead>Vencimiento Contrato</TableHead>
                 <TableHead>Estado de Pago</TableHead>
                 <TableHead>
@@ -205,8 +215,11 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                       {getCostForUnit(unit)}
                     </TableCell>
                     <TableCell>
+                      {hasMounted ? formatDateSafe(unit.fechaInstalacion) : ''}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex flex-col">
-                        <span>{hasMounted ? format(new Date(unit.fechaVencimiento), 'P', { locale: es }) : ''}</span>
+                        <span>{hasMounted ? formatDateSafe(unit.fechaVencimiento) : ''}</span>
                         {isExpired(unit.fechaVencimiento) && <span className="text-xs text-red-600">Vencido</span>}
                       </div>
                     </TableCell>
@@ -239,7 +252,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 10 : 9} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 11 : 10} className="text-center">
                     No se encontraron unidades.
                   </TableCell>
                 </TableRow>
