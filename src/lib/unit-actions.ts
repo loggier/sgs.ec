@@ -99,10 +99,6 @@ export async function saveUnit(
       delete unitDataForFirestore.saldoContrato;
     } else {
       delete unitDataForFirestore.costoMensual;
-      // Initialize saldoContrato if it's missing (for new or updated units)
-      if (unitDataForFirestore.saldoContrato === undefined || unitDataForFirestore.saldoContrato === null) {
-          unitDataForFirestore.saldoContrato = costoTotalContrato;
-      }
     }
 
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
@@ -119,13 +115,13 @@ export async function saveUnit(
       const newStartDate = new Date(fechaInicioContrato);
       const oldStartDate = new Date(currentUnitData.fechaInicioContrato);
 
-      // If start date has changed, reset the payment cycle
-      if (newStartDate.getTime() !== oldStartDate.getTime()) {
+      // Reset payment cycle and balance if start date changes
+      if (newStartDate.getTime() !== oldStartDate.getTime() || tipoContrato !== currentUnitData.tipoContrato) {
         unitDataForFirestore.ultimoPago = null;
         unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
         
         if (tipoContrato === 'con_contrato') {
-            unitDataForFirestore.saldoContrato = costoTotalContrato; // Reset balance if start date changes
+            unitDataForFirestore.saldoContrato = costoTotalContrato; // Reset balance
             if (mesesContrato) {
               unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
             }
@@ -133,6 +129,12 @@ export async function saveUnit(
           unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
         }
       }
+      
+      // If it's a contract unit and the balance is null/undefined (for old records), initialize it.
+      if (tipoContrato === 'con_contrato' && (currentUnitData.saldoContrato === undefined || currentUnitData.saldoContrato === null)) {
+         unitDataForFirestore.saldoContrato = costoTotalContrato;
+      }
+
 
       await updateDoc(unitDocRef, unitDataForFirestore);
     } else { // Creating new unit
@@ -141,7 +143,7 @@ export async function saveUnit(
       unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
       
       if (tipoContrato === 'con_contrato') {
-        unitDataForFirestore.saldoContrato = costoTotalContrato; // Initialize balance
+        unitDataForFirestore.saldoContrato = costoTotalContrato; // Initialize balance for new contract
         if (mesesContrato) {
           unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
         }

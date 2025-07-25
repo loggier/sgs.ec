@@ -71,7 +71,8 @@ export async function registerPayment(
             if (unitDataFromDB.tipoContrato === 'con_contrato') {
                 const monthlyCost = (unitDataFromDB.costoTotalContrato ?? 0) / (unitDataFromDB.mesesContrato ?? 1);
                 const paymentAmountForBalance = monthlyCost * mesesPagados;
-                const currentBalance = unitDataFromDB.saldoContrato ?? 0;
+                // If saldoContrato doesn't exist, initialize it from costoTotalContrato before subtracting.
+                const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
             } else {
                 unitUpdateData.fechaVencimiento = addMonths(new Date(unitDataFromDB.fechaVencimiento), mesesPagados);
