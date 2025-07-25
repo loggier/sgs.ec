@@ -157,6 +157,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const getCostForUnit = (unit: Unit) => {
     if (unit.tipoContrato === 'con_contrato') {
       const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
+      const balance = unit.saldoContrato ?? unit.costoTotalContrato;
       return (
         <div>
           <div className="font-medium" title="Costo Total Contrato">{formatCurrency(unit.costoTotalContrato)}</div>
@@ -164,7 +165,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
             {formatCurrency(monthlyCost)}/mes
           </div>
           <div className="text-xs text-blue-600 font-semibold" title="Saldo Pendiente">
-            Saldo: {formatCurrency(unit.saldoContrato)}
+            Saldo: {formatCurrency(balance)}
           </div>
         </div>
       );

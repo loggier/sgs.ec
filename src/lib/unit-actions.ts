@@ -131,7 +131,7 @@ export async function saveUnit(
       }
       
       // If it's a contract unit and the balance is null/undefined (for old records), initialize it.
-      if (tipoContrato === 'con_contrato' && (currentUnitData.saldoContrato === undefined || currentUnitData.saldoContrato === null)) {
+      if (tipoContrato === 'con_contrato' && (unitDataForFirestore.saldoContrato === undefined || unitDataForFirestore.saldoContrato === null)) {
          unitDataForFirestore.saldoContrato = costoTotalContrato;
       }
 
@@ -162,7 +162,7 @@ export async function saveUnit(
 
   } catch (error) {
     console.error("Error saving unit:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
     return { success: false, message: `Error al guardar la unidad: ${errorMessage}` };
   }
 }
