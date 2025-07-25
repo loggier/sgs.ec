@@ -299,7 +299,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                         !field.value && 'text-muted-foreground'
                       )}
                     >
-                      {field.value instanceof Date ? (
+                      {field.value && field.value instanceof Date ? (
                         format(field.value, 'PPP', { locale: es })
                       ) : (
                         <span>Elige una fecha</span>
@@ -338,8 +338,8 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                         !field.value && 'text-muted-foreground'
                       )}
                     >
-                      {field.value ? (
-                        format(new Date(field.value), 'PPP', { locale: es })
+                      {field.value && field.value instanceof Date ? (
+                        format(field.value, 'PPP', { locale: es })
                       ) : (
                         <span>Elige una fecha</span>
                       )}
@@ -372,7 +372,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
               <FormControl>
                 <Input
                   readOnly
-                  value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                  value={field.value && field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
                   className="bg-muted cursor-default"
                 />
               </FormControl>
@@ -401,7 +401,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                   <FormControl>
                     <Input
                       readOnly
-                      value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                      value={field.value && field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
                       className="bg-muted cursor-default"
                     />
                   </FormControl>
@@ -418,7 +418,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                   <FormControl>
                     <Input
                       readOnly
-                      value={field.value ? format(new Date(field.value), 'PPP', { locale: es }) : 'N/A'}
+                      value={field.value && field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
                       className="bg-muted cursor-default"
                     />
                   </FormControl>
