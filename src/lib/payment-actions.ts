@@ -12,6 +12,7 @@ import {
   query,
   getDocs,
   orderBy,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -47,49 +48,51 @@ export async function registerPayment(
   }
   
   try {
-    const batch = writeBatch(db);
     const { fechaPago, mesesPagados, ...paymentData } = validation.data;
     const updatedUnits: Unit[] = [];
     let processedCount = 0;
 
-    for (const unitId of unitIds) {
-        const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
-        const unitSnapshot = await getDoc(unitDocRef);
+    await runTransaction(db, async (transaction) => {
+        for (const unitId of unitIds) {
+            const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+            const unitSnapshot = await transaction.get(unitDocRef);
 
-        if (!unitSnapshot.exists()) {
-            console.warn(`Unidad con ID ${unitId} no encontrada. Saltando.`);
-            continue;
+            if (!unitSnapshot.exists()) {
+                throw new Error(`Unidad con ID ${unitId} no encontrada.`);
+            }
+
+            const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
+            
+            const unitUpdateData: Partial<Record<keyof Unit, any>> = {
+                ultimoPago: fechaPago,
+                fechaSiguientePago: addMonths(new Date(unitDataFromDB.fechaSiguientePago), mesesPagados),
+            };
+            
+            if (unitDataFromDB.tipoContrato === 'con_contrato') {
+                const monthlyCost = (unitDataFromDB.costoTotalContrato ?? 0) / (unitDataFromDB.mesesContrato ?? 1);
+                const paymentAmountForBalance = monthlyCost * mesesPagados;
+                const currentBalance = unitDataFromDB.saldoContrato ?? 0;
+                unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
+            } else {
+                unitUpdateData.fechaVencimiento = addMonths(new Date(unitDataFromDB.fechaVencimiento), mesesPagados);
+            }
+            
+            transaction.update(unitDocRef, unitUpdateData);
+
+            const newPayment: Omit<Payment, 'id'> = {
+                unitId,
+                clientId,
+                fechaPago,
+                mesesPagados,
+                ...paymentData,
+            };
+            const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitId, 'payments'));
+            transaction.set(paymentDocRef, newPayment);
+            
+            updatedUnits.push({ ...unitDataFromDB, ...unitUpdateData });
+            processedCount++;
         }
-
-        const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
-        
-        const unitUpdateData: Partial<Record<keyof Unit, any>> = {
-            ultimoPago: fechaPago,
-            fechaSiguientePago: addMonths(new Date(unitDataFromDB.fechaSiguientePago), mesesPagados),
-        };
-        
-        // For non-contract units, the expiration date also moves forward
-        if (unitDataFromDB.tipoContrato === 'sin_contrato') {
-            unitUpdateData.fechaVencimiento = addMonths(new Date(unitDataFromDB.fechaVencimiento), mesesPagados);
-        }
-        
-        batch.update(unitDocRef, unitUpdateData);
-
-        const newPayment: Omit<Payment, 'id'> = {
-            unitId,
-            clientId,
-            fechaPago,
-            mesesPagados,
-            ...paymentData,
-        };
-        const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitId, 'payments'));
-        batch.set(paymentDocRef, newPayment);
-        
-        updatedUnits.push({ ...unitDataFromDB, ...unitUpdateData });
-        processedCount++;
-    }
-    
-    await batch.commit();
+    });
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -157,48 +160,47 @@ export async function getAllPayments(
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
-        const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
-        const paymentDoc = await getDoc(paymentDocRef);
+        await runTransaction(db, async (transaction) => {
+            const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
+            const paymentDoc = await transaction.get(paymentDocRef);
 
-        if (!paymentDoc.exists()) {
-            return { success: false, message: 'Pago no encontrado.' };
-        }
-        
-        const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
+            if (!paymentDoc.exists()) {
+                throw new Error('Pago no encontrado.');
+            }
+            
+            const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
 
-        const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
-        const unitDoc = await getDoc(unitDocRef);
+            const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+            const unitDoc = await transaction.get(unitDocRef);
 
-        if (!unitDoc.exists()) {
-            return { success: false, message: 'No se pudo encontrar la unidad asociada.' };
-        }
-        
-        const unitData = convertTimestamps(unitDoc.data()) as Unit;
+            if (!unitDoc.exists()) {
+                throw new Error('No se pudo encontrar la unidad asociada.');
+            }
+            
+            const unitData = convertTimestamps(unitDoc.data()) as Unit;
+            const unitUpdate: Partial<Record<keyof Unit, any>> = {
+                fechaSiguientePago: subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados)
+            };
 
-        const unitUpdate: Partial<Record<keyof Unit, any>> = {
-            fechaSiguientePago: subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados)
-        };
+            if (unitData.tipoContrato === 'con_contrato') {
+                const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
+                const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
+                unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
+            } else {
+                unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
+            }
 
-        if (unitData.tipoContrato === 'sin_contrato') {
-            unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
-        }
+            const paymentsCollectionRef = collection(unitDocRef, 'payments');
+            const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
+            const paymentsSnapshot = await getDocs(q);
+            
+            const previousPaymentDoc = paymentsSnapshot.docs.find(doc => doc.id !== paymentId);
 
-        const paymentsCollectionRef = collection(unitDocRef, 'payments');
-        const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
-        const paymentsSnapshot = await getDocs(q);
-        
-        const previousPaymentDoc = paymentsSnapshot.docs.find(doc => doc.id !== paymentId);
-
-        if (previousPaymentDoc) {
-            unitUpdate.ultimoPago = convertTimestamps(previousPaymentDoc.data()).fechaPago;
-        } else {
-            unitUpdate.ultimoPago = null;
-        }
-        
-        const batch = writeBatch(db);
-        batch.update(unitDocRef, unitUpdate);
-        batch.delete(paymentDocRef);
-        await batch.commit();
+            unitUpdate.ultimoPago = previousPaymentDoc ? convertTimestamps(previousPaymentDoc.data()).fechaPago : null;
+            
+            transaction.update(unitDocRef, unitUpdate);
+            transaction.delete(paymentDocRef);
+        });
 
         revalidatePath(`/clients/${clientId}/units`);
         revalidatePath('/units');

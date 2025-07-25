@@ -83,18 +83,20 @@ export async function saveUnit(
   }
   
   try {
-    const { fechaInicioContrato, tipoContrato, mesesContrato, ...restOfData } = validation.data;
+    const { fechaInicioContrato, tipoContrato, mesesContrato, costoTotalContrato, ...restOfData } = validation.data;
     
     const unitDataForFirestore: any = {
       ...restOfData,
       fechaInicioContrato: new Date(fechaInicioContrato),
       tipoContrato,
       mesesContrato,
+      costoTotalContrato,
     };
     
     if (tipoContrato === 'sin_contrato') {
       delete unitDataForFirestore.costoTotalContrato;
       delete unitDataForFirestore.mesesContrato;
+      delete unitDataForFirestore.saldoContrato;
     } else {
       delete unitDataForFirestore.costoMensual;
     }
@@ -118,9 +120,12 @@ export async function saveUnit(
         unitDataForFirestore.ultimoPago = null;
         unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
         
-        if (tipoContrato === 'con_contrato' && mesesContrato) {
-          unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
-        } else { // sin_contrato or contract without months
+        if (tipoContrato === 'con_contrato') {
+            unitDataForFirestore.saldoContrato = costoTotalContrato; // Reset balance if start date changes
+            if (mesesContrato) {
+              unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
+            }
+        } else {
           unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
         }
       }
@@ -131,8 +136,11 @@ export async function saveUnit(
       unitDataForFirestore.ultimoPago = null;
       unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
       
-      if (tipoContrato === 'con_contrato' && mesesContrato) {
-        unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
+      if (tipoContrato === 'con_contrato') {
+        unitDataForFirestore.saldoContrato = costoTotalContrato; // Initialize balance
+        if (mesesContrato) {
+          unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
+        }
       } else {
         unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
       }

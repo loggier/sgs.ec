@@ -54,7 +54,7 @@ const planDisplayNames: Record<Unit['tipoPlan'], string> = {
   'total-cc': 'Total CC',
 };
 
-function formatCurrency(amount?: number) {
+function formatCurrency(amount?: number | null) {
     if (amount === undefined || amount === null) return 'N/A';
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
@@ -123,11 +123,12 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
 
   const getCostForUnit = (unit: Unit) => {
     if (unit.tipoContrato === 'con_contrato') {
-        const monthly = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
         return (
             <div>
-                <div className="font-medium">{formatCurrency(unit.costoTotalContrato)}</div>
-                <div className="text-xs text-muted-foreground">{formatCurrency(monthly)}/mes</div>
+                <div className="font-medium" title="Costo Total Contrato">{formatCurrency(unit.costoTotalContrato)}</div>
+                <div className="text-xs text-blue-600 font-semibold" title="Saldo Pendiente">
+                    Saldo: {formatCurrency(unit.saldoContrato)}
+                </div>
             </div>
         );
     }
@@ -236,7 +237,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
-                <TableHead>Vencimiento Contrato</TableHead>
+                <TableHead>Fecha de Vencimiento</TableHead>
                 <TableHead>Próximo Pago</TableHead>
                 <TableHead>Estado de Pago</TableHead>
                 <TableHead>
