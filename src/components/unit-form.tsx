@@ -90,7 +90,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
   }));
 
   React.useEffect(() => {
-    if (isEditing) return; // Don't auto-set values when editing
+    if (isEditing) return; 
 
     if (tipoContrato === 'sin_contrato') {
       setValue('costoTotalContrato', undefined);
@@ -101,26 +101,31 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
   }, [tipoContrato, setValue, isEditing]);
 
   React.useEffect(() => {
+    if (!fechaInicioContrato || !(fechaInicioContrato instanceof Date)) return;
+
+    let newVencimiento;
+    if (tipoContrato === 'con_contrato' && mesesContrato && mesesContrato > 0) {
+      newVencimiento = addMonths(fechaInicioContrato, mesesContrato);
+    } else {
+      newVencimiento = addMonths(fechaInicioContrato, 1);
+    }
+    setValue('fechaVencimiento', newVencimiento);
+
     if (isEditing) {
-      if (fechaInicioContrato instanceof Date) {
-        const currentStartDate = fechaInicioContrato.getTime();
-        const originalStartDateValue = initialStartDate.current;
-        const originalStartDate = originalStartDateValue instanceof Date ? originalStartDateValue.getTime() : null;
+      const currentStartDate = fechaInicioContrato.getTime();
+      const originalStartDateValue = initialStartDate.current;
+      const originalStartDate = originalStartDateValue instanceof Date ? originalStartDateValue.getTime() : null;
 
-        if (originalStartDate && currentStartDate !== originalStartDate) {
-            setShowWarning(true);
-            const newStartDate = new Date(fechaInicioContrato);
-            setValue('fechaSiguientePago', addMonths(newStartDate, 1));
-
-            if (tipoContrato === 'con_contrato' && mesesContrato) {
-              setValue('fechaVencimiento', addMonths(newStartDate, mesesContrato));
-            } else {
-              setValue('fechaVencimiento', addMonths(newStartDate, 1));
-            }
-        } else {
-            setShowWarning(false);
-        }
+      if (originalStartDate && currentStartDate !== originalStartDate) {
+        setShowWarning(true);
+        const newStartDate = new Date(fechaInicioContrato);
+        setValue('fechaSiguientePago', addMonths(newStartDate, 1));
+      } else {
+        setShowWarning(false);
       }
+    } else {
+      // For new units, also set the next payment date
+      setValue('fechaSiguientePago', addMonths(fechaInicioContrato, 1));
     }
   }, [fechaInicioContrato, mesesContrato, tipoContrato, isEditing, setValue]);
   
@@ -370,11 +375,11 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
           name="fechaVencimiento"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Vencimiento de Contrato</FormLabel>
+              <FormLabel>Fecha de Vencimiento</FormLabel>
               <FormControl>
                 <Input
                   readOnly
-                  value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                  value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'Calculando...'}
                   className="bg-muted cursor-default"
                 />
               </FormControl>
@@ -484,7 +489,6 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           mesesContrato: undefined,
           fechaInstalacion: new Date(),
           fechaInicioContrato: new Date(),
-          // These will be calculated on the server on creation
           fechaVencimiento: addMonths(new Date(), 1), 
           ultimoPago: null,
           fechaSiguientePago: addMonths(new Date(), 1),
