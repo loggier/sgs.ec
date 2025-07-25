@@ -99,6 +99,10 @@ export async function saveUnit(
       delete unitDataForFirestore.saldoContrato;
     } else {
       delete unitDataForFirestore.costoMensual;
+      // Initialize saldoContrato if it's missing (for new or updated units)
+      if (unitDataForFirestore.saldoContrato === undefined || unitDataForFirestore.saldoContrato === null) {
+          unitDataForFirestore.saldoContrato = costoTotalContrato;
+      }
     }
 
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');

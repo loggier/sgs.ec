@@ -123,14 +123,18 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
 
   const getCostForUnit = (unit: Unit) => {
     if (unit.tipoContrato === 'con_contrato') {
-        return (
-            <div>
-                <div className="font-medium" title="Costo Total Contrato">{formatCurrency(unit.costoTotalContrato)}</div>
-                <div className="text-xs text-blue-600 font-semibold" title="Saldo Pendiente">
-                    Saldo: {formatCurrency(unit.saldoContrato)}
-                </div>
-            </div>
-        );
+      const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
+      return (
+        <div>
+          <div className="font-medium" title="Costo Total Contrato">{formatCurrency(unit.costoTotalContrato)}</div>
+          <div className="text-xs text-muted-foreground" title="Cuota Mensual">
+            {formatCurrency(monthlyCost)}/mes
+          </div>
+          <div className="text-xs text-blue-600 font-semibold" title="Saldo Pendiente">
+            Saldo: {formatCurrency(unit.saldoContrato)}
+          </div>
+        </div>
+      );
     }
     return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
   };
