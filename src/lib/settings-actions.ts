@@ -37,8 +37,7 @@ export async function saveWoxSettings(
 
 export async function getWoxSettings(): Promise<WoxSettings | null> {
   try {
-    // Note: No permission check here, it's done on the client-side component (WoxSettingsForm)
-    // before this function is ever called.
+    // Permission check is done on the component calling this function
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
 
