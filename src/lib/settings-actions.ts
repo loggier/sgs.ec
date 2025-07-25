@@ -8,23 +8,16 @@ import { getCurrentUser } from './auth';
 
 const SETTINGS_DOC_ID = 'integrations';
 
-// Helper function to check for master role
-async function verifyMasterRole() {
-    const user = await getCurrentUser();
-    if (!user || user.role !== 'master') {
-        throw new Error('Acción no permitida. Se requiere rol de Master.');
-    }
-    return user;
-}
-
-
 // --- WOX Settings ---
 
 export async function saveWoxSettings(
   data: WoxSettings
 ): Promise<{ success: boolean; message: string }> {
   try {
-    await verifyMasterRole();
+    const user = await getCurrentUser();
+    if (!user || user.role !== 'master') {
+        throw new Error('Acción no permitida. Se requiere rol de Master.');
+    }
 
     const validation = WoxSettingsSchema.safeParse(data);
     if (!validation.success) {
