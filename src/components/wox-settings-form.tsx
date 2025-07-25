@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 import { WoxSettingsSchema, type WoxSettingsFormInput } from '@/lib/settings-schema';
 import { getWoxSettings, saveWoxSettings } from '@/lib/settings-actions';
@@ -21,11 +22,15 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from './ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 export default function WoxSettingsForm() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [permissionError, setPermissionError] = React.useState<string | null>(null);
 
   const form = useForm<WoxSettingsFormInput>({
     resolver: zodResolver(WoxSettingsSchema),
@@ -38,6 +43,12 @@ export default function WoxSettingsForm() {
 
   React.useEffect(() => {
     async function loadSettings() {
+      if (user?.role !== 'master') {
+        setPermissionError('Acción no permitida. Se requiere rol de Master.');
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         const settings = await getWoxSettings();
@@ -50,18 +61,29 @@ export default function WoxSettingsForm() {
         }
       } catch (error) {
         toast({
-          title: 'Error de permisos',
-          description: (error as Error).message,
+          title: 'Error al cargar',
+          description: 'No se pudo cargar la configuración de WOX.',
           variant: 'destructive',
         });
       } finally {
         setIsLoading(false);
       }
     }
-    loadSettings();
-  }, [form, toast]);
+    if (user) {
+      loadSettings();
+    }
+  }, [form, toast, user]);
 
   async function onSubmit(values: WoxSettingsFormInput) {
+    if (user?.role !== 'master') {
+      toast({
+          title: 'Error de permisos',
+          description: 'No tienes permiso para realizar esta acción.',
+          variant: 'destructive',
+        });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const result = await saveWoxSettings(values);
@@ -86,6 +108,18 @@ export default function WoxSettingsForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (permissionError) {
+      return (
+          <CardContent>
+              <Alert variant="destructive" className="mt-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Acceso Denegado</AlertTitle>
+                  <AlertDescription>{permissionError}</AlertDescription>
+              </Alert>
+          </CardContent>
+      )
   }
 
   if (isLoading) {

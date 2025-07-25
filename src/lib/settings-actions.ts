@@ -43,9 +43,9 @@ export async function saveWoxSettings(
 }
 
 export async function getWoxSettings(): Promise<WoxSettings | null> {
-  // This function is called client-side from the form, so it needs to handle auth.
+  // This function is now only responsible for fetching data.
+  // The permission check is done on the client-side before calling it.
   try {
-    await verifyMasterRole();
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
 
