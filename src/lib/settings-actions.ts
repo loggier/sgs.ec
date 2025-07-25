@@ -4,7 +4,6 @@
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { WoxSettingsSchema, type WoxSettings } from './settings-schema';
-import { getCurrentUser } from './auth';
 
 const SETTINGS_DOC_ID = 'integrations';
 
@@ -14,11 +13,8 @@ export async function saveWoxSettings(
   data: WoxSettings
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const user = await getCurrentUser();
-    if (!user || user.role !== 'master') {
-      return { success: false, message: 'Acción no permitida. Se requiere rol de Master.' };
-    }
-
+    // Permission check is now handled on the client-side component
+    // before this server action is called.
     const validation = WoxSettingsSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, message: 'Datos no válidos.' };
