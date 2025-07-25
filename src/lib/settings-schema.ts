@@ -5,7 +5,7 @@ import { z } from 'zod';
 export const WoxSettingsSchema = z.object({
   url: z.string().url('Debe ser una URL válida.'),
   user: z.string().min(1, 'El usuario es requerido.'),
-  password: z.string().min(1, 'La contraseña es requerida.'),
+  apiKey: z.string().min(1, 'La API Key es requerida.'),
 });
 
 export type WoxSettings = z.infer<typeof WoxSettingsSchema>;

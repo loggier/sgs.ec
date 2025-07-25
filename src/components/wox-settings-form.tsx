@@ -32,7 +32,7 @@ export default function WoxSettingsForm() {
     defaultValues: {
       url: '',
       user: '',
-      password: '',
+      apiKey: '',
     },
   });
 
@@ -44,7 +44,7 @@ export default function WoxSettingsForm() {
         form.reset({
             url: settings.url || '',
             user: settings.user || '',
-            password: settings.password || '',
+            apiKey: settings.apiKey || '',
         });
       }
       setIsLoading(false);
@@ -124,10 +124,10 @@ export default function WoxSettingsForm() {
             />
             <FormField
               control={form.control}
-              name="password"
+              name="apiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contraseña</FormLabel>
+                  <FormLabel>API Key</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="******" {...field} />
                   </FormControl>
