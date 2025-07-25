@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { loginUser, logoutUser, updateProfile } from '@/lib/user-actions';
+import { loginUser, logoutUser, updateProfile, getCurrentUser as getCurrentUserFromServer } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
 import { Loader2 } from 'lucide-react';
 
@@ -25,25 +25,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   React.useEffect(() => {
-    // Intenta cargar el usuario desde localStorage al iniciar la app
-    try {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+    async function verifySession() {
+      try {
+        const serverUser = await getCurrentUserFromServer();
+        if (serverUser) {
+          setUser(serverUser);
+          localStorage.setItem('user', JSON.stringify(serverUser));
+        } else {
+          setUser(null);
+          localStorage.removeItem('user');
+        }
+      } catch (error) {
+        console.error("Fallo al verificar la sesión con el servidor", error);
+        setUser(null);
+        localStorage.removeItem('user');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Fallo al leer usuario de localStorage", error);
-      localStorage.removeItem('user');
-    } finally {
-      setIsLoading(false);
     }
+    verifySession();
   }, []);
 
   const login = async (username: string, password: string) => {
     const result = await loginUser({ username, password });
     if (result.success && result.user) {
       setUser(result.user);
-      // Guardar usuario en localStorage para persistir la sesión
       localStorage.setItem('user', JSON.stringify(result.user));
       router.push('/');
     } else {
@@ -53,9 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     setUser(null);
-    // Limpiar localStorage al cerrar sesión
     localStorage.removeItem('user');
-    await logoutUser(); // Llama a la acción del servidor para limpiar la cookie por si acaso
+    await logoutUser();
     router.push('/login');
   };
   
@@ -64,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(newUser));
   };
   
-  // La función de actualizar perfil ahora también debe actualizar localStorage
   const handleUpdateUser = async (userId: string, data: ProfileFormInput) => {
     const result = await updateProfile(userId, data);
     if (result.success && result.user) {

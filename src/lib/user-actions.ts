@@ -17,7 +17,7 @@ import {
 import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput } from './user-schema';
 import bcrypt from 'bcryptjs';
-import { createSession, deleteSession, getCurrentUser } from './auth';
+import { createSession, deleteSession, getCurrentUser as getCurrentUserFromCookie } from './auth';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
@@ -218,4 +218,8 @@ export async function updateProfile(
         console.error("Error updating profile:", error);
         return { success: false, message: 'Ocurrió un error inesperado al actualizar el perfil.' };
     }
+}
+
+export async function getCurrentUser(): Promise<User | null> {
+    return await getCurrentUserFromCookie();
 }
