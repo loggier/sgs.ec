@@ -3,8 +3,9 @@
 
 import * as React from 'react';
 import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
 import Link from 'next/link';
 
 import type { Unit } from '@/lib/unit-schema';
@@ -35,6 +36,7 @@ import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
+import UnitFilterControls from './unit-filter-controls';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
@@ -74,6 +76,9 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<GlobalUnit | null>(null);
+
+  const [filter, setFilter] = React.useState('all');
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
 
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
@@ -145,32 +150,77 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     return new Date(date) < new Date();
   }
   
+  const filteredUnitsByDate = React.useMemo(() => {
+    const today = startOfDay(new Date());
+    return units.filter(unit => {
+      if (!unit.fechaSiguientePago) return false;
+      const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+
+      let match = false;
+      switch (filter) {
+        case 'overdue':
+          match = nextPaymentDate < today;
+          break;
+        case 'today':
+          match = isSameDay(nextPaymentDate, today);
+          break;
+        case 'week':
+          match = isThisWeek(nextPaymentDate, { weekStartsOn: 1 });
+          break;
+        case 'month':
+          match = isThisMonth(nextPaymentDate);
+          break;
+        case 'range':
+          if (dateRange?.from && dateRange?.to) {
+            match = isWithinInterval(nextPaymentDate, { start: startOfDay(dateRange.from), end: startOfDay(dateRange.to) });
+          } else if (dateRange?.from) {
+            match = isSameDay(nextPaymentDate, startOfDay(dateRange.from));
+          }
+          break;
+        case 'all':
+        default:
+          match = true;
+          break;
+      }
+      return match;
+    });
+  }, [units, filter, dateRange]);
+
+
   const filteredUnits = React.useMemo(() => {
-    if (!searchTerm) return units;
+    if (!searchTerm) return filteredUnitsByDate;
     const lowercasedTerm = searchTerm.toLowerCase();
-    return units.filter(unit =>
+    return filteredUnitsByDate.filter(unit =>
         unit.placa.toLowerCase().includes(lowercasedTerm) ||
         unit.imei.toLowerCase().includes(lowercasedTerm) ||
         unit.clientName.toLowerCase().includes(lowercasedTerm) ||
         (unit.ownerName && unit.ownerName.toLowerCase().includes(lowercasedTerm))
     );
-  }, [searchTerm, units]);
+  }, [searchTerm, filteredUnitsByDate]);
 
   return (
     <>
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
                 <CardTitle>Inventario Global de Unidades</CardTitle>
                 <CardDescription>Gestione todas las unidades de todos los clientes.</CardDescription>
             </div>
-             {user && ['master', 'manager'].includes(user.role) && (
-              <Button onClick={handleAddUnit} size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nueva Unidad
-              </Button>
-            )}
+             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+                <UnitFilterControls
+                  filter={filter}
+                  setFilter={setFilter}
+                  dateRange={dateRange}
+                  setDateRange={setDateRange}
+                />
+                {user && ['master', 'manager'].includes(user.role) && (
+                <Button onClick={handleAddUnit} size="sm" className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Nueva Unidad
+                </Button>
+                )}
+            </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -257,7 +307,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
               ) : (
                 <TableRow>
                   <TableCell colSpan={user?.role === 'master' ? 12 : 11} className="text-center">
-                    No se encontraron unidades.
+                    No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
               )}

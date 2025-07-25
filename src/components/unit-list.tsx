@@ -3,8 +3,9 @@
 
 import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
+import type { DateRange } from 'react-day-picker';
 
 import type { Unit } from '@/lib/unit-schema';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
+import UnitFilterControls from './unit-filter-controls';
 
 type UnitListProps = {
   initialUnits: Unit[];
@@ -71,6 +73,9 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<Unit | null>(null);
 
+  const [filter, setFilter] = React.useState('all');
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
+
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
     setHasMounted(true);
@@ -79,6 +84,43 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   React.useEffect(() => {
     setUnits(initialUnits);
   }, [initialUnits]);
+
+  const filteredUnits = React.useMemo(() => {
+    const today = startOfDay(new Date());
+
+    return units.filter(unit => {
+      if (!unit.fechaSiguientePago) return false;
+      const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+
+      let match = false;
+      switch (filter) {
+        case 'overdue':
+          match = nextPaymentDate < today;
+          break;
+        case 'today':
+          match = isSameDay(nextPaymentDate, today);
+          break;
+        case 'week':
+          match = isThisWeek(nextPaymentDate, { weekStartsOn: 1 });
+          break;
+        case 'month':
+          match = isThisMonth(nextPaymentDate);
+          break;
+        case 'range':
+          if (dateRange?.from && dateRange?.to) {
+            match = isWithinInterval(nextPaymentDate, { start: startOfDay(dateRange.from), end: startOfDay(dateRange.to) });
+          } else if (dateRange?.from) {
+            match = isSameDay(nextPaymentDate, startOfDay(dateRange.from));
+          }
+          break;
+        case 'all':
+        default:
+          match = true;
+          break;
+      }
+      return match;
+    });
+  }, [units, filter, dateRange]);
   
   const handleAddUnit = () => {
     setSelectedUnit(null);
@@ -145,14 +187,22 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     <>
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <CardTitle>Unidades del Cliente</CardTitle>
-          {user && ['master', 'manager'].includes(user.role) && (
-            <Button onClick={handleAddUnit} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nueva Unidad
-            </Button>
-          )}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+            <UnitFilterControls
+              filter={filter}
+              setFilter={setFilter}
+              dateRange={dateRange}
+              setDateRange={setDateRange}
+            />
+            {user && ['master', 'manager'].includes(user.role) && (
+              <Button onClick={handleAddUnit} size="sm" className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nueva Unidad
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -175,8 +225,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               </TableRow>
             </TableHeader>
             <TableBody>
-              {units.length > 0 ? (
-                units.map(unit => (
+              {filteredUnits.length > 0 ? (
+                filteredUnits.map(unit => (
                   <TableRow key={unit.id} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
                     <TableCell className="font-medium">{unit.placa}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
@@ -235,7 +285,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               ) : (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center">
-                    Este cliente no tiene unidades registradas.
+                    No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
               )}
