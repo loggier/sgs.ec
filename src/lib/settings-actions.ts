@@ -16,7 +16,7 @@ export async function saveWoxSettings(
   try {
     const user = await getCurrentUser();
     if (!user || user.role !== 'master') {
-        throw new Error('Acción no permitida. Se requiere rol de Master.');
+      return { success: false, message: 'Acción no permitida. Se requiere rol de Master.' };
     }
 
     const validation = WoxSettingsSchema.safeParse(data);
@@ -37,6 +37,8 @@ export async function saveWoxSettings(
 
 export async function getWoxSettings(): Promise<WoxSettings | null> {
   try {
+    // Note: No permission check here, it's done on the client-side component (WoxSettingsForm)
+    // before this function is ever called.
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
 
