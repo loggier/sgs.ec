@@ -25,7 +25,7 @@ export const UnitSchema = z.object({
   costoTotalContrato: z.coerce.number().optional(),
   mesesContrato: z.coerce.number().optional(),
   fechaInstalacion: nullableDateOrTimestamp,
-  fechaInicio: dateOrTimestamp.refine(val => val !== null, 'Fecha de inicio es requerida.'),
+  fechaInicioContrato: dateOrTimestamp.refine(val => val !== null, 'Fecha de inicio es requerida.'),
   fechaVencimiento: dateOrTimestamp.refine(val => val !== null, 'Fecha de vencimiento del contrato es requerida.'),
   ultimoPago: nullableDateOrTimestamp,
   fechaSiguientePago: dateOrTimestamp.refine(val => val !== null, 'Fecha de siguiente pago es requerida.'),

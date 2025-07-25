@@ -66,17 +66,17 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
   
   const [
     tipoContrato,
-    fechaInicio,
+    fechaInicioContrato,
     mesesContrato
   ] = useWatch({
     control,
-    name: ['tipoContrato', 'fechaInicio', 'mesesContrato'],
+    name: ['tipoContrato', 'fechaInicioContrato', 'mesesContrato'],
   });
 
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
   const [showWarning, setShowWarning] = React.useState(false);
-  const initialStartDate = React.useRef(getValues('fechaInicio'));
+  const initialStartDate = React.useRef(getValues('fechaInicioContrato'));
 
   React.useEffect(() => {
     if (showClientSelector && user) {
@@ -102,14 +102,14 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
 
   React.useEffect(() => {
     if (isEditing) {
-      if (fechaInicio instanceof Date) {
-        const currentStartDate = fechaInicio.getTime();
+      if (fechaInicioContrato instanceof Date) {
+        const currentStartDate = fechaInicioContrato.getTime();
         const originalStartDateValue = initialStartDate.current;
         const originalStartDate = originalStartDateValue instanceof Date ? originalStartDateValue.getTime() : null;
 
         if (originalStartDate && currentStartDate !== originalStartDate) {
             setShowWarning(true);
-            const newStartDate = new Date(fechaInicio);
+            const newStartDate = new Date(fechaInicioContrato);
             setValue('fechaSiguientePago', addMonths(newStartDate, 1));
 
             if (tipoContrato === 'con_contrato' && mesesContrato) {
@@ -122,7 +122,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
         }
       }
     }
-  }, [fechaInicio, mesesContrato, tipoContrato, isEditing, setValue]);
+  }, [fechaInicioContrato, mesesContrato, tipoContrato, isEditing, setValue]);
   
   return (
     <div className="space-y-4 py-4">
@@ -326,7 +326,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
         />
         <FormField
           control={control}
-          name="fechaInicio"
+          name="fechaInicioContrato"
           render={({ field }) => (
             <FormItem className="flex flex-col">
               <FormLabel>Fecha Inicio</FormLabel>
@@ -467,7 +467,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoTotalContrato: unit.costoTotalContrato ?? undefined,
           mesesContrato: unit.mesesContrato ?? undefined,
           fechaInstalacion: unit.fechaInstalacion ? new Date(unit.fechaInstalacion) : null,
-          fechaInicio: unit.fechaInicio ? new Date(unit.fechaInicio) : new Date(),
+          fechaInicioContrato: unit.fechaInicioContrato ? new Date(unit.fechaInicioContrato) : new Date(),
           fechaVencimiento: unit.fechaVencimiento ? new Date(unit.fechaVencimiento) : new Date(),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: unit.fechaSiguientePago ? new Date(unit.fechaSiguientePago) : new Date(),
@@ -483,7 +483,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoTotalContrato: undefined,
           mesesContrato: undefined,
           fechaInstalacion: new Date(),
-          fechaInicio: new Date(),
+          fechaInicioContrato: new Date(),
           // These will be calculated on the server on creation
           fechaVencimiento: addMonths(new Date(), 1), 
           ultimoPago: null,
