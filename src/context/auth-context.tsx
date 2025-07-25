@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { loginUser, logoutUser, updateProfile, getCurrentUser as getCurrentUserFromServer } from '@/lib/user-actions';
+import { loginUser, logoutUser, updateProfile } from '@/lib/user-actions';
 import type { User, ProfileFormInput } from '@/lib/user-schema';
 import { Loader2 } from 'lucide-react';
 
@@ -25,25 +25,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   React.useEffect(() => {
-    async function verifySession() {
-      try {
-        const serverUser = await getCurrentUserFromServer();
-        if (serverUser) {
-          setUser(serverUser);
-          localStorage.setItem('user', JSON.stringify(serverUser));
-        } else {
-          setUser(null);
-          localStorage.removeItem('user');
-        }
-      } catch (error) {
-        console.error("Fallo al verificar la sesión con el servidor", error);
-        setUser(null);
-        localStorage.removeItem('user');
-      } finally {
-        setIsLoading(false);
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
       }
+    } catch (error) {
+      console.error("Fallo al leer el usuario de localStorage", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    verifySession();
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -86,6 +78,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUserContext,
     updateUser: handleUpdateUser,
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
