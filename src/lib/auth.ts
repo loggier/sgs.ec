@@ -1,3 +1,4 @@
+
 import 'server-only';
 import { cookies } from 'next/headers';
 import type { User } from './user-schema';
@@ -49,6 +50,8 @@ export async function getCurrentUser(): Promise<User | null> {
 
         // Fetch latest user data to ensure session is fresh
         const userId = payload.id as string;
+        if (!userId) return null;
+
         const userDocRef = doc(db, 'users', userId);
         const userDoc = await getDoc(userDocRef);
 
