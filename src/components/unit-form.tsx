@@ -299,8 +299,8 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                         !field.value && 'text-muted-foreground'
                       )}
                     >
-                      {field.value ? (
-                        format(new Date(field.value), 'PPP', { locale: es })
+                      {field.value instanceof Date ? (
+                        format(field.value, 'PPP', { locale: es })
                       ) : (
                         <span>Elige una fecha</span>
                       )}
@@ -311,7 +311,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value as Date}
+                    selected={field.value instanceof Date ? field.value : undefined}
                     onSelect={field.onChange}
                     initialFocus
                     locale={es}
