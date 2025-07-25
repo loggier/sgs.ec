@@ -83,11 +83,11 @@ export async function saveUnit(
   }
   
   try {
-    const { fechaInicioContrato, tipoContrato, mesesContrato, ...restOfData } = validation.data;
+    const { fechaInicio, tipoContrato, mesesContrato, ...restOfData } = validation.data;
     
     const unitDataForFirestore: any = {
       ...restOfData,
-      fechaInicioContrato: new Date(fechaInicioContrato),
+      fechaInicio: new Date(fechaInicio),
       tipoContrato,
       mesesContrato,
     };
@@ -110,8 +110,8 @@ export async function saveUnit(
       }
       const currentUnitData = convertTimestamps(currentUnitDoc.data()) as Unit;
 
-      const newStartDate = new Date(fechaInicioContrato);
-      const oldStartDate = new Date(currentUnitData.fechaInicioContrato);
+      const newStartDate = new Date(fechaInicio);
+      const oldStartDate = new Date(currentUnitData.fechaInicio);
 
       // If start date has changed, reset the payment cycle
       if (newStartDate.getTime() !== oldStartDate.getTime()) {
@@ -127,7 +127,7 @@ export async function saveUnit(
 
       await updateDoc(unitDocRef, unitDataForFirestore);
     } else { // Creating new unit
-      const newStartDate = new Date(fechaInicioContrato);
+      const newStartDate = new Date(fechaInicio);
       unitDataForFirestore.ultimoPago = null;
       unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
       
