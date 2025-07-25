@@ -39,18 +39,27 @@ export default function WoxSettingsForm() {
   React.useEffect(() => {
     async function loadSettings() {
       setIsLoading(true);
-      const settings = await getWoxSettings();
-      if (settings) {
-        form.reset({
-            url: settings.url || '',
-            user: settings.user || '',
-            apiKey: settings.apiKey || '',
+      try {
+        const settings = await getWoxSettings();
+        if (settings) {
+          form.reset({
+              url: settings.url || '',
+              user: settings.user || '',
+              apiKey: settings.apiKey || '',
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Error de permisos',
+          description: (error as Error).message,
+          variant: 'destructive',
         });
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     loadSettings();
-  }, [form]);
+  }, [form, toast]);
 
   async function onSubmit(values: WoxSettingsFormInput) {
     setIsSubmitting(true);
@@ -137,8 +146,8 @@ export default function WoxSettingsForm() {
             />
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={isSubmitting || isLoading}>
+              {(isSubmitting || isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isSubmitting ? 'Guardando...' : 'Guardar Configuración'}
             </Button>
         </CardFooter>

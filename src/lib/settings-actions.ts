@@ -43,6 +43,7 @@ export async function saveWoxSettings(
 }
 
 export async function getWoxSettings(): Promise<WoxSettings | null> {
+  // This function is called client-side from the form, so it needs to handle auth.
   try {
     await verifyMasterRole();
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
@@ -54,7 +55,11 @@ export async function getWoxSettings(): Promise<WoxSettings | null> {
     }
     return null;
   } catch (error) {
-    console.error("Error getting WOX settings:", error);
-    return null;
+     console.error("Error getting WOX settings:", error);
+     // Re-throw the error to be caught in the component
+     if (error instanceof Error) {
+        throw error;
+     }
+     throw new Error("Un error desconocido ocurrió al obtener la configuración.");
   }
 }
