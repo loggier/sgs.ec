@@ -102,22 +102,24 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
 
   React.useEffect(() => {
     if (isEditing) {
-      const currentStartDate = new Date(fechaInicio).getTime();
-      const originalStartDate = new Date(initialStartDate.current).getTime();
-      
-      if (currentStartDate !== originalStartDate) {
-        setShowWarning(true);
-        // Recalculate dates visually
-        const newStartDate = new Date(fechaInicio);
-        setValue('fechaSiguientePago', addMonths(newStartDate, 1));
+      if (fechaInicio instanceof Date) {
+        const currentStartDate = fechaInicio.getTime();
+        const originalStartDateValue = initialStartDate.current;
+        const originalStartDate = originalStartDateValue instanceof Date ? originalStartDateValue.getTime() : null;
 
-        if (tipoContrato === 'con_contrato' && mesesContrato) {
-          setValue('fechaVencimiento', addMonths(newStartDate, mesesContrato));
+        if (originalStartDate && currentStartDate !== originalStartDate) {
+            setShowWarning(true);
+            const newStartDate = new Date(fechaInicio);
+            setValue('fechaSiguientePago', addMonths(newStartDate, 1));
+
+            if (tipoContrato === 'con_contrato' && mesesContrato) {
+              setValue('fechaVencimiento', addMonths(newStartDate, mesesContrato));
+            } else {
+              setValue('fechaVencimiento', addMonths(newStartDate, 1));
+            }
         } else {
-          setValue('fechaVencimiento', addMonths(newStartDate, 1));
+            setShowWarning(false);
         }
-      } else {
-        setShowWarning(false);
       }
     }
   }, [fechaInicio, mesesContrato, tipoContrato, isEditing, setValue]);
@@ -299,7 +301,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                         !field.value && 'text-muted-foreground'
                       )}
                     >
-                      {field.value && field.value instanceof Date ? (
+                      {field.value instanceof Date ? (
                         format(field.value, 'PPP', { locale: es })
                       ) : (
                         <span>Elige una fecha</span>
@@ -338,7 +340,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                         !field.value && 'text-muted-foreground'
                       )}
                     >
-                      {field.value && field.value instanceof Date ? (
+                      {field.value instanceof Date ? (
                         format(field.value, 'PPP', { locale: es })
                       ) : (
                         <span>Elige una fecha</span>
@@ -350,7 +352,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={field.value as Date}
+                    selected={field.value instanceof Date ? field.value : undefined}
                     onSelect={field.onChange}
                     initialFocus
                     locale={es}
@@ -372,7 +374,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
               <FormControl>
                 <Input
                   readOnly
-                  value={field.value && field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                  value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
                   className="bg-muted cursor-default"
                 />
               </FormControl>
@@ -401,7 +403,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                   <FormControl>
                     <Input
                       readOnly
-                      value={field.value && field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                      value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
                       className="bg-muted cursor-default"
                     />
                   </FormControl>
@@ -418,7 +420,7 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
                   <FormControl>
                     <Input
                       readOnly
-                      value={field.value && field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                      value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
                       className="bg-muted cursor-default"
                     />
                   </FormControl>
@@ -465,10 +467,10 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoTotalContrato: unit.costoTotalContrato ?? undefined,
           mesesContrato: unit.mesesContrato ?? undefined,
           fechaInstalacion: unit.fechaInstalacion ? new Date(unit.fechaInstalacion) : null,
-          fechaInicio: new Date(unit.fechaInicio),
-          fechaVencimiento: new Date(unit.fechaVencimiento),
+          fechaInicio: unit.fechaInicio ? new Date(unit.fechaInicio) : new Date(),
+          fechaVencimiento: unit.fechaVencimiento ? new Date(unit.fechaVencimiento) : new Date(),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
-          fechaSiguientePago: new Date(unit.fechaSiguientePago),
+          fechaSiguientePago: unit.fechaSiguientePago ? new Date(unit.fechaSiguientePago) : new Date(),
         }
       : {
           clientId: clientId ?? '',
