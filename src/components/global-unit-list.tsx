@@ -187,6 +187,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>Costo</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
                 <TableHead>Vencimiento Contrato</TableHead>
+                <TableHead>Próximo Pago</TableHead>
                 <TableHead>Estado de Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
@@ -224,6 +225,9 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                       </div>
                     </TableCell>
                     <TableCell>
+                        {hasMounted ? formatDateSafe(unit.fechaSiguientePago) : ''}
+                    </TableCell>
+                    <TableCell>
                       <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
                     </TableCell>
                     <TableCell>
@@ -252,7 +256,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 11 : 10} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 12 : 11} className="text-center">
                     No se encontraron unidades.
                   </TableCell>
                 </TableRow>

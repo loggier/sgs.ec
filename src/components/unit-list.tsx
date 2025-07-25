@@ -167,6 +167,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 <TableHead>Costo</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
                 <TableHead>Vencimiento Contrato</TableHead>
+                <TableHead>Próximo Pago</TableHead>
                 <TableHead>Estado de Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
@@ -196,6 +197,9 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         <span>{hasMounted ? formatDateSafe(unit.fechaVencimiento) : ''}</span>
                         {isExpired(unit.fechaVencimiento) && <span className="text-xs text-red-600">Vencido</span>}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                        {hasMounted ? formatDateSafe(unit.fechaSiguientePago) : ''}
                     </TableCell>
                     <TableCell>
                         <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
@@ -230,7 +234,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={10} className="text-center">
                     Este cliente no tiene unidades registradas.
                   </TableCell>
                 </TableRow>
