@@ -36,8 +36,6 @@ export async function saveWoxSettings(
 }
 
 export async function getWoxSettings(): Promise<WoxSettings | null> {
-  // This function is now only responsible for fetching data.
-  // The permission check is done on the client-side before calling it.
   try {
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
@@ -49,7 +47,6 @@ export async function getWoxSettings(): Promise<WoxSettings | null> {
     return null;
   } catch (error) {
      console.error("Error getting WOX settings:", error);
-     // Re-throw the error to be caught in the component
      if (error instanceof Error) {
         throw error;
      }
