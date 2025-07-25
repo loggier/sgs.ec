@@ -17,6 +17,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarFooter,
+  useSidebar,
 } from './ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -31,6 +32,7 @@ type NavLinkProps = {
 
 function NavLink({ href, children }: NavLinkProps) {
     const pathname = usePathname();
+    const { isCollapsed } = useSidebar();
     const isActive = pathname === href;
     return (
       <Link href={href} className="block">
@@ -41,9 +43,10 @@ function NavLink({ href, children }: NavLinkProps) {
     );
 }
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const { logout, user, updateUserContext } = useAuth();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
+  const { isCollapsed } = useSidebar();
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -56,7 +59,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <SidebarProvider>
       <div className="flex min-h-screen">
         <Sidebar className="flex-col border-r bg-card">
           <SidebarHeader className="p-4">
@@ -64,7 +66,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Banknote className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span>SGC</span>
+              {!isCollapsed && <span>SGC</span>}
             </Link>
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">
@@ -72,26 +74,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <SidebarMenuItem>
                  <NavLink href="/">
                     <Briefcase className="h-4 w-4" />
-                    <span>Clientes</span>
+                    {!isCollapsed && <span>Clientes</span>}
                  </NavLink>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <NavLink href="/units">
                     <Car className="h-4 w-4" />
-                    <span>Unidades</span>
+                    {!isCollapsed && <span>Unidades</span>}
                 </NavLink>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <NavLink href="/payments">
                     <CreditCard className="h-4 w-4" />
-                    <span>Gestión de Pagos</span>
+                    {!isCollapsed && <span>Gestión de Pagos</span>}
                 </NavLink>
               </SidebarMenuItem>
               {user?.role === 'master' && (
                  <SidebarMenuItem>
                     <NavLink href="/users">
                         <UsersRound className="h-4 w-4" />
-                        <span>Usuarios</span>
+                        {!isCollapsed && <span>Usuarios</span>}
                     </NavLink>
                 </SidebarMenuItem>
               )}
@@ -105,10 +107,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                        <Avatar className="h-9 w-9">
                           <AvatarFallback>{getInitials(user.nombre)}</AvatarFallback>
                        </Avatar>
-                       <div className="flex flex-col">
-                          <span className="font-semibold text-sm truncate">{user.nombre || user.username}</span>
-                          <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
-                       </div>
+                       {!isCollapsed &&
+                        <div className="flex flex-col">
+                            <span className="font-semibold text-sm truncate">{user.nombre || user.username}</span>
+                            <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
+                        </div>
+                       }
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 mb-2" side="top" align="start">
@@ -150,6 +154,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           </DialogContent>
         </Dialog>
       </div>
-    </SidebarProvider>
   );
+}
+
+
+export default function MainLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <SidebarProvider>
+            <MainLayoutContent>{children}</MainLayoutContent>
+        </SidebarProvider>
+    )
 }
