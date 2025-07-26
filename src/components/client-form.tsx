@@ -148,12 +148,21 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                 <FormItem>
                   <FormLabel>Nombre (Cliente)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Juan Pérez" {...field} disabled={isWoxClient} />
+                    <Input placeholder="Juan Pérez" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+             
+            {isWoxClient && client?.correo && (
+              <FormItem>
+                <FormLabel>Correo (de WOX)</FormLabel>
+                <FormControl>
+                  <Input value={client.correo} disabled />
+                </FormControl>
+              </FormItem>
+            )}
             
             {!isWoxClient && (
              <>

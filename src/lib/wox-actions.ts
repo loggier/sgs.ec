@@ -26,7 +26,8 @@ function mapWoxToDisplay(woxClient: WoxClient): ClientDisplay {
     return {
         id: `wox-${woxClient.id}`,
         source: 'wox',
-        nomSujeto: woxClient.email,
+        nomSujeto: woxClient.email, // Default name, can be overridden
+        correo: woxClient.email,     // The non-editable WOX email
         codIdSujeto: woxClient.email,
         telefono: woxClient.phone_number,
         managerEmail: woxClient.manager?.email,

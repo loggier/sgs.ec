@@ -41,6 +41,7 @@ export const WoxClientDataSchema = ClientSchema.pick({
     usuario: true,
     estado: true,
     ownerId: true,
+    nomSujeto: true, // Allow custom name
 });
 export type WoxClientData = z.infer<typeof WoxClientDataSchema>;
 
@@ -58,6 +59,7 @@ export type ClientDisplay = {
   direccion?: string;
   ciudad?: string;
   telefono?: string;
+  correo?: string; // New field for WOX email
   managerEmail?: string;
   // Enriched/local-only fields
   numOperacion?: string;
