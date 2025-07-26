@@ -60,7 +60,7 @@ export async function getWoxClients(): Promise<{ clients: ClientWithOwner[]; err
     const jsonResponse: WoxApiResponse = await response.json();
     
     const mappedClients = jsonResponse.data
-      .filter(client => client.group_id === 5) // Filter by group_id
+      .filter(client => client.group_id === 2) // Filter by group_id
       .map(mapWoxToInternal);
     
     return { clients: mappedClients };
