@@ -2,17 +2,12 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Download, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 
 import type { ClientDisplay } from '@/lib/schema';
-import { deleteClient, saveClient } from '@/lib/actions';
-import { saveWoxClientData } from '@/lib/wox-actions';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
@@ -45,23 +40,8 @@ type ClientListProps = {
 
 const CLIENTS_PER_PAGE = 10;
 
-function formatCurrency(amount?: number | null) {
-  if (amount === undefined || amount === null) return 'N/A';
-  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
-}
-
-function formatDate(date?: Date | string | null) {
-    if (!date) return 'N/A';
-    try {
-        return format(new Date(date), 'P', { locale: es });
-    } catch (error) {
-        return 'Fecha inválida';
-    }
-}
-
 export default function ClientList({ initialClients }: ClientListProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { searchTerm } = useSearch();
   const [clients, setClients] = React.useState(initialClients);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -69,11 +49,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientDisplay | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
-
-  const [hasMounted, setHasMounted] = React.useState(false);
-  React.useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   React.useEffect(() => {
     setClients(initialClients);
@@ -163,7 +138,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
         (client.codIdSujeto && client.codIdSujeto.toLowerCase().includes(lowercasedTerm)) ||
         (client.ciudad && client.ciudad.toLowerCase().includes(lowercasedTerm)) ||
         (client.telefono && client.telefono.includes(lowercasedTerm)) ||
-        (client.numOperacion && client.numOperacion.toLowerCase().includes(lowercasedTerm)) ||
         (client.ownerName && client.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, clients]);
@@ -203,11 +177,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
                   <TableRow>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Contacto</TableHead>
-                    <TableHead>Operación</TableHead>
-                    <TableHead>Valores</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Origen</TableHead>
-                    <TableHead>Vencimiento</TableHead>
                     {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                     <TableHead>
                       <span className="sr-only">Acciones</span>
@@ -228,15 +199,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                             <div className="text-sm text-muted-foreground">{client.telefono || 'N/A'}</div>
                         </TableCell>
                         <TableCell>
-                            <div>{client.numOperacion || 'N/A'}</div>
-                            <div className="text-sm text-muted-foreground">API: {client.usuario || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                            <div title="Valor Operación">{formatCurrency(client.valOperacion)}</div>
-                            <div className="text-sm text-muted-foreground" title="Valor Pago">{formatCurrency(client.valorPago)}</div>
-                            <div className="text-sm text-red-600" title="Valor Vencido">{formatCurrency(client.valorVencido)}</div>
-                        </TableCell>
-                        <TableCell>
                            <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
                               {displayStatus[client.estado]}
                            </Badge>
@@ -247,9 +209,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                             ) : (
                                 <Badge variant="secondary">Interno</Badge>
                             )}
-                        </TableCell>
-                        <TableCell>
-                          {hasMounted ? formatDate(client.fecVencimiento) : ''}
                         </TableCell>
                         {user?.role === 'master' && (
                             <TableCell>{client.ownerName || 'N/A'}</TableCell>
@@ -293,7 +252,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="text-center">
+                      <TableCell colSpan={user?.role === 'master' ? 6 : 5} className="text-center">
                         No se encontraron clientes.
                       </TableCell>
                     </TableRow>
@@ -344,6 +303,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
 
           <DeleteClientDialog
             isOpen={isDeleteDialogOpen}
+            onOpenChange={() => setIsDeleteDialogOpen(false)}
             client={selectedClient}
             onDelete={() => {
               if (selectedClient) {

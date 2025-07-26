@@ -28,7 +28,7 @@ function mapWoxToDisplay(woxClient: WoxClient): ClientDisplay {
         source: 'wox',
         nomSujeto: woxClient.email, // Default name, can be overridden
         correo: woxClient.email,     // The non-editable WOX email
-        codIdSujeto: woxClient.email,
+        codIdSujeto: '', // Default to empty
         telefono: woxClient.phone_number,
         managerEmail: woxClient.manager?.email,
         // Default state for a WOX client before it's enriched
@@ -89,7 +89,19 @@ export async function saveWoxClientData(
   }
 
   try {
-    const dataToSave = { ...data, ownerId: user.id };
+    const dataToSave: Partial<WoxClientData> & { ownerId: string } = { 
+        ...data, 
+        ownerId: user.id 
+    };
+
+    // Ensure we are not trying to save undefined fields that are not in the schema
+    const validKeys: (keyof WoxClientData)[] = ['nomSujeto', 'codTipoId', 'codIdSujeto', 'direccion', 'ciudad', 'telefono', 'usuario', 'estado', 'ownerId'];
+    Object.keys(dataToSave).forEach(key => {
+        if (!validKeys.includes(key as keyof WoxClientData)) {
+            delete (dataToSave as any)[key];
+        }
+    });
+
     const docRef = doc(db, 'woxClientData', woxClientId);
     await setDoc(docRef, dataToSave, { merge: true });
 

@@ -81,37 +81,14 @@ function HomePageContent() {
 
 
   const summaryData = React.useMemo(() => {
-    const internalClients = clientsWithDynamicStatus.filter(c => c.source === 'local');
-    if (!internalClients || internalClients.length === 0) {
-      return {
-        totalClients: clientsWithDynamicStatus.length, // Show total from all sources
-        totalUnits: 0,
-        totalPaidValue: 0,
-        totalOverdueValue: 0,
-        clientsByStatus: {},
-        totalMonthlyIncome: 0,
-      };
-    }
-    
-    const totalMonthlyIncome = units.reduce((sum, unit) => {
-        if (unit.tipoContrato === 'con_contrato') {
-            const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
-            return sum + monthlyCost;
-        }
-        return sum + (unit.costoMensual ?? 0);
-    }, 0);
-
     return {
       totalClients: clientsWithDynamicStatus.length,
       totalUnits: units.length,
-      totalPaidValue: internalClients.reduce((sum, c) => sum + (c.valorPago || 0), 0),
-      totalOverdueValue: internalClients.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
       clientsByStatus: clientsWithDynamicStatus.reduce((acc, client) => {
         const status = client.estado || 'desconocido';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>),
-      totalMonthlyIncome,
     };
   }, [clientsWithDynamicStatus, units]);
 
@@ -120,7 +97,6 @@ function HomePageContent() {
           <>
               <Header title="Clientes" />
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />

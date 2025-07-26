@@ -1,20 +1,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, AlertCircle, TrendingUp, Car } from 'lucide-react';
+import { Users, Car } from 'lucide-react';
 import type { Client } from '@/lib/schema';
 
 type ClientSummaryProps = {
   totalClients: number;
   totalUnits: number;
-  totalOverdueValue: number;
   clientsByStatus: Record<string, number>;
-  totalMonthlyIncome: number;
 };
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
-}
 
 const statusDisplayNames: Record<Client['estado'], string> = {
     'al dia': 'Al día',
@@ -31,13 +25,11 @@ const statusBadgeVariants: Record<Client['estado'], string> = {
 export default function ClientSummary({
   totalClients,
   totalUnits,
-  totalOverdueValue,
   clientsByStatus,
-  totalMonthlyIncome,
 }: ClientSummaryProps) {
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4">Resumen de Clientes</h2>
+      <h2 className="text-2xl font-semibold mb-4">Resumen General</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -67,26 +59,6 @@ export default function ClientSummary({
           <CardContent>
             <div className="text-2xl font-bold">{totalUnits}</div>
             <p className="text-xs text-muted-foreground">Suma de todas las unidades</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingreso Mensual Total</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalMonthlyIncome)}</div>
-            <p className="text-xs text-muted-foreground">Basado en todas las unidades</p>
-          </CardContent>
-        </Card>
-         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valor Total Vencido</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalOverdueValue)}</div>
-            <p className="text-xs text-muted-foreground">Suma de deudas pendientes</p>
           </CardContent>
         </Card>
       </div>
