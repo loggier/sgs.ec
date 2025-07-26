@@ -37,9 +37,9 @@ type ClientFormProps = {
   onCancel: () => void;
 };
 
-// Combine all possible fields into one form schema
-const fullFormSchema = ClientSchema.merge(WoxClientDataSchema).omit({ id: true });
-type FormSchemaType = z.infer<typeof fullFormSchema>;
+// This schema is a base for the form, but validation will be conditional.
+const formSchema = ClientSchema.merge(WoxClientDataSchema).omit({ id: true });
+type FormSchemaType = z.infer<typeof formSchema>;
 
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
@@ -50,7 +50,8 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
   const isWoxClient = client?.source === 'wox';
 
   const form = useForm<FormSchemaType>({
-    resolver: zodResolver(fullFormSchema),
+    // We use a broader resolver here, but the specific validation happens inside onSubmit
+    resolver: zodResolver(formSchema),
     defaultValues: client
       ? {
           codTipoId: client.codTipoId ?? 'C',
@@ -98,7 +99,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
         }
         result = await saveWoxClientData(client.id, woxValidation.data);
       } else {
-        const internalValidation = ClientSchema.omit({id: true}).safeParse(values);
+        const internalValidation = ClientSchema.omit({id: true}).safeParse({ ...values, ownerId: user.id });
          if (!internalValidation.success) {
             console.error(internalValidation.error.flatten().fieldErrors);
             toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});

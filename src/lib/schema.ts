@@ -34,7 +34,7 @@ export const WoxClientDataSchema = ClientSchema.pick({
     telefono: true,
     usuario: true,
     estado: true,
-});
+}).partial(); // Make all fields optional for enrichment
 export type WoxClientData = z.infer<typeof WoxClientDataSchema>;
 
 
