@@ -48,6 +48,7 @@ export async function getWoxClients(): Promise<{ clients: ClientWithOwner[]; err
 
     const apiUrl = new URL('/api/admin/clients', settings.url);
     apiUrl.searchParams.append('user_api_hash', settings.apiKey);
+    apiUrl.searchParams.append('limit', '10000');
 
     const response = await fetch(apiUrl.toString());
 
