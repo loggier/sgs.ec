@@ -31,7 +31,10 @@ function HomePageContent() {
         getAllUnits(user.id, user.role),
         getWoxClients() // Fetch clients from WOX
       ]).then(([clientData, unitData, woxData]) => {
-          const combinedClients = [...clientData, ...woxData.clients];
+          const importedWoxIds = new Set(clientData.map(c => c.woxId).filter(Boolean));
+          const newWoxClients = woxData.clients.filter(wc => !importedWoxIds.has(wc.id));
+          
+          const combinedClients = [...clientData, ...newWoxClients];
           setClients(combinedClients);
           setUnits(unitData);
           setIsLoading(false);

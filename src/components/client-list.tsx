@@ -2,14 +2,16 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Download, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
 import type { Client, ClientWithOwner } from '@/lib/schema';
+import { importWoxClient } from '@/lib/actions';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
@@ -58,6 +60,7 @@ function formatDate(date?: Date | string | null) {
 
 export default function ClientList({ initialClients }: ClientListProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { searchTerm } = useSearch();
   const [clients, setClients] = React.useState(initialClients);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -65,6 +68,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientWithOwner | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [isImporting, setIsImporting] = React.useState<string | null>(null);
+
 
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
@@ -98,6 +103,36 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setSelectedClient(client);
     setIsPaymentDialogOpen(true);
   }
+  
+  const handleImportWoxClient = async (woxClient: ClientWithOwner) => {
+      setIsImporting(woxClient.id);
+      try {
+          const result = await importWoxClient(woxClient);
+          if (result.success && result.client) {
+              toast({
+                  title: 'Éxito',
+                  description: 'Cliente de WOX importado correctamente.',
+              });
+              // Replace the WOX client with the newly created internal client
+              setClients(prev => prev.map(c => c.id === woxClient.id ? { ...result.client!, source: undefined } : c));
+          } else {
+              toast({
+                  title: 'Error de importación',
+                  description: result.message,
+                  variant: 'destructive',
+              });
+          }
+      } catch (error) {
+           toast({
+              title: 'Error de importación',
+              description: 'Ocurrió un error inesperado.',
+              variant: 'destructive',
+          });
+      } finally {
+          setIsImporting(null);
+      }
+  }
+
 
   const handleFormSave = (result: { client?: ClientWithOwner }) => {
     if (result.client) {
@@ -266,28 +301,36 @@ export default function ClientList({ initialClients }: ClientListProps) {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
+                                {isImporting === client.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                                 <span className="sr-only">Alternar menú</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild disabled={client.source === 'wox'}>
-                                <Link href={`/clients/${client.id}/units`}>
-                                  <Car className="mr-2 h-4 w-4" /> Ver Unidades
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleRegisterPayment(client)} disabled={client.source === 'wox'}>
-                                <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
-                              </DropdownMenuItem>
-                              {user && (user.role === 'master' || user.id === client.ownerId) && client.source !== 'wox' && (
+                              {client.source === 'wox' ? (
+                                <DropdownMenuItem onClick={() => handleImportWoxClient(client)} disabled={isImporting === client.id}>
+                                    <Download className="mr-2 h-4 w-4" /> Importar Cliente
+                                </DropdownMenuItem>
+                              ) : (
                                 <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Editar
+                                  <DropdownMenuItem>
+                                    <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
+                                      <Car className="mr-2 h-4 w-4" /> Ver Unidades
+                                    </Link>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                  <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                                    <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                                   </DropdownMenuItem>
+                                  {user && (user.role === 'master' || user.id === client.ownerId) && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Editar
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </DropdownMenuContent>
@@ -380,5 +423,3 @@ export default function ClientList({ initialClients }: ClientListProps) {
     </>
   );
 }
-
-    

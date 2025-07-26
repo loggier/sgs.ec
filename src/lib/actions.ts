@@ -17,6 +17,8 @@ import {
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientWithOwner } from './schema';
 import type { User } from './user-schema';
+import { getCurrentUser } from './user-actions';
+
 
 // Helper function to convert Firestore Timestamps to Dates in a document
 const convertTimestamps = (docData: any) => {
@@ -199,4 +201,26 @@ export async function deleteClient(id: string, currentUserId: string, currentUse
       console.error("Error deleting client:", error);
       return { success: false, message: 'Error al eliminar el cliente.' };
     }
+}
+
+export async function importWoxClient(
+  woxClientData: ClientWithOwner
+): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
+    const user = await getCurrentUser();
+    if (!user || !['master', 'manager'].includes(user.role)) {
+        return { success: false, message: 'No tiene permiso para importar clientes.' };
+    }
+
+    const newClientData: Omit<Client, 'id'> = {
+        ownerId: user.id,
+        codTipoId: 'C',
+        codIdSujeto: woxClientData.codIdSujeto,
+        nomSujeto: woxClientData.nomSujeto,
+        direccion: woxClientData.direccion,
+        telefono: woxClientData.telefono,
+        estado: 'al dia',
+        woxId: woxClientData.id
+    };
+
+    return saveClient(newClientData, user.id);
 }

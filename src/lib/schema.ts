@@ -25,6 +25,7 @@ export const ClientSchema = z.object({
   estado: z.enum(['al dia', 'adeuda', 'retirado'], {
     required_error: 'Estado es requerido.',
   }),
+  woxId: z.string().optional(), // To link to the original WOX client
 });
 
 export type Client = z.infer<typeof ClientSchema>;
