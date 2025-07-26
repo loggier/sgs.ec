@@ -98,6 +98,16 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
             return;
         }
         result = await saveWoxClientData(client.id, woxValidation.data);
+         if (result.success && result.client) {
+            toast({ title: 'Éxito', description: result.message });
+            const finalClient = {
+                ...(client || {}),
+                ...result.client
+            } as ClientDisplay
+            onSave({ client: finalClient });
+        } else {
+            toast({ title: 'Error', description: result.message, variant: 'destructive' });
+        }
       } else {
         const internalValidation = ClientSchema.omit({id: true}).safeParse({ ...values, ownerId: user.id });
          if (!internalValidation.success) {
@@ -107,18 +117,14 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
             return;
         }
         result = await saveClient(internalValidation.data, user.id, client?.id);
+         if (result.success && result.client) {
+            toast({ title: 'Éxito', description: result.message });
+            onSave({ client: result.client });
+        } else {
+            toast({ title: 'Error', description: result.message, variant: 'destructive' });
+        }
       }
 
-      if (result.success && result.client) {
-        toast({ title: 'Éxito', description: result.message });
-        const finalClient = {
-            ...(client || {}),
-            ...result.client
-        } as ClientDisplay
-        onSave({ client: finalClient });
-      } else {
-        toast({ title: 'Error', description: result.message, variant: 'destructive' });
-      }
     } catch (error) {
       toast({ title: 'Error', description: 'Ocurrió un error inesperado.', variant: 'destructive' });
     } finally {
