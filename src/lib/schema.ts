@@ -26,7 +26,6 @@ export type Client = z.infer<typeof ClientSchema>;
 
 // This represents the enriched data we store for a WOX client locally.
 export const WoxClientDataSchema = ClientSchema.pick({
-    ownerId: true,
     nomSujeto: true, 
     codTipoId: true,
     codIdSujeto: true,
