@@ -43,9 +43,10 @@ type ClientFormProps = {
   onCancel: () => void;
 };
 
-// Use a unified schema for the form, then validate against the specific one on submit
-const formSchema = ClientSchema.merge(WoxClientDataSchema).omit({ id: true });
-type FormSchemaType = z.infer<typeof formSchema>;
+// Combine all possible fields into one form schema
+const fullFormSchema = ClientSchema.merge(WoxClientDataSchema).omit({ id: true });
+type FormSchemaType = z.infer<typeof fullFormSchema>;
+
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
   const { toast } = useToast();
@@ -55,24 +56,24 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
   const isWoxClient = client?.source === 'wox';
 
   const form = useForm<FormSchemaType>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(fullFormSchema),
     defaultValues: client
       ? {
-          ...client,
-          // Coalesce to ensure all fields are present for the form
           codTipoId: client.codTipoId ?? 'C',
           codIdSujeto: client.codIdSujeto ?? '',
           nomSujeto: client.nomSujeto ?? '',
           direccion: client.direccion ?? '',
-          fecConcesion: client.fecConcesion ? new Date(client.fecConcesion) : null,
-          fecVencimiento: client.fecVencimiento ? new Date(client.fecVencimiento) : null,
-          valOperacion: client.valOperacion ?? '',
-          valorPago: client.valorPago ?? '',
-          valorVencido: client.valorVencido ?? '',
           ciudad: client.ciudad ?? '',
           telefono: client.telefono ?? '',
+          numOperacion: client.numOperacion ?? '',
           usuario: client.usuario ?? '',
           estado: client.estado ?? 'al dia',
+          // Fields for internal clients only
+          fecConcesion: client.fecConcesion ? new Date(client.fecConcesion) : undefined,
+          fecVencimiento: client.fecVencimiento ? new Date(client.fecVencimiento) : undefined,
+          valOperacion: client.valOperacion ?? undefined,
+          valorPago: client.valorPago ?? undefined,
+          valorVencido: client.valorVencido ?? undefined,
         }
       : {
           codTipoId: 'C',
@@ -104,6 +105,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
       if (isWoxClient) {
         const woxValidation = WoxClientDataSchema.safeParse(values);
         if (!woxValidation.success) {
+            console.error(woxValidation.error.flatten().fieldErrors);
             toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});
             setIsSubmitting(false);
             return;
@@ -112,6 +114,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
       } else {
         const internalValidation = ClientSchema.omit({id: true}).safeParse(values);
          if (!internalValidation.success) {
+            console.error(internalValidation.error.flatten().fieldErrors);
             toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});
             setIsSubmitting(false);
             return;
@@ -122,7 +125,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
       if (result.success && result.client) {
         toast({ title: 'Éxito', description: result.message });
         const finalClient = {
-            ...(client || {}), // Keep original data like source, id
+            ...(client || {}),
             ...result.client
         } as ClientDisplay
         onSave({ client: finalClient });
@@ -163,90 +166,86 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                 </FormControl>
               </FormItem>
             )}
-            
-            {!isWoxClient && (
-             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="codTipoId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tipo de ID</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccione un tipo" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="C">Cédula</SelectItem>
-                          <SelectItem value="R">RUC</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="codIdSujeto"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cédula o RUC</FormLabel>
-                      <FormControl>
-                        <Input placeholder="1712345678" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="direccion"
+                name="codTipoId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dirección</FormLabel>
+                    <FormLabel>Tipo de ID</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="C">Cédula</SelectItem>
+                        <SelectItem value="R">RUC</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="codIdSujeto"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cédula o RUC</FormLabel>
                     <FormControl>
-                      <Input placeholder="Av. Amazonas N34-451 y Av. Atahualpa" {...field} />
+                      <Input placeholder="1712345678" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="ciudad"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ciudad</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Quito" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="telefono"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Teléfono</FormLabel>
-                      <FormControl>
-                        <Input placeholder="0991234567" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-             </>
-            )}
+            <FormField
+              control={form.control}
+              name="direccion"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dirección</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Av. Amazonas N34-451 y Av. Atahualpa" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="ciudad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ciudad</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Quito" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="telefono"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Teléfono</FormLabel>
+                    <FormControl>
+                      <Input placeholder="0991234567" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <FormField
@@ -262,172 +261,180 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   </FormItem>
                 )}
               />
-               <FormField
-                control={form.control}
-                name="usuario"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Usuario (API)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="usuario_api" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="fecConcesion"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Fecha de Concesión</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date('1900-01-01')
-                            }
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="fecVencimiento"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Fecha de Vencimiento</FormLabel>
-                       <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={'outline'}
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'PPP', { locale: es })
-                              ) : (
-                                <span>Elige una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={es}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-            </div>
-            
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
-                    control={form.control}
-                    name="valOperacion"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valor de Operación</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="5000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="valorPago"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valor del Pago</FormLabel>
-                        <FormControl>
-                           <Input type="number" placeholder="5000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-             </div>
-             
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
-                    control={form.control}
-                    name="valorVencido"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Valor Vencido</FormLabel>
-                        <FormControl>
-                           <Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              {!isWoxClient && (
                  <FormField
                   control={form.control}
-                  name="estado"
+                  name="usuario"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Estado</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Seleccione un estado" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="al dia">Al día</SelectItem>
-                          <SelectItem value="adeuda">Adeuda</SelectItem>
-                          <SelectItem value="retirado">Retirado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Usuario (API)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="usuario_api" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
+              )}
+            </div>
+            
+            {!isWoxClient && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="fecConcesion"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Fecha de Concesión</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={'outline'}
+                                  className={cn(
+                                    'w-full pl-3 text-left font-normal',
+                                    !field.value && 'text-muted-foreground'
+                                  )}
+                                >
+                                  {field.value ? (
+                                    format(field.value, 'PPP', { locale: es })
+                                  ) : (
+                                    <span>Elige una fecha</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date('1900-01-01')
+                                }
+                                initialFocus
+                                locale={es}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="fecVencimiento"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Fecha de Vencimiento</FormLabel>
+                           <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={'outline'}
+                                  className={cn(
+                                    'w-full pl-3 text-left font-normal',
+                                    !field.value && 'text-muted-foreground'
+                                  )}
+                                >
+                                  {field.value ? (
+                                    format(field.value, 'PPP', { locale: es })
+                                  ) : (
+                                    <span>Elige una fecha</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                initialFocus
+                                locale={es}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
+                
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <FormField
+                        control={form.control}
+                        name="valOperacion"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valor de Operación</FormLabel>
+                            <FormControl>
+                              <Input type="number" placeholder="5000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="valorPago"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valor del Pago</FormLabel>
+                            <FormControl>
+                               <Input type="number" placeholder="5000" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                 </div>
+                 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <FormField
+                        control={form.control}
+                        name="valorVencido"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Valor Vencido</FormLabel>
+                            <FormControl>
+                               <Input type="number" placeholder="0" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? null : e.target.value)} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                  </div>
+              </>
+            )}
+
+            <FormField
+              control={form.control}
+              name="estado"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un estado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="al dia">Al día</SelectItem>
+                      <SelectItem value="adeuda">Adeuda</SelectItem>
+                      <SelectItem value="retirado">Retirado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
           </div>
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">

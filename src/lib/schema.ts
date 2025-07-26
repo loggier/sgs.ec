@@ -32,16 +32,16 @@ export type Client = z.infer<typeof ClientSchema>;
 
 // This represents the enriched data we store for a WOX client locally.
 export const WoxClientDataSchema = ClientSchema.pick({
+    ownerId: true,
+    nomSujeto: true, 
+    codTipoId: true,
+    codIdSujeto: true,
+    direccion: true,
+    ciudad: true,
+    telefono: true,
     numOperacion: true,
-    fecConcesion: true,
-    valOperacion: true,
-    valorPago: true,
-    fecVencimiento: true,
-    valorVencido: true,
     usuario: true,
     estado: true,
-    ownerId: true,
-    nomSujeto: true, // Allow custom name
 });
 export type WoxClientData = z.infer<typeof WoxClientDataSchema>;
 
@@ -59,7 +59,7 @@ export type ClientDisplay = {
   direccion?: string;
   ciudad?: string;
   telefono?: string;
-  correo?: string; // New field for WOX email
+  correo?: string; // The non-editable WOX email
   managerEmail?: string;
   // Enriched/local-only fields
   numOperacion?: string;
