@@ -33,4 +33,5 @@ export type Client = z.infer<typeof ClientSchema>;
 export type ClientWithOwner = Omit<Client, 'placaVehiculo'> & { 
     ownerName?: string;
     source?: 'local' | 'wox';
+    managerEmail?: string;
 };

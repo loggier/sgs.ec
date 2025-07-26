@@ -220,7 +220,16 @@ export default function ClientList({ initialClients }: ClientListProps) {
                       <TableRow key={`${client.id}-${client.source || 'local'}`}>
                         <TableCell>
                             <div className="font-medium">{client.nomSujeto}</div>
-                            <div className="text-sm text-muted-foreground">{client.codIdSujeto || 'N/A'}</div>
+                            {client.source === 'wox' ? (
+                                <>
+                                    <div className="text-sm text-muted-foreground">{client.codIdSujeto || 'N/A'}</div>
+                                    {client.managerEmail && (
+                                        <div className="text-xs text-blue-600">Manager: {client.managerEmail}</div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-sm text-muted-foreground">{client.codIdSujeto || 'N/A'}</div>
+                            )}
                         </TableCell>
                         <TableCell>
                             <div>{client.ciudad || 'N/A'}</div>

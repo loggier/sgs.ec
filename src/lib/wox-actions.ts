@@ -25,9 +25,10 @@ function mapWoxToInternal(woxClient: WoxClient): ClientWithOwner {
     return {
         id: `wox-${woxClient.id}`, // Prefix to avoid ID collisions
         source: 'wox',
-        nomSujeto: woxClient.manager?.email || woxClient.email,
+        nomSujeto: woxClient.email,
         codIdSujeto: woxClient.email, // Use email as an identifier
         telefono: woxClient.phone_number,
+        managerEmail: woxClient.manager?.email,
         fecVencimiento: new Date(woxClient.loged_at), // Using loged_at as a proxy for some date field
         estado: 'al dia', // WOX clients don't have our status system
         // The rest of the fields are not available from the WOX API
