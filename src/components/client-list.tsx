@@ -191,6 +191,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     <TableHead>Operación</TableHead>
                     <TableHead>Valores</TableHead>
                     <TableHead>Estado</TableHead>
+                    <TableHead>Origen</TableHead>
                     <TableHead>Vencimiento</TableHead>
                     {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                     <TableHead>
@@ -220,15 +221,16 @@ export default function ClientList({ initialClients }: ClientListProps) {
                             <div className="text-sm text-red-600" title="Valor Vencido">{formatCurrency(client.valorVencido)}</div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-2">
-                             {client.source === 'wox' ? (
+                           <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
+                              {displayStatus[client.estado]}
+                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                            {client.source === 'wox' ? (
                                 <Badge variant="outline" className={badgeVariants.info}>WOX</Badge>
-                             ) : (
-                                <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
-                                  {displayStatus[client.estado]}
-                                </Badge>
-                             )}
-                          </div>
+                            ) : (
+                                <Badge variant="secondary">Interno</Badge>
+                            )}
                         </TableCell>
                         <TableCell>
                           {hasMounted ? formatDate(client.fecVencimiento) : ''}
@@ -271,7 +273,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={user?.role === 'master' ? 8 : 7} className="text-center">
+                      <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="text-center">
                         No se encontraron clientes.
                       </TableCell>
                     </TableRow>
@@ -328,3 +330,5 @@ export default function ClientList({ initialClients }: ClientListProps) {
     </>
   );
 }
+
+    
