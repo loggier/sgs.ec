@@ -78,16 +78,19 @@ export default function ClientList({ initialClients }: ClientListProps) {
   };
 
   const handleEditClient = (client: ClientWithOwner) => {
+    if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsSheetOpen(true);
   };
 
   const handleDeleteClient = (client: ClientWithOwner) => {
+    if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
   
   const handleRegisterPayment = (client: ClientWithOwner) => {
+    if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsPaymentDialogOpen(true);
   }
@@ -138,6 +141,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
     warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     destructive: 'bg-red-100 text-red-800 border-red-200',
     default: 'bg-gray-100 text-gray-800 border-gray-200',
+    info: 'bg-blue-100 text-blue-800 border-blue-200',
   };
   
   const displayStatus: Record<Client['estado'], string> = {
@@ -151,7 +155,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
     const lowercasedTerm = searchTerm.toLowerCase();
     return clients.filter(client =>
         client.nomSujeto.toLowerCase().includes(lowercasedTerm) ||
-        client.codIdSujeto.toLowerCase().includes(lowercasedTerm) ||
+        (client.codIdSujeto && client.codIdSujeto.toLowerCase().includes(lowercasedTerm)) ||
         (client.ciudad && client.ciudad.toLowerCase().includes(lowercasedTerm)) ||
         (client.telefono && client.telefono.includes(lowercasedTerm)) ||
         (client.numOperacion && client.numOperacion.toLowerCase().includes(lowercasedTerm)) ||
@@ -197,17 +201,17 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 <TableBody>
                   {filteredClients.length > 0 ? (
                     filteredClients.map(client => (
-                      <TableRow key={client.id}>
+                      <TableRow key={`${client.id}-${client.source || 'local'}`}>
                         <TableCell>
                             <div className="font-medium">{client.nomSujeto}</div>
-                            <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
+                            <div className="text-sm text-muted-foreground">{client.codIdSujeto || 'N/A'}</div>
                         </TableCell>
                         <TableCell>
                             <div>{client.ciudad || 'N/A'}</div>
                             <div className="text-sm text-muted-foreground">{client.telefono || 'N/A'}</div>
                         </TableCell>
                         <TableCell>
-                            <div>{client.numOperacion}</div>
+                            <div>{client.numOperacion || 'N/A'}</div>
                             <div className="text-sm text-muted-foreground">API: {client.usuario || 'N/A'}</div>
                         </TableCell>
                         <TableCell>
@@ -216,9 +220,15 @@ export default function ClientList({ initialClients }: ClientListProps) {
                             <div className="text-sm text-red-600" title="Valor Vencido">{formatCurrency(client.valorVencido)}</div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
-                            {displayStatus[client.estado]}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                             {client.source === 'wox' ? (
+                                <Badge variant="outline" className={badgeVariants.info}>WOX</Badge>
+                             ) : (
+                                <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
+                                  {displayStatus[client.estado]}
+                                </Badge>
+                             )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {hasMounted ? formatDate(client.fecVencimiento) : ''}
@@ -235,15 +245,15 @@ export default function ClientList({ initialClients }: ClientListProps) {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem asChild>
+                              <DropdownMenuItem asChild disabled={client.source === 'wox'}>
                                 <Link href={`/clients/${client.id}/units`}>
                                   <Car className="mr-2 h-4 w-4" /> Ver Unidades
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                              <DropdownMenuItem onClick={() => handleRegisterPayment(client)} disabled={client.source === 'wox'}>
                                 <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                               </DropdownMenuItem>
-                              {user && (user.role === 'master' || user.id === client.ownerId) && (
+                              {user && (user.role === 'master' || user.id === client.ownerId) && client.source !== 'wox' && (
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleEditClient(client)}>

@@ -30,4 +30,7 @@ export const ClientSchema = z.object({
 export type Client = z.infer<typeof ClientSchema>;
 
 // New type for client lists that includes the owner's name
-export type ClientWithOwner = Omit<Client, 'placaVehiculo'> & { ownerName?: string };
+export type ClientWithOwner = Omit<Client, 'placaVehiculo'> & { 
+    ownerName?: string;
+    source?: 'local' | 'wox';
+};

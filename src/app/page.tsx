@@ -4,6 +4,7 @@
 import * as React from 'react';
 import { getClients } from '@/lib/actions';
 import { getAllUnits } from '@/lib/unit-actions';
+import { getWoxClients } from '@/lib/wox-actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -27,9 +28,11 @@ function HomePageContent() {
       setIsLoading(true);
       Promise.all([
         getClients(user.id, user.role),
-        getAllUnits(user.id, user.role)
-      ]).then(([clientData, unitData]) => {
-          setClients(clientData);
+        getAllUnits(user.id, user.role),
+        getWoxClients() // Fetch clients from WOX
+      ]).then(([clientData, unitData, woxData]) => {
+          const combinedClients = [...clientData, ...woxData.clients];
+          setClients(combinedClients);
           setUnits(unitData);
           setIsLoading(false);
       }).catch(() => {
@@ -57,6 +60,9 @@ function HomePageContent() {
     );
 
     return clients.map(client => {
+      // Don't change status for WOX clients
+      if (client.source === 'wox') return client;
+
       if (overdueClientIds.has(client.id!)) {
         return { ...client, estado: 'adeuda' };
       }
@@ -66,9 +72,10 @@ function HomePageContent() {
 
 
   const summaryData = React.useMemo(() => {
-    if (!clientsWithDynamicStatus || clientsWithDynamicStatus.length === 0) {
+    const internalClients = clientsWithDynamicStatus.filter(c => c.source !== 'wox');
+    if (!internalClients || internalClients.length === 0) {
       return {
-        totalClients: 0,
+        totalClients: clientsWithDynamicStatus.length, // Show total from all sources
         totalUnits: 0,
         totalPaidValue: 0,
         totalOverdueValue: 0,
@@ -88,9 +95,9 @@ function HomePageContent() {
     return {
       totalClients: clientsWithDynamicStatus.length,
       totalUnits: units.length,
-      totalPaidValue: clientsWithDynamicStatus.reduce((sum, c) => sum + (c.valorPago || 0), 0),
-      totalOverdueValue: clientsWithDynamicStatus.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
-      clientsByStatus: clientsWithDynamicStatus.reduce((acc, client) => {
+      totalPaidValue: internalClients.reduce((sum, c) => sum + (c.valorPago || 0), 0),
+      totalOverdueValue: internalClients.reduce((sum, c) => sum + (c.valorVencido || 0), 0),
+      clientsByStatus: internalClients.reduce((acc, client) => {
         const status = client.estado || 'desconocido';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
