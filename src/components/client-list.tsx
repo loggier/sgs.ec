@@ -11,7 +11,7 @@ import type { Client, ClientWithOwner } from '@/lib/schema';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -40,6 +40,8 @@ type ClientListProps = {
   initialClients: ClientWithOwner[];
 };
 
+const CLIENTS_PER_PAGE = 10;
+
 function formatCurrency(amount?: number | null) {
   if (amount === undefined || amount === null) return 'N/A';
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
@@ -62,6 +64,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientWithOwner | null>(null);
+  const [currentPage, setCurrentPage] = React.useState(1);
 
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
@@ -70,6 +73,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
 
   React.useEffect(() => {
     setClients(initialClients);
+    setCurrentPage(1); // Reset to first page when initial clients change
   }, [initialClients]);
   
   const handleAddClient = () => {
@@ -163,6 +167,17 @@ export default function ClientList({ initialClients }: ClientListProps) {
     );
   }, [searchTerm, clients]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredClients.length / CLIENTS_PER_PAGE);
+  const startIndex = (currentPage - 1) * CLIENTS_PER_PAGE;
+  const paginatedClients = filteredClients.slice(startIndex, startIndex + CLIENTS_PER_PAGE);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col gap-6 mt-4">
@@ -200,8 +215,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClients.length > 0 ? (
-                    filteredClients.map(client => (
+                  {paginatedClients.length > 0 ? (
+                    paginatedClients.map(client => (
                       <TableRow key={`${client.id}-${client.source || 'local'}`}>
                         <TableCell>
                             <div className="font-medium">{client.nomSujeto}</div>
@@ -282,6 +297,32 @@ export default function ClientList({ initialClients }: ClientListProps) {
               </Table>
             </div>
           </CardContent>
+           <CardFooter>
+            <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
+              <span>
+                Mostrando {Math.min(startIndex + 1, filteredClients.length)} - {Math.min(startIndex + CLIENTS_PER_PAGE, filteredClients.length)} de {filteredClients.length} clientes.
+              </span>
+              <div className="flex items-center gap-2">
+                 <span>Página {currentPage} de {totalPages}</span>
+                 <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </Button>
+              </div>
+            </div>
+          </CardFooter>
 
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetContent className="sm:max-w-2xl w-full">
