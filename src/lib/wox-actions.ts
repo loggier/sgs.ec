@@ -2,7 +2,10 @@
 'use server';
 
 import { getWoxSettings } from './settings-actions';
-import type { ClientWithOwner } from './schema';
+import type { ClientDisplay, WoxClientData } from './schema';
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
+import { getCurrentUser } from './user-actions';
 
 type WoxClient = {
     id: number;
@@ -17,33 +20,27 @@ type WoxClient = {
 
 type WoxApiResponse = {
     data: WoxClient[];
-    // We don't need pagination for this implementation
 };
 
-function mapWoxToInternal(woxClient: WoxClient): ClientWithOwner {
-    // This is a loose mapping. We fill what we can.
+function mapWoxToDisplay(woxClient: WoxClient): ClientDisplay {
     return {
-        id: `wox-${woxClient.id}`, // Prefix to avoid ID collisions
+        id: `wox-${woxClient.id}`,
         source: 'wox',
         nomSujeto: woxClient.email,
-        codIdSujeto: woxClient.email, // Use email as an identifier
+        codIdSujeto: woxClient.email,
         telefono: woxClient.phone_number,
         managerEmail: woxClient.manager?.email,
-        fecVencimiento: new Date(woxClient.loged_at), // Using loged_at as a proxy for some date field
-        estado: 'al dia', // WOX clients don't have our status system
-        // The rest of the fields are not available from the WOX API
-        ownerId: '', // WOX clients don't have an internal owner
-        codTipoId: 'C',
-        direccion: 'No disponible desde WOX',
+        // Default state for a WOX client before it's enriched
+        estado: 'al dia',
+        // Other fields will be merged from the local enrichment data
     };
 }
 
-export async function getWoxClients(): Promise<{ clients: ClientWithOwner[]; error?: string }> {
+export async function getWoxClients(): Promise<{ clients: ClientDisplay[]; error?: string }> {
   try {
     const settings = await getWoxSettings();
 
     if (!settings?.url || !settings?.apiKey) {
-      // If not configured, just return an empty array, not an error.
       return { clients: [] };
     }
 
@@ -61,13 +58,46 @@ export async function getWoxClients(): Promise<{ clients: ClientWithOwner[]; err
     const jsonResponse: WoxApiResponse = await response.json();
     
     const mappedClients = jsonResponse.data
-      .filter(client => client.group_id === 2) // Filter by group_id
-      .map(mapWoxToInternal);
+      .filter(client => client.group_id === 2)
+      .map(mapWoxToDisplay);
     
     return { clients: mappedClients };
 
   } catch (error) {
     console.error("Failed to get WOX clients:", error);
     return { clients: [], error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
+}
+
+export async function getWoxClientData(): Promise<Map<string, WoxClientData>> {
+    const dataMap = new Map<string, WoxClientData>();
+    const snapshot = await getDocs(collection(db, 'woxClientData'));
+    snapshot.forEach(doc => {
+        dataMap.set(doc.id, doc.data() as WoxClientData);
+    });
+    return dataMap;
+}
+
+export async function saveWoxClientData(
+  woxClientId: string,
+  data: Partial<WoxClientData>
+): Promise<{ success: boolean; message: string; client?: WoxClientData }> {
+  const user = await getCurrentUser();
+  if (!user || !['master', 'manager'].includes(user.role)) {
+    return { success: false, message: 'Acción no permitida.' };
+  }
+
+  try {
+    const dataToSave = { ...data, ownerId: user.id };
+    const docRef = doc(db, 'woxClientData', woxClientId);
+    await setDoc(docRef, dataToSave, { merge: true });
+
+    const savedDoc = await getDoc(docRef);
+    const savedData = savedDoc.data() as WoxClientData;
+
+    return { success: true, message: 'Datos adicionales guardados.', client: savedData };
+  } catch (error) {
+    console.error("Error saving WOX client data:", error);
+    return { success: false, message: 'No se pudieron guardar los datos adicionales.' };
   }
 }

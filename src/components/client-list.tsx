@@ -7,8 +7,9 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
-import type { Client, ClientWithOwner } from '@/lib/schema';
-import { importWoxClient } from '@/lib/actions';
+import type { ClientDisplay } from '@/lib/schema';
+import { deleteClient, saveClient } from '@/lib/actions';
+import { saveWoxClientData } from '@/lib/wox-actions';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +40,7 @@ import ClientPaymentForm from './client-payment-form';
 
 
 type ClientListProps = {
-  initialClients: ClientWithOwner[];
+  initialClients: ClientDisplay[];
 };
 
 const CLIENTS_PER_PAGE = 10;
@@ -66,10 +67,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [selectedClient, setSelectedClient] = React.useState<ClientWithOwner | null>(null);
+  const [selectedClient, setSelectedClient] = React.useState<ClientDisplay | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [isImporting, setIsImporting] = React.useState<string | null>(null);
-
 
   const [hasMounted, setHasMounted] = React.useState(false);
   React.useEffect(() => {
@@ -78,7 +77,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
 
   React.useEffect(() => {
     setClients(initialClients);
-    setCurrentPage(1); // Reset to first page when initial clients change
+    setCurrentPage(1);
   }, [initialClients]);
   
   const handleAddClient = () => {
@@ -86,55 +85,24 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setIsSheetOpen(true);
   };
 
-  const handleEditClient = (client: ClientWithOwner) => {
-    if (client.source === 'wox') return;
+  const handleEditClient = (client: ClientDisplay) => {
     setSelectedClient(client);
     setIsSheetOpen(true);
   };
 
-  const handleDeleteClient = (client: ClientWithOwner) => {
+  const handleDeleteClient = (client: ClientDisplay) => {
     if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
   
-  const handleRegisterPayment = (client: ClientWithOwner) => {
+  const handleRegisterPayment = (client: ClientDisplay) => {
     if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsPaymentDialogOpen(true);
   }
-  
-  const handleImportWoxClient = async (woxClient: ClientWithOwner) => {
-      setIsImporting(woxClient.id);
-      try {
-          const result = await importWoxClient(woxClient);
-          if (result.success && result.client) {
-              toast({
-                  title: 'Éxito',
-                  description: 'Cliente de WOX importado correctamente.',
-              });
-              // Replace the WOX client with the newly created internal client
-              setClients(prev => prev.map(c => c.id === woxClient.id ? { ...result.client!, source: undefined } : c));
-          } else {
-              toast({
-                  title: 'Error de importación',
-                  description: result.message,
-                  variant: 'destructive',
-              });
-          }
-      } catch (error) {
-           toast({
-              title: 'Error de importación',
-              description: 'Ocurrió un error inesperado.',
-              variant: 'destructive',
-          });
-      } finally {
-          setIsImporting(null);
-      }
-  }
 
-
-  const handleFormSave = (result: { client?: ClientWithOwner }) => {
+  const handleFormSave = (result: { client?: ClientDisplay }) => {
     if (result.client) {
       setClients(currentClients => {
         const newClient = { ...result.client, ownerName: result.client.ownerName || user?.nombre };
@@ -153,8 +121,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const handlePaymentSave = () => {
       setIsPaymentDialogOpen(false);
       setSelectedClient(null);
-      // We could potentially refetch clients here if payment affects client status,
-      // but the dynamic status calculation should handle it.
   };
 
   const onClientDeleted = (clientId: string) => {
@@ -162,7 +128,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
     setIsDeleteDialogOpen(false);
   }
 
-  const getStatusVariant = (status: Client['estado']) => {
+  const getStatusVariant = (status: ClientDisplay['estado']) => {
     switch (status) {
       case 'al dia':
         return 'success';
@@ -183,7 +149,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
     info: 'bg-blue-100 text-blue-800 border-blue-200',
   };
   
-  const displayStatus: Record<Client['estado'], string> = {
+  const displayStatus: Record<ClientDisplay['estado'], string> = {
     'al dia': 'Al día',
     'adeuda': 'Adeuda',
     'retirado': 'Retirado'
@@ -202,7 +168,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
     );
   }, [searchTerm, clients]);
 
-  // Pagination logic
   const totalPages = Math.ceil(filteredClients.length / CLIENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * CLIENTS_PER_PAGE;
   const paginatedClients = filteredClients.slice(startIndex, startIndex + CLIENTS_PER_PAGE);
@@ -255,16 +220,8 @@ export default function ClientList({ initialClients }: ClientListProps) {
                       <TableRow key={`${client.id}-${client.source || 'local'}`}>
                         <TableCell>
                             <div className="font-medium">{client.nomSujeto}</div>
-                            {client.source === 'wox' ? (
-                                <>
-                                    <div className="text-sm text-muted-foreground">{client.codIdSujeto || 'N/A'}</div>
-                                    {client.managerEmail && (
-                                        <div className="text-xs text-blue-600">Manager: {client.managerEmail}</div>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="text-sm text-muted-foreground">{client.codIdSujeto || 'N/A'}</div>
-                            )}
+                            {client.codIdSujeto && <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>}
+                            {client.managerEmail && <div className="text-xs text-blue-600">Manager: {client.managerEmail}</div>}
                         </TableCell>
                         <TableCell>
                             <div>{client.ciudad || 'N/A'}</div>
@@ -301,16 +258,15 @@ export default function ClientList({ initialClients }: ClientListProps) {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
-                                {isImporting === client.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+                                <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">Alternar menú</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {client.source === 'wox' ? (
-                                <DropdownMenuItem onClick={() => handleImportWoxClient(client)} disabled={isImporting === client.id}>
-                                    <Download className="mr-2 h-4 w-4" /> Importar Cliente
+                                <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
-                              ) : (
+                              {client.source === 'local' && (
                                 <>
                                   <DropdownMenuItem>
                                     <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
@@ -323,9 +279,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                                   {user && (user.role === 'master' || user.id === client.ownerId) && (
                                     <>
                                       <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                                        <Edit className="mr-2 h-4 w-4" /> Editar
-                                      </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
                                         <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                       </DropdownMenuItem>
@@ -379,7 +332,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetContent className="sm:max-w-2xl w-full">
               <SheetHeader>
-                <SheetTitle>{selectedClient ? 'Editar Cliente' : 'Agregar Nuevo Cliente'}</SheetTitle>
+                <SheetTitle>{selectedClient?.source === 'local' || !selectedClient ? 'Editar Cliente' : 'Enriquecer Datos de Cliente WOX'}</SheetTitle>
               </SheetHeader>
               <ClientForm
                 client={selectedClient}
@@ -391,7 +344,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
 
           <DeleteClientDialog
             isOpen={isDeleteDialogOpen}
-            onOpenChange={setIsDeleteDialogOpen}
             client={selectedClient}
             onDelete={() => {
               if (selectedClient) {
@@ -408,9 +360,10 @@ export default function ClientList({ initialClients }: ClientListProps) {
                           Seleccione una o más unidades y complete los detalles del pago. El monto total se calculará automáticamente.
                       </DialogDescription>
                   </DialogHeader>
-                  {selectedClient && (
+                  {selectedClient?.source === 'local' && selectedClient.id && (
                       <ClientPaymentForm 
-                          client={selectedClient}
+                          clientId={selectedClient.id}
+                          clientName={selectedClient.nomSujeto}
                           onSave={handlePaymentSave}
                           onCancel={() => setIsPaymentDialogOpen(false)}
                       />

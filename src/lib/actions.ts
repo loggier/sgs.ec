@@ -15,9 +15,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { ClientSchema, type Client, type ClientWithOwner } from './schema';
+import { ClientSchema, type Client, type ClientDisplay, WoxClientDataSchema } from './schema';
 import type { User } from './user-schema';
-import { getCurrentUser } from './user-actions';
 
 
 // Helper function to convert Firestore Timestamps to Dates in a document
@@ -31,7 +30,8 @@ const convertTimestamps = (docData: any) => {
   return data;
 };
 
-export async function getClients(currentUserId: string, currentUserRole: User['role']): Promise<ClientWithOwner[]> {
+// Gets locally stored clients
+export async function getClients(currentUserId: string, currentUserRole: User['role']): Promise<ClientDisplay[]> {
     if (!currentUserId) return [];
   
     try {
@@ -39,21 +39,18 @@ export async function getClients(currentUserId: string, currentUserRole: User['r
       const clientsCollectionRef = collection(db, 'clients');
   
       if (currentUserRole === 'master') {
-        // Master users see all clients
         clientsQuery = query(clientsCollectionRef);
       } else {
-        // Other users only see their own clients
         clientsQuery = query(clientsCollectionRef, where('ownerId', '==', currentUserId));
       }
       
       const clientSnapshot = await getDocs(clientsQuery);
   
-      let clientsList: ClientWithOwner[] = clientSnapshot.docs.map(doc => {
+      let clientsList: ClientDisplay[] = clientSnapshot.docs.map(doc => {
           const data = convertTimestamps(doc.data());
-          return { id: doc.id, ...data } as ClientWithOwner;
+          return { id: doc.id, ...data, source: 'local' } as ClientDisplay;
       });
   
-      // For master users, fetch and attach the owner's name for display
       if (currentUserRole === 'master') {
           const usersCollection = collection(db, 'users');
           const usersSnapshot = await getDocs(usersCollection);
@@ -61,7 +58,7 @@ export async function getClients(currentUserId: string, currentUserRole: User['r
           
           clientsList = clientsList.map(client => ({
               ...client,
-              ownerName: usersMap.get(client.ownerId)?.nombre || 'Desconocido',
+              ownerName: usersMap.get(client.ownerId!)?.nombre || 'Desconocido',
           }));
       }
   
@@ -72,7 +69,7 @@ export async function getClients(currentUserId: string, currentUserRole: User['r
     }
 }
   
-export async function getClientById(id: string, currentUserId: string, currentUserRole: User['role']): Promise<ClientWithOwner | undefined> {
+export async function getClientById(id: string, currentUserId: string, currentUserRole: User['role']): Promise<ClientDisplay | undefined> {
      if (!currentUserId) return undefined;
   
     try {
@@ -84,14 +81,12 @@ export async function getClientById(id: string, currentUserId: string, currentUs
   
       const data = convertTimestamps(clientDoc.data()) as Client;
       
-      // Security check: non-master users can only access their own clients
       if (currentUserRole !== 'master' && data.ownerId !== currentUserId) {
           return undefined;
       }
       
-      let clientData: ClientWithOwner = { id: clientDoc.id, ...data };
+      let clientData: ClientDisplay = { id: clientDoc.id, ...data, source: 'local' };
       
-      // For master users, show owner name
       if (currentUserRole === 'master' && data.ownerId) {
           const ownerDocRef = doc(db, 'users', data.ownerId);
           const ownerDoc = await getDoc(ownerDocRef);
@@ -109,9 +104,9 @@ export async function getClientById(id: string, currentUserId: string, currentUs
 
 export async function saveClient(
     data: Omit<Client, 'id'>,
-    ownerId: string, // ownerId is now passed explicitly
+    ownerId: string,
     clientId?: string
-  ): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
+  ): Promise<{ success: boolean; message: string; client?: ClientDisplay; }> {
     if (!ownerId) {
         return { success: false, message: 'No se pudo identificar al propietario.' };
     }
@@ -201,26 +196,4 @@ export async function deleteClient(id: string, currentUserId: string, currentUse
       console.error("Error deleting client:", error);
       return { success: false, message: 'Error al eliminar el cliente.' };
     }
-}
-
-export async function importWoxClient(
-  woxClientData: ClientWithOwner
-): Promise<{ success: boolean; message: string; client?: ClientWithOwner; }> {
-    const user = await getCurrentUser();
-    if (!user || !['master', 'manager'].includes(user.role)) {
-        return { success: false, message: 'No tiene permiso para importar clientes.' };
-    }
-
-    const newClientData: Omit<Client, 'id'> = {
-        ownerId: user.id,
-        codTipoId: 'C',
-        codIdSujeto: woxClientData.codIdSujeto,
-        nomSujeto: woxClientData.nomSujeto,
-        direccion: woxClientData.direccion,
-        telefono: woxClientData.telefono,
-        estado: 'al dia',
-        woxId: woxClientData.id
-    };
-
-    return saveClient(newClientData, user.id);
 }

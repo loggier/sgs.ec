@@ -10,8 +10,9 @@ import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { ClientSchema, type Client } from '@/lib/schema';
+import { ClientSchema, WoxClientDataSchema, type ClientDisplay } from '@/lib/schema';
 import { saveClient } from '@/lib/actions';
+import { saveWoxClientData } from '@/lib/wox-actions';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 
@@ -37,24 +38,32 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ClientFormProps = {
-  client: Omit<Client, 'placaVehiculo'> | null;
-  onSave: (result: { client?: Client }) => void;
+  client: ClientDisplay | null;
+  onSave: (result: { client?: ClientDisplay }) => void;
   onCancel: () => void;
 };
 
-const formSchema = ClientSchema.omit({ id: true, ownerId: true });
+// Use a unified schema for the form, then validate against the specific one on submit
+const formSchema = ClientSchema.merge(WoxClientDataSchema).omit({ id: true });
 type FormSchemaType = z.infer<typeof formSchema>;
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  
+  const isWoxClient = client?.source === 'wox';
 
   const form = useForm<FormSchemaType>({
     resolver: zodResolver(formSchema),
     defaultValues: client
       ? {
           ...client,
+          // Coalesce to ensure all fields are present for the form
+          codTipoId: client.codTipoId ?? 'C',
+          codIdSujeto: client.codIdSujeto ?? '',
+          nomSujeto: client.nomSujeto ?? '',
+          direccion: client.direccion ?? '',
           fecConcesion: client.fecConcesion ? new Date(client.fecConcesion) : null,
           fecVencimiento: client.fecVencimiento ? new Date(client.fecVencimiento) : null,
           valOperacion: client.valOperacion ?? '',
@@ -63,6 +72,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           ciudad: client.ciudad ?? '',
           telefono: client.telefono ?? '',
           usuario: client.usuario ?? '',
+          estado: client.estado ?? 'al dia',
         }
       : {
           codTipoId: 'C',
@@ -88,28 +98,39 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
     }
 
     setIsSubmitting(true);
+    
     try {
-      // Pass ownerId explicitly
-      const result = await saveClient(values, user.id, client?.id);
-      if (result.success) {
-        toast({
-          title: 'Éxito',
-          description: result.message,
-        });
-        onSave({ client: result.client });
+      let result;
+      if (isWoxClient) {
+        const woxValidation = WoxClientDataSchema.safeParse(values);
+        if (!woxValidation.success) {
+            toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});
+            setIsSubmitting(false);
+            return;
+        }
+        result = await saveWoxClientData(client.id, woxValidation.data);
       } else {
-        toast({
-          title: 'Error',
-          description: result.message,
-          variant: 'destructive',
-        });
+        const internalValidation = ClientSchema.omit({id: true}).safeParse(values);
+         if (!internalValidation.success) {
+            toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});
+            setIsSubmitting(false);
+            return;
+        }
+        result = await saveClient(internalValidation.data, user.id, client?.id);
+      }
+
+      if (result.success && result.client) {
+        toast({ title: 'Éxito', description: result.message });
+        const finalClient = {
+            ...(client || {}), // Keep original data like source, id
+            ...result.client
+        } as ClientDisplay
+        onSave({ client: finalClient });
+      } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Ocurrió un error inesperado.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Ocurrió un error inesperado.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -127,92 +148,96 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                 <FormItem>
                   <FormLabel>Nombre (Cliente)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Juan Pérez" {...field} />
+                    <Input placeholder="Juan Pérez" {...field} disabled={isWoxClient} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="codTipoId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tipo de ID</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+            {!isWoxClient && (
+             <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="codTipoId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de ID</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccione un tipo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="C">Cédula</SelectItem>
+                          <SelectItem value="R">RUC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="codIdSujeto"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cédula o RUC</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un tipo" />
-                        </SelectTrigger>
+                        <Input placeholder="1712345678" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="C">Cédula</SelectItem>
-                        <SelectItem value="R">RUC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="codIdSujeto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cédula o RUC</FormLabel>
-                    <FormControl>
-                      <Input placeholder="1712345678" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-            <FormField
-              control={form.control}
-              name="direccion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Dirección</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Av. Amazonas N34-451 y Av. Atahualpa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="direccion"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dirección</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Av. Amazonas N34-451 y Av. Atahualpa" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="ciudad"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ciudad</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Quito" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="telefono"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Teléfono</FormLabel>
-                    <FormControl>
-                      <Input placeholder="0991234567" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="ciudad"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ciudad</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Quito" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="telefono"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Teléfono</FormLabel>
+                      <FormControl>
+                        <Input placeholder="0991234567" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+             </>
+            )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                <FormField

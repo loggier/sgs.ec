@@ -12,7 +12,6 @@ import { z } from 'zod';
 import { cn } from '@/lib/utils';
 import { PaymentFormSchema } from '@/lib/payment-schema';
 import type { Unit } from '@/lib/unit-schema';
-import type { Client } from '@/lib/schema';
 import { registerPayment } from '@/lib/payment-actions';
 import { getUnitsByClientId } from '@/lib/unit-actions';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +38,8 @@ import { MultiSelectCombobox } from './ui/multi-select-combobox';
 
 
 type ClientPaymentFormProps = {
-  client: Omit<Client, 'placaVehiculo'>;
+  clientId: string;
+  clientName: string;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -51,7 +51,7 @@ const BatchPaymentFormSchema = PaymentFormSchema.extend({
 type BatchPaymentFormInput = z.infer<typeof BatchPaymentFormSchema>;
 
 
-export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPaymentFormProps) {
+export default function ClientPaymentForm({ clientId, clientName, onSave, onCancel }: ClientPaymentFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [units, setUnits] = React.useState<Unit[]>([]);
@@ -70,11 +70,11 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
 
   React.useEffect(() => {
     async function fetchUnits() {
-      const clientUnits = await getUnitsByClientId(client.id);
+      const clientUnits = await getUnitsByClientId(clientId);
       setUnits(clientUnits);
     }
     fetchUnits();
-  }, [client.id]);
+  }, [clientId]);
 
   const unitIds = form.watch('unitIds');
   const mesesPagados = form.watch('mesesPagados');
@@ -110,7 +110,7 @@ export default function ClientPaymentForm({ client, onSave, onCancel }: ClientPa
     setIsSubmitting(true);
     try {
       // The action now handles an array of unitIds
-      const result = await registerPayment(values, values.unitIds, client.id);
+      const result = await registerPayment(values, values.unitIds, clientId);
 
       if (result.success) {
         toast({

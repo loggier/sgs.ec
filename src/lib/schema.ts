@@ -6,6 +6,7 @@ import { Timestamp } from 'firebase/firestore';
 const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]);
 const optionalDateOrTimestamp = dateOrTimestamp.nullable().optional();
 
+// Schema for data stored locally for internal clients
 export const ClientSchema = z.object({
   id: z.string().optional(),
   ownerId: z.string(), // Added owner field
@@ -25,14 +26,46 @@ export const ClientSchema = z.object({
   estado: z.enum(['al dia', 'adeuda', 'retirado'], {
     required_error: 'Estado es requerido.',
   }),
-  woxId: z.string().optional(), // To link to the original WOX client
 });
 
 export type Client = z.infer<typeof ClientSchema>;
 
-// New type for client lists that includes the owner's name
-export type ClientWithOwner = Omit<Client, 'placaVehiculo'> & { 
-    ownerName?: string;
-    source?: 'local' | 'wox';
-    managerEmail?: string;
+// This represents the enriched data we store for a WOX client locally.
+export const WoxClientDataSchema = ClientSchema.pick({
+    numOperacion: true,
+    fecConcesion: true,
+    valOperacion: true,
+    valorPago: true,
+    fecVencimiento: true,
+    valorVencido: true,
+    usuario: true,
+    estado: true,
+    ownerId: true,
+});
+export type WoxClientData = z.infer<typeof WoxClientDataSchema>;
+
+
+// This is the final, combined object used throughout the app.
+// It can represent either an internal client or a WOX client enriched with local data.
+export type ClientDisplay = {
+  id: string; // Firestore ID for internal, WOX ID for wox clients
+  ownerId?: string;
+  ownerName?: string;
+  source: 'local' | 'wox';
+  nomSujeto: string;
+  codTipoId?: 'C' | 'R';
+  codIdSujeto?: string;
+  direccion?: string;
+  ciudad?: string;
+  telefono?: string;
+  managerEmail?: string;
+  // Enriched/local-only fields
+  numOperacion?: string;
+  fecConcesion?: Date | null;
+  valOperacion?: number | null;
+  valorPago?: number | null;
+  fecVencimiento?: Date | null;
+  valorVencido?: number | null;
+  usuario?: string;
+  estado: 'al dia' | 'adeuda' | 'retirado';
 };
