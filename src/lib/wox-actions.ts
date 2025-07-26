@@ -6,6 +6,7 @@ import type { ClientWithOwner } from './schema';
 
 type WoxClient = {
     id: number;
+    group_id: number;
     email: string;
     phone_number: string;
     loged_at: string;
@@ -56,7 +57,10 @@ export async function getWoxClients(): Promise<{ clients: ClientWithOwner[]; err
     }
     
     const jsonResponse: WoxApiResponse = await response.json();
-    const mappedClients = jsonResponse.data.map(mapWoxToInternal);
+    
+    const mappedClients = jsonResponse.data
+      .filter(client => client.group_id === 5) // Filter by group_id
+      .map(mapWoxToInternal);
     
     return { clients: mappedClients };
 
