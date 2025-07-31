@@ -3,6 +3,7 @@
  
 import * as React from 'react';
 import { getClients } from '@/lib/actions';
+import { getWoxClientDetailsById } from '@/lib/wox-actions';
 import { getAllUnits } from '@/lib/unit-actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
@@ -22,19 +23,39 @@ function HomePageContent() {
   const [units, setUnits] = React.useState<UnitWithClient[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const fetchData = React.useCallback(() => {
+  const fetchData = React.useCallback(async () => {
     if (user) {
       setIsLoading(true);
-      Promise.all([
-        getClients(user.id, user.role),
-        getAllUnits(user.id, user.role),
-      ]).then(([internalClients, unitData]) => {
-          setClients(internalClients);
-          setUnits(unitData);
-          setIsLoading(false);
-      }).catch(() => {
-          setIsLoading(false);
-      });
+      try {
+        const [internalClients, unitData] = await Promise.all([
+            getClients(user.id, user.role),
+            getAllUnits(user.id, user.role),
+        ]);
+
+        // Enrich internal clients with WOX data if linked
+        const enrichedClients = await Promise.all(
+            internalClients.map(async (client) => {
+                if (client.woxId) {
+                    const woxDetails = await getWoxClientDetailsById(client.woxId);
+                    if (woxDetails) {
+                        return {
+                            ...client,
+                            correo: woxDetails.correo,
+                            telefono: woxDetails.telefono || client.telefono, // Prioritize WOX phone, but keep local if wox is null
+                        };
+                    }
+                }
+                return client;
+            })
+        );
+
+        setClients(enrichedClients);
+        setUnits(unitData);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   }, [user]);
 

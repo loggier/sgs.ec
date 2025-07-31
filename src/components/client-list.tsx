@@ -129,6 +129,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
         (client.codIdSujeto && client.codIdSujeto.toLowerCase().includes(lowercasedTerm)) ||
         (client.ciudad && client.ciudad.toLowerCase().includes(lowercasedTerm)) ||
         (client.telefono && client.telefono.includes(lowercasedTerm)) ||
+        (client.correo && client.correo.toLowerCase().includes(lowercasedTerm)) ||
         (client.ownerName && client.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, clients]);
@@ -185,6 +186,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                               {client.woxId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
                             </div>
                             <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
+                             {client.woxId && client.correo && <div className="text-sm text-muted-foreground">{client.correo}</div>}
                         </TableCell>
                         <TableCell>
                             <div>{client.ciudad || 'N/A'}</div>
