@@ -130,22 +130,30 @@ export async function saveClient(
   
     try {
         const dataToSave: { [key: string]: any } = { ...clientData };
+        let woxLinkMessage = '';
 
         // Check for unique 'usuario' (API email) and link to WOX
-        if (clientData.usuario) {
-            const q = query(collection(db, 'clients'), where("usuario", "==", clientData.usuario), limit(1));
+        const apiEmail = clientData.usuario ? clientData.usuario.trim().toLowerCase() : '';
+        
+        if (apiEmail) {
+            const q = query(collection(db, 'clients'), where("usuario", "==", apiEmail), limit(1));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty && querySnapshot.docs[0].id !== clientId) {
                 return { success: false, message: 'El Usuario (API) ya está en uso por otro cliente.' };
             }
             
-            const { clients: woxClients } = await getWoxClients();
-            const matchedWoxClient = woxClients.find(wc => wc.correo === dataToSave.usuario);
+            const { clients: woxClients, error: woxError } = await getWoxClients();
+            if (woxError) {
+              return { success: false, message: `No se pudo guardar: ${woxError}`};
+            }
+            
+            const matchedWoxClient = woxClients.find(wc => wc.correo?.trim().toLowerCase() === apiEmail);
             if (matchedWoxClient) {
-              // The id from wox-actions is `wox-${id}`, we need to extract the raw id.
               dataToSave.woxId = matchedWoxClient.id!.replace('wox-', '');
+              woxLinkMessage = 'Cliente vinculado a WOX exitosamente.';
             } else {
-              dataToSave.woxId = null; // Clear if no match found
+              dataToSave.woxId = null;
+              woxLinkMessage = 'No se encontró un cliente coincidente en WOX para vincular.';
             }
         } else {
             // If usuario is cleared, unlink from wox
@@ -179,9 +187,10 @@ export async function saveClient(
   
       revalidatePath('/');
       const savedClient = await getClientById(savedClientId!, ownerId, userDoc.data()?.role);
+      const baseMessage = `Cliente ${clientId ? 'actualizado' : 'creado'} con éxito.`;
       return {
         success: true,
-        message: `Cliente ${clientId ? 'actualizado' : 'creado'} con éxito.`,
+        message: `${baseMessage} ${woxLinkMessage}`,
         client: savedClient,
       };
     } catch (error) {
