@@ -129,51 +129,53 @@ export async function saveClient(
     const { ...clientData } = validation.data;
   
     try {
-        // Check for unique 'usuario' (API email)
+        const dataToSave: { [key: string]: any } = { ...clientData };
+
+        // Check for unique 'usuario' (API email) and link to WOX
         if (clientData.usuario) {
             const q = query(collection(db, 'clients'), where("usuario", "==", clientData.usuario), limit(1));
             const querySnapshot = await getDocs(q);
             if (!querySnapshot.empty && querySnapshot.docs[0].id !== clientId) {
                 return { success: false, message: 'El Usuario (API) ya está en uso por otro cliente.' };
             }
-        }
-      
-      let savedClientId = clientId;
-      const dataToSave: { [key: string]: any } = { ...clientData };
-      
-      // Link to WOX client if email is provided in 'usuario' field
-      if (dataToSave.usuario) {
-        const { clients: woxClients } = await getWoxClients();
-        const matchedWoxClient = woxClients.find(wc => wc.correo === dataToSave.usuario);
-        if (matchedWoxClient) {
-          dataToSave.woxId = matchedWoxClient.id;
+            
+            const { clients: woxClients } = await getWoxClients();
+            const matchedWoxClient = woxClients.find(wc => wc.correo === dataToSave.usuario);
+            if (matchedWoxClient) {
+              // The id from wox-actions is `wox-${id}`, we need to extract the raw id.
+              dataToSave.woxId = matchedWoxClient.id!.replace('wox-', '');
+            } else {
+              dataToSave.woxId = null; // Clear if no match found
+            }
         } else {
-          dataToSave.woxId = null; // Clear if no match found
+            // If usuario is cleared, unlink from wox
+            dataToSave.woxId = null;
         }
-      }
 
-      Object.keys(dataToSave).forEach(key => {
-          const K = key as keyof typeof dataToSave;
-          if (dataToSave[K] === null || dataToSave[K] === undefined || dataToSave[K] === '') {
-              delete dataToSave[K];
-          }
-      });
+        // Clean up undefined/null/empty values before saving
+        Object.keys(dataToSave).forEach(key => {
+            const K = key as keyof typeof dataToSave;
+            if (dataToSave[K] === null || dataToSave[K] === undefined || dataToSave[K] === '') {
+                delete dataToSave[K];
+            }
+        });
       
-      if (clientId) {
-        const clientDocRef = doc(db, 'clients', clientId);
-        const currentClientDoc = await getDoc(clientDocRef);
-        if (!currentClientDoc.exists()) {
-            return { success: false, message: 'Cliente no encontrado.' };
+        let savedClientId = clientId;
+        if (clientId) {
+            const clientDocRef = doc(db, 'clients', clientId);
+            const currentClientDoc = await getDoc(clientDocRef);
+            if (!currentClientDoc.exists()) {
+                return { success: false, message: 'Cliente no encontrado.' };
+            }
+            if (userDoc.data()?.role !== 'master' && currentClientDoc.data()?.ownerId !== ownerId) {
+                return { success: false, message: 'No tiene permiso para editar este cliente.' };
+            }
+            await updateDoc(clientDocRef, dataToSave);
+        } else {
+            const clientsCollection = collection(db, 'clients');
+            const newClientRef = await addDoc(clientsCollection, dataToSave);
+            savedClientId = newClientRef.id;
         }
-        if (userDoc.data()?.role !== 'master' && currentClientDoc.data()?.ownerId !== ownerId) {
-            return { success: false, message: 'No tiene permiso para editar este cliente.' };
-        }
-        await updateDoc(clientDocRef, dataToSave);
-      } else {
-        const clientsCollection = collection(db, 'clients');
-        const newClientRef = await addDoc(clientsCollection, dataToSave);
-        savedClientId = newClientRef.id;
-      }
   
       revalidatePath('/');
       const savedClient = await getClientById(savedClientId!, ownerId, userDoc.data()?.role);
