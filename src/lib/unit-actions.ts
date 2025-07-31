@@ -73,7 +73,8 @@ export async function saveUnit(
   if (!clientDoc.exists()) {
       return { success: false, message: 'El cliente especificado no existe.' };
   }
-  if (user.role !== 'master' && clientDoc.data().ownerId !== user.id) {
+  const clientData = clientDoc.data() as Client;
+  if (user.role !== 'master' && clientData.ownerId !== user.id) {
       return { success: false, message: 'No tiene permiso para añadir unidades a este cliente.' };
   }
 
@@ -89,12 +90,20 @@ export async function saveUnit(
     
     const unitDataForFirestore: any = {
       ...restOfData,
-      woxDeviceId: restOfData.woxDeviceId || undefined, // Ensure empty string becomes undefined
       fechaInicioContrato: new Date(fechaInicioContrato),
       tipoContrato,
       mesesContrato,
       costoTotalContrato,
     };
+
+    // Auto-link with WOX device based on IMEI
+    if (clientData.woxId && unitDataForFirestore.imei) {
+        const { devices: woxDevices } = await getWoxDevicesByClientId(clientData.woxId);
+        const matchedDevice = woxDevices.find(d => d.imei === unitDataForFirestore.imei);
+        unitDataForFirestore.woxDeviceId = matchedDevice ? String(matchedDevice.id) : undefined;
+    } else {
+        unitDataForFirestore.woxDeviceId = undefined; // Unlink if no IMEI or no client woxId
+    }
     
     if (tipoContrato === 'sin_contrato') {
       delete unitDataForFirestore.costoTotalContrato;

@@ -13,7 +13,6 @@ import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
 import { saveUnit } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
-import { getWoxDevicesByClientId, type WoxDevice } from '@/lib/wox-actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -44,7 +43,6 @@ import { Alert, AlertDescription } from './ui/alert';
 type UnitFormProps = {
   unit: Unit | null;
   clientId?: string; // Optional: provided when adding/editing from a client's page
-  clientWoxId?: string | null; // Pass the client's woxId to fetch devices
   onSave: () => void;
   onCancel: () => void;
 };
@@ -63,7 +61,7 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
   'con_contrato': 'Con Contrato',
 };
 
-function UnitFormFields({ showClientSelector, isEditing, clientWoxId }: { showClientSelector: boolean, isEditing: boolean, clientWoxId?: string | null }) {
+function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector: boolean, isEditing: boolean }) {
   const { control, setValue, getValues } = useFormContext<UnitFormInput>();
   
   const [
@@ -77,7 +75,6 @@ function UnitFormFields({ showClientSelector, isEditing, clientWoxId }: { showCl
 
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [woxDevices, setWoxDevices] = React.useState<WoxDevice[]>([]);
   const [showWarning, setShowWarning] = React.useState(false);
   const initialStartDate = React.useRef(getValues('fechaInicioContrato'));
 
@@ -87,23 +84,9 @@ function UnitFormFields({ showClientSelector, isEditing, clientWoxId }: { showCl
     }
   }, [showClientSelector, user]);
   
-   React.useEffect(() => {
-    if (clientWoxId) {
-        getWoxDevicesByClientId(clientWoxId).then(({ devices }) => {
-            setWoxDevices(devices);
-        });
-    }
-   }, [clientWoxId]);
-
-
   const clientOptions = clients.map(c => ({
     value: c.id!,
     label: `${c.nomSujeto} (${c.codIdSujeto})`,
-  }));
-
-  const woxDeviceOptions = woxDevices.map(d => ({
-    value: String(d.id),
-    label: `${d.name} (${d.imei})`
   }));
 
   React.useEffect(() => {
@@ -168,38 +151,7 @@ function UnitFormFields({ showClientSelector, isEditing, clientWoxId }: { showCl
           )}
         />
       )}
-      {clientWoxId && (
-        <FormField
-            control={control}
-            name="woxDeviceId"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                        <Link2 className="h-4 w-4" /> Dispositivo WOX (Opcional)
-                    </FormLabel>
-                    <Select
-                        onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
-                        value={field.value || 'none'}
-                    >
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Vincular a un dispositivo WOX" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="none">Ninguno</SelectItem>
-                            {woxDeviceOptions.map(option => (
-                                <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
-      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField
           control={control}
@@ -503,7 +455,7 @@ function UnitFormFields({ showClientSelector, isEditing, clientWoxId }: { showCl
   )
 }
 
-export default function UnitForm({ unit, clientId, clientWoxId, onSave, onCancel }: UnitFormProps) {
+export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -517,7 +469,6 @@ export default function UnitForm({ unit, clientId, clientWoxId, onSave, onCancel
       ? { 
           ...unit,
           clientId: unit.clientId,
-          woxDeviceId: unit.woxDeviceId ?? '',
           costoMensual: unit.costoMensual ?? undefined,
           costoTotalContrato: unit.costoTotalContrato ?? undefined,
           mesesContrato: unit.mesesContrato ?? undefined,
@@ -529,7 +480,6 @@ export default function UnitForm({ unit, clientId, clientWoxId, onSave, onCancel
         }
       : {
           clientId: clientId ?? '',
-          woxDeviceId: '',
           imei: '',
           placa: '',
           modelo: '',
@@ -561,13 +511,7 @@ export default function UnitForm({ unit, clientId, clientWoxId, onSave, onCancel
     }
 
     try {
-      // Ensure woxDeviceId is not an empty string when saving
-      const dataToSave = {
-        ...values,
-        woxDeviceId: values.woxDeviceId || undefined,
-      };
-
-      const result = await saveUnit(dataToSave, finalClientId, user, unit?.id);
+      const result = await saveUnit(values, finalClientId, user, unit?.id);
       if (result.success && result.unit) {
         toast({
           title: 'Éxito',
@@ -596,7 +540,7 @@ export default function UnitForm({ unit, clientId, clientWoxId, onSave, onCancel
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} clientWoxId={clientWoxId} />
+          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
