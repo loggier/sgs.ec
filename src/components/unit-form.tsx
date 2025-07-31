@@ -177,14 +177,17 @@ function UnitFormFields({ showClientSelector, isEditing, clientWoxId }: { showCl
                     <FormLabel className="flex items-center gap-2">
                         <Link2 className="h-4 w-4" /> Dispositivo WOX (Opcional)
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                        onValueChange={(value) => field.onChange(value === 'none' ? '' : value)}
+                        value={field.value || 'none'}
+                    >
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Vincular a un dispositivo WOX" />
                         </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                            <SelectItem value="">Ninguno</SelectItem>
+                            <SelectItem value="none">Ninguno</SelectItem>
                             {woxDeviceOptions.map(option => (
                                 <SelectItem key={option.value} value={option.value}>
                                     {option.label}

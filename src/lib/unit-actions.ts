@@ -89,6 +89,7 @@ export async function saveUnit(
     
     const unitDataForFirestore: any = {
       ...restOfData,
+      woxDeviceId: restOfData.woxDeviceId || undefined, // Ensure empty string becomes undefined
       fechaInicioContrato: new Date(fechaInicioContrato),
       tipoContrato,
       mesesContrato,
