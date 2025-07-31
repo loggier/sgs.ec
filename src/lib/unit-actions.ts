@@ -15,11 +15,13 @@ import {
   collectionGroup,
   query,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
+import { getWoxDevicesByClientId } from './wox-actions';
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -231,5 +233,72 @@ export async function getAllUnits(currentUserId: string, currentUserRole: User['
     } catch (error) {
         console.error("Error getting all units:", error);
         return [];
+    }
+}
+
+
+export async function importWoxDevicesAsUnits(
+    clientId: string,
+    clientWoxId: string
+): Promise<{ success: boolean; message: string; importedCount?: number }> {
+    try {
+        // 1. Fetch devices from WOX
+        const { devices: woxDevices, error: woxError } = await getWoxDevicesByClientId(clientWoxId);
+        if (woxError) {
+            return { success: false, message: `No se pudo obtener dispositivos de WOX: ${woxError}` };
+        }
+        if (woxDevices.length === 0) {
+            return { success: true, message: 'No hay nuevos dispositivos para importar desde WOX.', importedCount: 0 };
+        }
+
+        // 2. Fetch existing units from local DB
+        const existingUnits = await getUnitsByClientId(clientId);
+        const existingImeis = new Set(existingUnits.map(unit => unit.imei));
+
+        // 3. Filter for new devices to import
+        const devicesToImport = woxDevices.filter(device => !existingImeis.has(device.imei));
+
+        if (devicesToImport.length === 0) {
+            return { success: true, message: 'Todas las unidades de WOX ya están sincronizadas.', importedCount: 0 };
+        }
+
+        // 4. Create new unit objects and batch write to Firestore
+        const batch = writeBatch(db);
+        const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
+
+        devicesToImport.forEach(device => {
+            const newUnitRef = doc(unitsCollectionRef); // Create a new doc reference
+            const now = new Date();
+            const newUnitData: Omit<Unit, 'id' | 'clientId'> = {
+                woxDeviceId: String(device.id),
+                imei: device.imei,
+                placa: device.name, // Use WOX device name as default plate
+                modelo: 'Importado desde WOX',
+                tipoPlan: 'estandar-sc',
+                tipoContrato: 'sin_contrato',
+                costoMensual: 0, // Default cost
+                fechaInstalacion: now,
+                fechaInicioContrato: now,
+                fechaVencimiento: addMonths(now, 1),
+                ultimoPago: null,
+                fechaSiguientePago: addMonths(now, 1),
+                observacion: `Importado automáticamente desde WOX el ${now.toLocaleDateString()}`,
+            };
+            batch.set(newUnitRef, newUnitData);
+        });
+
+        await batch.commit();
+
+        revalidatePath(`/clients/${clientId}/units`);
+
+        return {
+            success: true,
+            message: `${devicesToImport.length} unidad(es) nueva(s) importada(s) con éxito.`,
+            importedCount: devicesToImport.length,
+        };
+    } catch (error) {
+        console.error("Error importing WOX devices:", error);
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        return { success: false, message: `Error al importar unidades: ${errorMessage}` };
     }
 }

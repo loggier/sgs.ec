@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { getClientById } from '@/lib/actions';
-import { getUnitsByClientId } from '@/lib/unit-actions';
+import { getUnitsByClientId, importWoxDevicesAsUnits } from '@/lib/unit-actions';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
 import { notFound, useParams } from 'next/navigation';
@@ -13,6 +13,9 @@ import type { ClientDisplay } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppContent from '@/components/app-content';
+import { Button } from '@/components/ui/button';
+import { DownloadCloud, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +23,12 @@ function UnitsPageContent() {
   const { user } = useAuth();
   const params = useParams();
   const clientId = Array.isArray(params.clientId) ? params.clientId[0] : params.clientId;
+  const { toast } = useToast();
 
   const [client, setClient] = React.useState<ClientDisplay | null>(null);
   const [units, setUnits] = React.useState<Unit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
   const fetchData = React.useCallback(() => {
     if (user && clientId) {
@@ -49,6 +54,43 @@ function UnitsPageContent() {
   React.useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleSyncWithWox = async () => {
+    if (!client || !client.woxId) {
+        toast({
+            title: 'Cliente no vinculado',
+            description: 'Este cliente no está vinculado a WOX. Edite el cliente y añada un "Usuario (API)" para vincularlo.',
+            variant: 'destructive',
+        });
+        return;
+    }
+
+    setIsSyncing(true);
+    try {
+        const result = await importWoxDevicesAsUnits(client.id, client.woxId);
+        if (result.success) {
+            toast({
+                title: 'Sincronización completada',
+                description: `${result.importedCount} unidad(es) nueva(s) importada(s) desde WOX.`,
+            });
+            fetchData(); // Refresh data
+        } else {
+            toast({
+                title: 'Error de Sincronización',
+                description: result.message,
+                variant: 'destructive',
+            });
+        }
+    } catch (error) {
+        toast({
+            title: 'Error Inesperado',
+            description: 'Ocurrió un error al intentar sincronizar con WOX.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsSyncing(false);
+    }
+};
 
   if (isLoading || !client) {
     return (
@@ -85,6 +127,18 @@ function UnitsPageContent() {
   return (
     <>
       <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/" />
+      <div className='flex justify-end mb-6'>
+          {client.woxId && (
+              <Button onClick={handleSyncWithWox} disabled={isSyncing}>
+                  {isSyncing ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                      <DownloadCloud className="mr-2 h-4 w-4" />
+                  )}
+                  {isSyncing ? 'Sincronizando...' : 'Sincronizar con WOX'}
+              </Button>
+          )}
+      </div>
       <div className="space-y-6">
         <UnitSummary 
           totalUnits={totalUnits}
