@@ -6,7 +6,7 @@ import { getClientById } from '@/lib/actions';
 import { getUnitsByClientId } from '@/lib/unit-actions';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
-import { notFound } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
 import type { ClientWithOwner } from '@/lib/schema';
@@ -22,16 +22,17 @@ type UnitsPageProps = {
   };
 };
 
-function UnitsPageContent({ params }: UnitsPageProps) {
+function UnitsPageContent() {
   const { user } = useAuth();
-  const { clientId } = params;
+  const params = useParams();
+  const clientId = Array.isArray(params.clientId) ? params.clientId[0] : params.clientId;
 
   const [client, setClient] = React.useState<ClientWithOwner | null>(null);
   const [units, setUnits] = React.useState<Unit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchData = React.useCallback(() => {
-    if (user) {
+    if (user && clientId) {
       setIsLoading(true);
       Promise.all([
         getClientById(clientId, user.id, user.role),
@@ -106,7 +107,7 @@ function UnitsPageContent({ params }: UnitsPageProps) {
 export default function UnitsPage({ params }: UnitsPageProps) {
     return (
         <AppContent>
-            <UnitsPageContent params={params} />
+            <UnitsPageContent />
         </AppContent>
     )
 }
