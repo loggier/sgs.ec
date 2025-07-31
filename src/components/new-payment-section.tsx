@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/context/auth-context';
-import type { ClientWithOwner } from '@/lib/schema';
+import type { ClientDisplay } from '@/lib/schema';
 import { getClients } from '@/lib/actions';
 import { Combobox } from './ui/combobox';
 import ClientPaymentForm from './client-payment-form';
@@ -15,7 +15,7 @@ type NewPaymentSectionProps = {
 
 export default function NewPaymentSection({ onPaymentSaved }: NewPaymentSectionProps) {
   const { user } = useAuth();
-  const [clients, setClients] = React.useState<ClientWithOwner[]>([]);
+  const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
 
   React.useEffect(() => {
@@ -64,7 +64,8 @@ export default function NewPaymentSection({ onPaymentSaved }: NewPaymentSectionP
             <div className="border-t pt-6">
                 <h3 className="text-lg font-medium mb-4">Pago para {selectedClient.nomSujeto}</h3>
                 <ClientPaymentForm
-                    client={selectedClient}
+                    clientId={selectedClient.id}
+                    clientName={selectedClient.nomSujeto}
                     onSave={handleSave}
                     onCancel={handleCancel}
                 />

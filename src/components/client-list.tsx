@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2 } from 'lucide-react';
 import Link from 'next/link';
 
 import type { ClientDisplay } from '@/lib/schema';
@@ -36,11 +36,12 @@ import ClientPaymentForm from './client-payment-form';
 
 type ClientListProps = {
   initialClients: ClientDisplay[];
+  onDataChange: () => void;
 };
 
 const CLIENTS_PER_PAGE = 10;
 
-export default function ClientList({ initialClients }: ClientListProps) {
+export default function ClientList({ initialClients, onDataChange }: ClientListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [clients, setClients] = React.useState(initialClients);
@@ -66,34 +67,23 @@ export default function ClientList({ initialClients }: ClientListProps) {
   };
 
   const handleDeleteClient = (client: ClientDisplay) => {
-    if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
   };
   
   const handleRegisterPayment = (client: ClientDisplay) => {
-    if (client.source === 'wox') return;
     setSelectedClient(client);
     setIsPaymentDialogOpen(true);
   }
 
-  const handleFormSave = (result: { client?: ClientDisplay }) => {
-    if (result.client) {
-      setClients(currentClients => {
-        const newClient = { ...result.client, ownerName: result.client.ownerName || user?.nombre };
-        const existing = currentClients.find(c => c.id === newClient.id);
-        if (existing) {
-          return currentClients.map(c => c.id === newClient.id ? newClient : c);
-        }
-        return [...currentClients, newClient];
-      });
-    }
-    
+  const handleFormSave = () => {
+    onDataChange();
     setIsSheetOpen(false);
     setSelectedClient(null);
   };
   
   const handlePaymentSave = () => {
+      onDataChange();
       setIsPaymentDialogOpen(false);
       setSelectedClient(null);
   };
@@ -101,6 +91,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
   const onClientDeleted = (clientId: string) => {
     setClients(currentClients => currentClients.filter(c => c.id !== clientId));
     setIsDeleteDialogOpen(false);
+    onDataChange();
   }
 
   const getStatusVariant = (status: ClientDisplay['estado']) => {
@@ -178,7 +169,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     <TableHead>Cliente</TableHead>
                     <TableHead>Contacto</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Origen</TableHead>
                     {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                     <TableHead>
                       <span className="sr-only">Acciones</span>
@@ -188,11 +178,13 @@ export default function ClientList({ initialClients }: ClientListProps) {
                 <TableBody>
                   {paginatedClients.length > 0 ? (
                     paginatedClients.map(client => (
-                      <TableRow key={`${client.id}-${client.source || 'local'}`}>
+                      <TableRow key={client.id}>
                         <TableCell>
-                            <div className="font-medium">{client.nomSujeto}</div>
-                            {client.codIdSujeto && <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>}
-                            {client.managerEmail && <div className="text-xs text-blue-600">Manager: {client.managerEmail}</div>}
+                            <div className="font-medium flex items-center gap-2">
+                              {client.nomSujeto}
+                              {client.woxId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
                         </TableCell>
                         <TableCell>
                             <div>{client.ciudad || 'N/A'}</div>
@@ -202,13 +194,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
                            <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
                               {displayStatus[client.estado]}
                            </Badge>
-                        </TableCell>
-                        <TableCell>
-                            {client.source === 'wox' ? (
-                                <Badge variant="outline" className={badgeVariants.info}>WOX</Badge>
-                            ) : (
-                                <Badge variant="secondary">Interno</Badge>
-                            )}
                         </TableCell>
                         {user?.role === 'master' && (
                             <TableCell>{client.ownerName || 'N/A'}</TableCell>
@@ -225,26 +210,22 @@ export default function ClientList({ initialClients }: ClientListProps) {
                                 <DropdownMenuItem onClick={() => handleEditClient(client)}>
                                   <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
-                              {client.source === 'local' && (
-                                <>
-                                  <DropdownMenuItem>
-                                    <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
-                                      <Car className="mr-2 h-4 w-4" /> Ver Unidades
-                                    </Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
-                                    <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
-                                  </DropdownMenuItem>
-                                  {user && (user.role === 'master' || user.id === client.ownerId) && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                </>
-                              )}
+                                <DropdownMenuItem>
+                                  <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
+                                    <Car className="mr-2 h-4 w-4" /> Ver Unidades
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                                  <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+                                </DropdownMenuItem>
+                                {user && (user.role === 'master' || user.id === client.ownerId) && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
+                                      <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -252,7 +233,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={user?.role === 'master' ? 6 : 5} className="text-center">
+                      <TableCell colSpan={user?.role === 'master' ? 5 : 4} className="text-center">
                         No se encontraron clientes.
                       </TableCell>
                     </TableRow>
@@ -287,11 +268,12 @@ export default function ClientList({ initialClients }: ClientListProps) {
               </div>
             </div>
           </CardFooter>
+        </Card>
 
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
             <SheetContent className="sm:max-w-2xl w-full">
               <SheetHeader>
-                <SheetTitle>{selectedClient?.source === 'local' || !selectedClient ? 'Editar Cliente' : 'Enriquecer Datos de Cliente WOX'}</SheetTitle>
+                <SheetTitle>{selectedClient ? 'Editar Cliente' : 'Nuevo Cliente'}</SheetTitle>
               </SheetHeader>
               <ClientForm
                 client={selectedClient}
@@ -303,7 +285,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
 
           <DeleteClientDialog
             isOpen={isDeleteDialogOpen}
-            onOpenChange={() => setIsDeleteDialogOpen(false)}
+            onOpenChange={setIsDeleteDialogOpen}
             client={selectedClient}
             onDelete={() => {
               if (selectedClient) {
@@ -320,7 +302,7 @@ export default function ClientList({ initialClients }: ClientListProps) {
                           Seleccione una o más unidades y complete los detalles del pago. El monto total se calculará automáticamente.
                       </DialogDescription>
                   </DialogHeader>
-                  {selectedClient?.source === 'local' && selectedClient.id && (
+                  {selectedClient?.id && (
                       <ClientPaymentForm 
                           clientId={selectedClient.id}
                           clientName={selectedClient.nomSujeto}
@@ -331,7 +313,6 @@ export default function ClientList({ initialClients }: ClientListProps) {
               </DialogContent>
           </Dialog>
 
-        </Card>
       </div>
     </>
   );

@@ -15,8 +15,9 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { ClientSchema, type Client, type ClientDisplay, WoxClientDataSchema } from './schema';
+import { ClientSchema, type Client, type ClientDisplay } from './schema';
 import type { User } from './user-schema';
+import { getWoxClients } from './wox-actions';
 
 
 // Helper function to convert Firestore Timestamps to Dates in a document
@@ -48,7 +49,7 @@ export async function getClients(currentUserId: string, currentUserRole: User['r
   
       let clientsList: ClientDisplay[] = clientSnapshot.docs.map(doc => {
           const data = convertTimestamps(doc.data());
-          return { id: doc.id, ...data, source: 'local' } as ClientDisplay;
+          return { id: doc.id, ...data } as ClientDisplay;
       });
   
       if (currentUserRole === 'master') {
@@ -85,7 +86,7 @@ export async function getClientById(id: string, currentUserId: string, currentUs
           return undefined;
       }
       
-      let clientData: ClientDisplay = { id: clientDoc.id, ...data, source: 'local' };
+      let clientData: ClientDisplay = { id: clientDoc.id, ...data };
       
       if (currentUserRole === 'master' && data.ownerId) {
           const ownerDocRef = doc(db, 'users', data.ownerId);
@@ -129,6 +130,18 @@ export async function saveClient(
     try {
       let savedClientId = clientId;
       const dataToSave: { [key: string]: any } = { ...clientData };
+      
+      // Link to WOX client if email is provided in 'usuario' field
+      if (dataToSave.usuario) {
+        const { clients: woxClients } = await getWoxClients();
+        const matchedWoxClient = woxClients.find(wc => wc.correo === dataToSave.usuario);
+        if (matchedWoxClient) {
+          dataToSave.woxId = matchedWoxClient.id;
+        } else {
+          dataToSave.woxId = null; // Clear if no match found
+        }
+      }
+
       Object.keys(dataToSave).forEach(key => {
           const K = key as keyof typeof dataToSave;
           if (dataToSave[K] === null || dataToSave[K] === undefined || dataToSave[K] === '') {

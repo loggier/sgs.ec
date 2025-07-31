@@ -4,7 +4,6 @@
 import * as React from 'react';
 import { getClients } from '@/lib/actions';
 import { getAllUnits } from '@/lib/unit-actions';
-import { getWoxClients, getWoxClientData } from '@/lib/wox-actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -23,35 +22,25 @@ function HomePageContent() {
   const [units, setUnits] = React.useState<UnitWithClient[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
+  const fetchData = React.useCallback(() => {
     if (user) {
       setIsLoading(true);
       Promise.all([
         getClients(user.id, user.role),
         getAllUnits(user.id, user.role),
-        getWoxClients(),
-        getWoxClientData(),
-      ]).then(([internalClients, unitData, woxResult, woxEnrichedData]) => {
-          
-          // Enrich WOX clients with local data
-          const enrichedWoxClients = woxResult.clients.map(woxClient => {
-              const localData = woxEnrichedData.get(woxClient.id);
-              if (localData) {
-                  return { ...woxClient, ...localData };
-              }
-              return woxClient;
-          });
-
-          const combinedClients: ClientDisplay[] = [...internalClients, ...enrichedWoxClients];
-          setClients(combinedClients);
+      ]).then(([internalClients, unitData]) => {
+          setClients(internalClients);
           setUnits(unitData);
           setIsLoading(false);
-
       }).catch(() => {
           setIsLoading(false);
       });
     }
   }, [user]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const clientsWithDynamicStatus = React.useMemo(() => {
     if (isLoading) return [];
@@ -111,7 +100,7 @@ function HomePageContent() {
       <Header title="Clientes" />
       <div className="space-y-6">
         <ClientSummary {...summaryData} />
-        <ClientList initialClients={clientsWithDynamicStatus} />
+        <ClientList initialClients={clientsWithDynamicStatus} onDataChange={fetchData} />
       </div>
     </>
   );

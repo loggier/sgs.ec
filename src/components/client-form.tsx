@@ -4,12 +4,10 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
-import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
-import { ClientSchema, WoxClientDataSchema, type ClientDisplay } from '@/lib/schema';
+import { ClientSchema, type ClientDisplay } from '@/lib/schema';
 import { saveClient } from '@/lib/actions';
-import { saveWoxClientData } from '@/lib/wox-actions';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 
@@ -33,25 +31,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ClientFormProps = {
   client: ClientDisplay | null;
-  onSave: (result: { client?: ClientDisplay }) => void;
+  onSave: () => void;
   onCancel: () => void;
 };
-
-// This schema is a base for the form, but validation will be conditional.
-const formSchema = ClientSchema.merge(WoxClientDataSchema).omit({ id: true });
-type FormSchemaType = z.infer<typeof formSchema>;
-
 
 export default function ClientForm({ client, onSave, onCancel }: ClientFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const isWoxClient = client?.source === 'wox';
-
-  const form = useForm<FormSchemaType>({
-    // We use a broader resolver here, but the specific validation happens inside onSubmit
-    resolver: zodResolver(formSchema),
+  const form = useForm<Omit<ClientDisplay, 'id'>>({
+    resolver: zodResolver(ClientSchema.omit({id: true, ownerId: true})),
     defaultValues: client
       ? {
           codTipoId: client.codTipoId ?? 'C',
@@ -75,7 +65,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
         },
   });
 
-  async function onSubmit(values: FormSchemaType) {
+  async function onSubmit(values: Omit<ClientDisplay, 'id'>) {
     if (!user) {
         toast({
             title: 'Error de autenticación',
@@ -88,43 +78,13 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
     setIsSubmitting(true);
     
     try {
-      let result;
-      if (isWoxClient) {
-        const woxValidation = WoxClientDataSchema.safeParse(values);
-        if (!woxValidation.success) {
-            console.error(woxValidation.error.flatten().fieldErrors);
-            toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});
-            setIsSubmitting(false);
-            return;
-        }
-        result = await saveWoxClientData(client.id, woxValidation.data);
-         if (result.success && result.client) {
-            toast({ title: 'Éxito', description: result.message });
-            const finalClient = {
-                ...(client || {}),
-                ...result.client
-            } as ClientDisplay
-            onSave({ client: finalClient });
-        } else {
-            toast({ title: 'Error', description: result.message, variant: 'destructive' });
-        }
+      const result = await saveClient(values, user.id, client?.id);
+      if (result.success && result.client) {
+          toast({ title: 'Éxito', description: result.message });
+          onSave();
       } else {
-        const internalValidation = ClientSchema.omit({id: true}).safeParse({ ...values, ownerId: user.id });
-         if (!internalValidation.success) {
-            console.error(internalValidation.error.flatten().fieldErrors);
-            toast({ title: 'Error de validación', description: 'Por favor revise los campos.', variant: 'destructive'});
-            setIsSubmitting(false);
-            return;
-        }
-        result = await saveClient(internalValidation.data, user.id, client?.id);
-         if (result.success && result.client) {
-            toast({ title: 'Éxito', description: result.message });
-            onSave({ client: result.client });
-        } else {
-            toast({ title: 'Error', description: result.message, variant: 'destructive' });
-        }
+          toast({ title: 'Error', description: result.message, variant: 'destructive' });
       }
-
     } catch (error) {
       toast({ title: 'Error', description: 'Ocurrió un error inesperado.', variant: 'destructive' });
     } finally {
@@ -151,15 +111,6 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
               )}
             />
              
-            {isWoxClient && client?.correo && (
-              <FormItem>
-                <FormLabel>Correo (de WOX)</FormLabel>
-                <FormControl>
-                  <Input value={client.correo} disabled />
-                </FormControl>
-              </FormItem>
-            )}
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -240,21 +191,19 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
               />
             </div>
             
-            {!isWoxClient && (
-                 <FormField
-                  control={form.control}
-                  name="usuario"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Usuario (API)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="usuario_api" {...field} value={field.value ?? ''}/>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+             <FormField
+              control={form.control}
+              name="usuario"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Usuario (API - Email de WOX)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="cliente@email.com" {...field} value={field.value ?? ''}/>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
+            />
 
             <FormField
               control={form.control}
