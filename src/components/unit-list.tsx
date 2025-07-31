@@ -36,6 +36,7 @@ import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
+import { cn } from '@/lib/utils';
 
 // Extend the Unit type to include optional wox device details
 type DisplayUnit = Unit & {
@@ -174,14 +175,23 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
     onDataChange();
     setIsDeleteDialogOpen(false);
   };
+  
+  const needsConfiguration = (unit: DisplayUnit) => {
+    if (unit.tipoContrato === 'con_contrato') {
+      return !unit.costoTotalContrato || unit.costoTotalContrato === 0;
+    }
+    return !unit.costoMensual || unit.costoMensual === 0;
+  };
 
   const getCostForUnit = (unit: DisplayUnit) => {
+    const isUnconfigured = needsConfiguration(unit);
+
     if (unit.tipoContrato === 'con_contrato') {
       const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
       const balance = unit.saldoContrato ?? unit.costoTotalContrato;
       return (
         <div>
-          <div className="font-medium" title="Costo Total Contrato">{formatCurrency(unit.costoTotalContrato)}</div>
+          <div className={cn("font-medium", isUnconfigured && "text-destructive")} title="Costo Total Contrato">{formatCurrency(unit.costoTotalContrato)}</div>
           <div className="text-xs text-muted-foreground" title="Cuota Mensual">
             {formatCurrency(monthlyCost)}/mes
           </div>
@@ -191,7 +201,7 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
         </div>
       );
     }
-    return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
+    return <div className={cn("font-medium", isUnconfigured && "text-destructive")}>{formatCurrency(unit.costoMensual)}</div>;
   };
   
   const getContractDisplay = (unit: DisplayUnit) => {
@@ -253,8 +263,13 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
             </TableHeader>
             <TableBody>
               {filteredUnits.length > 0 ? (
-                filteredUnits.map(unit => (
-                  <TableRow key={unit.id} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                filteredUnits.map(unit => {
+                  const isUnconfigured = needsConfiguration(unit);
+                  return (
+                  <TableRow key={unit.id} className={cn(
+                      isExpired(unit.fechaVencimiento) && 'bg-red-50 dark:bg-red-900/20',
+                      isUnconfigured && 'bg-yellow-50 dark:bg-yellow-900/20'
+                  )}>
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">{unit.placa}
                             {unit.woxDeviceId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
@@ -295,7 +310,7 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem onClick={() => handleRegisterPayment(unit)}>
+                           <DropdownMenuItem onClick={() => handleRegisterPayment(unit)} disabled={isUnconfigured}>
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
                           {user && ['master', 'manager', 'usuario'].includes(user.role) && (
@@ -313,7 +328,7 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               ) : (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center">

@@ -276,7 +276,7 @@ export async function importWoxDevicesAsUnits(
                 modelo: 'Importado desde WOX',
                 tipoPlan: 'estandar-sc',
                 tipoContrato: 'sin_contrato',
-                costoMensual: 0, // Default cost
+                costoMensual: 0, // Default cost, indicating it needs configuration
                 fechaInstalacion: now,
                 fechaInicioContrato: now,
                 fechaVencimiento: addMonths(now, 1),
