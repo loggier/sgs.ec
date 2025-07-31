@@ -13,6 +13,7 @@ import {
   Timestamp,
   query,
   where,
+  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientDisplay } from './schema';
@@ -128,6 +129,15 @@ export async function saveClient(
     const { ...clientData } = validation.data;
   
     try {
+        // Check for unique 'usuario' (API email)
+        if (clientData.usuario) {
+            const q = query(collection(db, 'clients'), where("usuario", "==", clientData.usuario), limit(1));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty && querySnapshot.docs[0].id !== clientId) {
+                return { success: false, message: 'El Usuario (API) ya está en uso por otro cliente.' };
+            }
+        }
+      
       let savedClientId = clientId;
       const dataToSave: { [key: string]: any } = { ...clientData };
       
