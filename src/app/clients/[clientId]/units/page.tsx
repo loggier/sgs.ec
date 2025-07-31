@@ -9,25 +9,19 @@ import UnitSummary from '@/components/unit-summary';
 import { notFound, useParams } from 'next/navigation';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
-import type { ClientWithOwner } from '@/lib/schema';
+import type { ClientDisplay } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppContent from '@/components/app-content';
 
 export const dynamic = 'force-dynamic';
 
-type UnitsPageProps = {
-  params: {
-    clientId: string;
-  };
-};
-
 function UnitsPageContent() {
   const { user } = useAuth();
   const params = useParams();
   const clientId = Array.isArray(params.clientId) ? params.clientId[0] : params.clientId;
 
-  const [client, setClient] = React.useState<ClientWithOwner | null>(null);
+  const [client, setClient] = React.useState<ClientDisplay | null>(null);
   const [units, setUnits] = React.useState<Unit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -98,13 +92,18 @@ function UnitsPageContent() {
           unitsByPlan={unitsByPlan}
           unitsByContractType={unitsByContractType}
         />
-        <UnitList initialUnits={units} clientId={clientId} onDataChange={fetchData} />
+        <UnitList 
+            initialUnits={units} 
+            clientId={clientId} 
+            clientWoxId={client.woxId} 
+            onDataChange={fetchData} 
+        />
       </div>
     </>
   );
 }
 
-export default function UnitsPage({ params }: UnitsPageProps) {
+export default function UnitsPage() {
     return (
         <AppContent>
             <UnitsPageContent />

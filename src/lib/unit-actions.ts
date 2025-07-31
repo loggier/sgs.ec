@@ -18,7 +18,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
-import type { Client, ClientWithOwner } from './schema';
+import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
 
 const convertTimestamps = (docData: any) => {
@@ -197,36 +197,34 @@ export async function getAllUnits(currentUserId: string, currentUserRole: User['
     if (!currentUserId) return [];
 
     try {
-        const clientsCollection = collection(db, 'clients');
-        const clientsSnapshot = await getDocs(clientsCollection);
-        const allClients = clientsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClientWithOwner));
-        const clientMap = new Map(allClients.map(c => [c.id, c]));
+        const clientsSnapshot = await getDocs(collection(db, 'clients'));
+        
+        // Filter clients based on user role
+        const userClients = clientsSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as ClientDisplay))
+            .filter(client => currentUserRole === 'master' || client.ownerId === currentUserId);
 
-        const usersCollection = collection(db, 'users');
-        const usersSnapshot = await getDocs(usersCollection);
+        const clientMap = new Map(userClients.map(c => [c.id, c]));
+        const usersSnapshot = await getDocs(collection(db, 'users'));
         const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-        const unitsQuery = query(collectionGroup(db, 'units'));
-        const unitsSnapshot = await getDocs(unitsQuery);
+        const allUnits = [];
 
-        let allUnits = unitsSnapshot.docs.map(doc => {
-            const data = convertTimestamps(doc.data());
-            const clientId = doc.ref.parent.parent!.id;
-            const client = clientMap.get(clientId);
-            const owner = client ? usersMap.get(client.ownerId) : undefined;
-            
-            return {
-                id: doc.id,
-                clientId,
-                clientName: client?.nomSujeto || 'Cliente Desconocido',
-                ownerId: client?.ownerId,
-                ownerName: owner?.nombre || 'Propietario Desconocido',
-                ...data
-            } as Unit & { clientName: string; ownerId: string; ownerName?: string };
-        });
+        for (const client of userClients) {
+            const unitsSnapshot = await getDocs(collection(db, 'clients', client.id, 'units'));
+            const owner = usersMap.get(client.ownerId);
 
-        if (currentUserRole !== 'master') {
-            allUnits = allUnits.filter(unit => unit.ownerId === currentUserId);
+            for (const unitDoc of unitsSnapshot.docs) {
+                const data = convertTimestamps(unitDoc.data());
+                allUnits.push({
+                    id: unitDoc.id,
+                    clientId: client.id,
+                    clientName: client.nomSujeto,
+                    ownerId: client.ownerId,
+                    ownerName: owner?.nombre || 'Propietario Desconocido',
+                    ...data
+                } as Unit & { clientName: string; ownerId: string; ownerName?: string });
+            }
         }
 
         return allUnits;

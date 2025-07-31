@@ -16,7 +16,6 @@ type WoxClientDetails = {
     id: number;
     email: string;
     phone_number: string;
-    // Add other fields from the detail endpoint if needed
 };
 
 type WoxClientListApiResponse = {
@@ -30,6 +29,27 @@ type WoxClientDetailApiResponse = {
         }
     }
 };
+
+export type WoxDevice = {
+    id: number;
+    name: string;
+    imei: string;
+    fuel_quantity: string;
+    fuel_measurement_id: string;
+    tail_length: string;
+    tail_color: string;
+    // Add other fields as needed from the device list endpoint
+};
+
+type WoxDeviceListApiResponse = {
+    data: WoxDevice[];
+};
+
+type WoxDeviceDetailApiResponse = {
+    item: WoxDevice;
+    // other properties if any
+};
+
 
 function mapWoxToDisplay(woxClient: WoxClientFromList): Partial<ClientDisplay> {
     return {
@@ -81,7 +101,6 @@ export async function getWoxClientDetailsById(woxId: string): Promise<Partial<Cl
             return null;
         }
         
-        // Remove potential 'wox-' prefix if it exists
         const numericId = woxId.replace('wox-', '');
         
         const apiUrl = new URL(`/api/client/${numericId}`, settings.url);
@@ -107,5 +126,61 @@ export async function getWoxClientDetailsById(woxId: string): Promise<Partial<Cl
     } catch (error) {
         console.error(`Failed to get WOX client details for id ${woxId}:`, error);
         return null;
+    }
+}
+
+
+export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ devices: WoxDevice[]; error?: string }> {
+    try {
+        const settings = await getWoxSettings();
+        if (!settings?.url || !settings?.apiKey) {
+            return { devices: [], error: 'WOX settings are not configured.' };
+        }
+
+        const numericId = woxClientId.replace('wox-', '');
+        const apiUrl = new URL(`/api/client/${numericId}/devices`, settings.url);
+        apiUrl.searchParams.append('user_api_hash', settings.apiKey);
+
+        const response = await fetch(apiUrl.toString());
+
+        if (!response.ok) {
+            console.error(`Error fetching devices from WOX API: ${response.status} ${response.statusText}`);
+            return { devices: [], error: `Error de la API de WOX: ${response.statusText}` };
+        }
+
+        const jsonResponse: WoxDeviceListApiResponse = await response.json();
+        return { devices: jsonResponse.data || [] };
+
+    } catch (error) {
+        console.error(`Failed to get WOX devices for client ${woxClientId}:`, error);
+        const message = error instanceof Error ? error.message : 'Error desconocido';
+        return { devices: [], error: message };
+    }
+}
+
+export async function getWoxDeviceDetails(deviceId: string): Promise<{ device: WoxDevice | null; error?: string }> {
+    try {
+        const settings = await getWoxSettings();
+        if (!settings?.url || !settings?.apiKey) {
+            return { device: null, error: 'WOX settings are not configured.' };
+        }
+
+        const apiUrl = new URL(`/api/devices/${deviceId}`, settings.url);
+        apiUrl.searchParams.append('user_api_hash', settings.apiKey);
+
+        const response = await fetch(apiUrl.toString());
+        if (!response.ok) {
+             console.error(`Error fetching device ${deviceId} from WOX API: ${response.status} ${response.statusText}`);
+            return { device: null, error: `Error de la API de WOX: ${response.statusText}` };
+        }
+        
+        const jsonResponse: WoxDeviceDetailApiResponse = await response.json();
+        
+        return { device: jsonResponse.item || null };
+
+    } catch (error) {
+        console.error(`Failed to get WOX device details for id ${deviceId}:`, error);
+        const message = error instanceof Error ? error.message : 'Error desconocido';
+        return { device: null, error: message };
     }
 }

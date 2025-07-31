@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2 } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -29,6 +29,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/context/auth-context';
+import { getWoxDeviceDetails, type WoxDevice } from '@/lib/wox-actions';
 
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
@@ -36,9 +37,15 @@ import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
 
+// Extend the Unit type to include optional wox device details
+type DisplayUnit = Unit & {
+    woxDevice?: WoxDevice | null;
+}
+
 type UnitListProps = {
   initialUnits: Unit[];
   clientId: string;
+  clientWoxId?: string | null;
   onDataChange: () => void;
 };
 
@@ -49,6 +56,10 @@ const planDisplayNames: Record<Unit['tipoPlan'], string> = {
   'estandar-cc': 'Estándar CC',
   'avanzado-cc': 'Avanzado CC',
   'total-cc': 'Total CC',
+};
+
+const badgeVariants = {
+    info: 'bg-blue-100 text-blue-800 border-blue-200',
 };
 
 function formatCurrency(amount?: number | null) {
@@ -65,13 +76,13 @@ function formatDateSafe(date: Date | string | null | undefined): string {
     }
 }
 
-export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
+export default function UnitList({ initialUnits, clientId, clientWoxId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
-  const [units, setUnits] = React.useState(initialUnits);
+  const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [selectedUnit, setSelectedUnit] = React.useState<Unit | null>(null);
+  const [selectedUnit, setSelectedUnit] = React.useState<DisplayUnit | null>(null);
 
   const [filter, setFilter] = React.useState('all');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
@@ -82,7 +93,17 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   }, []);
 
   React.useEffect(() => {
-    setUnits(initialUnits);
+    async function enrichUnits() {
+        const enriched = await Promise.all(initialUnits.map(async (unit) => {
+            if (unit.woxDeviceId) {
+                const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
+                return { ...unit, woxDevice: device };
+            }
+            return unit;
+        }));
+        setUnits(enriched);
+    }
+    enrichUnits();
   }, [initialUnits]);
 
   const filteredUnits = React.useMemo(() => {
@@ -127,17 +148,17 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsSheetOpen(true);
   };
 
-  const handleEditUnit = (unit: Unit) => {
+  const handleEditUnit = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
     setIsSheetOpen(true);
   };
 
-  const handleDeleteUnit = (unit: Unit) => {
+  const handleDeleteUnit = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
     setIsDeleteDialogOpen(true);
   };
   
-  const handleRegisterPayment = (unit: Unit) => {
+  const handleRegisterPayment = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
     setIsPaymentDialogOpen(true);
   };
@@ -154,7 +175,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsDeleteDialogOpen(false);
   };
 
-  const getCostForUnit = (unit: Unit) => {
+  const getCostForUnit = (unit: DisplayUnit) => {
     if (unit.tipoContrato === 'con_contrato') {
       const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
       const balance = unit.saldoContrato ?? unit.costoTotalContrato;
@@ -173,7 +194,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
   };
   
-  const getContractDisplay = (unit: Unit) => {
+  const getContractDisplay = (unit: DisplayUnit) => {
     const baseText = unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato';
     const duration = unit.mesesContrato ? `${unit.mesesContrato} meses` : null;
 
@@ -216,7 +237,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Placa</TableHead>
+                <TableHead>Placa / Disp. WOX</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
@@ -234,7 +255,12 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               {filteredUnits.length > 0 ? (
                 filteredUnits.map(unit => (
                   <TableRow key={unit.id} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
-                    <TableCell className="font-medium">{unit.placa}</TableCell>
+                    <TableCell>
+                        <div className="font-medium flex items-center gap-2">{unit.placa}
+                            {unit.woxDeviceId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
+                        </div>
+                        {unit.woxDevice?.name && <div className="text-sm text-muted-foreground">{unit.woxDevice.name}</div>}
+                    </TableCell>
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
@@ -309,6 +335,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           <UnitForm
             unit={selectedUnit}
             clientId={clientId}
+            clientWoxId={clientWoxId}
             onSave={handleFormSave}
             onCancel={() => setIsSheetOpen(false)}
           />

@@ -16,6 +16,7 @@ export type UnitContractType = z.infer<typeof UnitContractType>;
 export const UnitSchema = z.object({
   id: z.string(),
   clientId: z.string(),
+  woxDeviceId: z.string().optional(), // ID from WOX API to link devices
   imei: z.string().min(1, 'IMEI es requerido.'),
   placa: z.string().min(1, 'Placa es requerida.'),
   modelo: z.string().optional(),
