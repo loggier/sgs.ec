@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -6,9 +7,10 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
-import { UserFormSchema, type UserFormInput, type User } from '@/lib/user-schema';
+import { UserFormSchema, type UserFormInput, type User, UserRole } from '@/lib/user-schema';
 import { saveUser } from '@/lib/user-actions';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +39,7 @@ type UserFormProps = {
 
 export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isEditing = !!user;
 
@@ -47,7 +50,7 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
       : {
           username: '',
           password: '',
-          role: 'usuario',
+          role: 'analista', // Default to the lowest creatable role
           nombre: '',
           correo: '',
           telefono: '',
@@ -56,10 +59,28 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
         },
   });
 
+  const availableRoles: { value: UserRole, label: string }[] = React.useMemo(() => {
+    if (currentUser?.role === 'master') {
+        return [
+            { value: 'usuario', label: 'Usuario' },
+            { value: 'analista', label: 'Analista' },
+            { value: 'manager', label: 'Manager' },
+            { value: 'master', label: 'Master' },
+        ];
+    }
+    if (currentUser?.role === 'manager') {
+        return [{ value: 'analista', label: 'Analista' }];
+    }
+    return [];
+  }, [currentUser]);
+
+
   async function onSubmit(values: UserFormInput) {
+    if (!currentUser) return;
+
     setIsSubmitting(true);
     try {
-      const result = await saveUser(values, user?.id);
+      const result = await saveUser(values, currentUser, user?.id);
       if (result.success && result.user) {
         toast({
           title: 'Éxito',
@@ -192,16 +213,16 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Rol de Usuario</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={availableRoles.length <= 1 && isEditing}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Seleccione un rol" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="usuario">Usuario</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="master">Master</SelectItem>
+                          {availableRoles.map(role => (
+                            <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

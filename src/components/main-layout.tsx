@@ -89,22 +89,22 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                     {!isCollapsed && <span>Gestión de Pagos</span>}
                 </NavLink>
               </SidebarMenuItem>
-              {user?.role === 'master' && (
-                 <>
+              {user && ['master', 'manager'].includes(user.role) && (
                   <SidebarMenuItem>
                       <NavLink href="/users">
                           <UsersRound className="h-4 w-4" />
                           {!isCollapsed && <span>Usuarios</span>}
                       </NavLink>
                   </SidebarMenuItem>
+              )}
+               {user?.role === 'master' && (
                   <SidebarMenuItem>
                       <NavLink href="/settings">
                           <Settings className="h-4 w-4" />
                           {!isCollapsed && <span>Configuración</span>}
                       </NavLink>
                   </SidebarMenuItem>
-                </>
-              )}
+                )}
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-2 border-t">

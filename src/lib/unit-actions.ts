@@ -61,10 +61,10 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
 export async function saveUnit(
   data: UnitFormInput,
   clientId: string,
-  user: { id: string; role: User['role'] } | null,
+  user: User | null,
   unitId?: string
 ): Promise<{ success: boolean; message:string; unit?: Unit }> {
-  if (!user || !['master', 'manager'].includes(user.role)) {
+  if (!user || !['master', 'manager', 'analista'].includes(user.role)) {
       return { success: false, message: 'No tiene permiso para modificar unidades.' };
   }
   
@@ -74,8 +74,14 @@ export async function saveUnit(
       return { success: false, message: 'El cliente especificado no existe.' };
   }
   const clientData = clientDoc.data() as Client;
-  if (user.role !== 'master' && clientData.ownerId !== user.id) {
-      return { success: false, message: 'No tiene permiso para añadir unidades a este cliente.' };
+
+  const clientOwnerId = clientData.ownerId;
+  const canModify = user.role === 'master' ||
+                    clientOwnerId === user.id ||
+                    (user.role === 'analista' && clientOwnerId === user.creatorId);
+
+  if (!canModify) {
+      return { success: false, message: 'No tiene permiso para añadir/editar unidades para este cliente.' };
   }
 
   const validation = UnitFormSchema.safeParse(data);
@@ -189,8 +195,8 @@ export async function saveUnit(
   }
 }
 
-export async function deleteUnit(unitId: string, clientId: string, userId: string, userRole: User['role']): Promise<{ success: boolean; message: string }> {
-  if (!userId || !['master', 'manager'].includes(userRole)) {
+export async function deleteUnit(unitId: string, clientId: string, user: User): Promise<{ success: boolean; message: string }> {
+  if (!user || !['master', 'manager', 'analista'].includes(user.role)) {
       return { success: false, message: 'Acción no permitida.' };
   }
   
@@ -199,7 +205,13 @@ export async function deleteUnit(unitId: string, clientId: string, userId: strin
   if (!clientDoc.exists()) {
       return { success: false, message: 'El cliente especificado no existe.' };
   }
-  if (userRole !== 'master' && clientDoc.data().ownerId !== userId) {
+
+  const clientOwnerId = clientDoc.data().ownerId;
+  const canDelete = user.role === 'master' ||
+                    clientOwnerId === user.id ||
+                    (user.role === 'analista' && clientOwnerId === user.creatorId);
+
+  if (!canDelete) {
       return { success: false, message: 'No tiene permiso para eliminar unidades de este cliente.' };
   }
 
@@ -215,16 +227,21 @@ export async function deleteUnit(unitId: string, clientId: string, userId: strin
   }
 }
 
-export async function getAllUnits(currentUserId: string, currentUserRole: User['role']): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
-    if (!currentUserId) return [];
+export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
+    if (!currentUser) return [];
 
     try {
         const clientsSnapshot = await getDocs(collection(db, 'clients'));
         
+        let ownerIdToFilter = currentUser.id;
+        if (currentUser.role === 'analista' && currentUser.creatorId) {
+            ownerIdToFilter = currentUser.creatorId;
+        }
+
         // Filter clients based on user role
         const userClients = clientsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as ClientDisplay))
-            .filter(client => currentUserRole === 'master' || client.ownerId === currentUserId);
+            .filter(client => currentUser.role === 'master' || client.ownerId === ownerIdToFilter);
 
         const clientMap = new Map(userClients.map(c => [c.id, c]));
         const usersSnapshot = await getDocs(collection(db, 'users'));

@@ -15,7 +15,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput } from './user-schema';
+import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput, UserRole } from './user-schema';
 import bcrypt from 'bcryptjs';
 import { createSession, deleteSession, getCurrentUser as getCurrentUserFromCookie } from './auth';
 
@@ -92,9 +92,14 @@ export async function getUsers(): Promise<User[]> {
 
 export async function saveUser(
   data: UserFormInput,
+  currentUser: User,
   id?: string
 ): Promise<{ success: boolean; message: string; user?: User }> {
   
+  if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+      return { success: false, message: 'No tiene permiso para guardar usuarios.' };
+  }
+
   const isEditing = !!id;
   const validation = UserFormSchema(isEditing).safeParse(data);
 
@@ -104,6 +109,11 @@ export async function saveUser(
   }
 
   const { username, password, role, nombre, correo, telefono, empresa, nota } = validation.data;
+
+  // Permission checks for role assignment
+  if (currentUser.role === 'manager' && role !== 'analista') {
+      return { success: false, message: 'Los managers solo pueden crear usuarios de tipo analista.' };
+  }
   
   try {
     const usersCollection = collection(db, 'users');
@@ -139,7 +149,17 @@ export async function saveUser(
     } else {
       // Create new user
       const hashedPassword = await hashPassword(password);
-      const newUser: Omit<User, 'id'> = { username, password: hashedPassword, role, nombre, correo, telefono, empresa, nota };
+      const newUser: Omit<User, 'id'> = { 
+          username, 
+          password: hashedPassword, 
+          role, 
+          nombre, 
+          correo, 
+          telefono, 
+          empresa, 
+          nota,
+          creatorId: currentUser.role === 'manager' ? currentUser.id : undefined,
+      };
       const newUserRef = await addDoc(usersCollection, newUser);
 
       revalidatePath('/users');

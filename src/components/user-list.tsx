@@ -25,6 +25,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import UserForm from './user-form';
 import DeleteUserDialog from './delete-user-dialog';
+import { useAuth } from '@/context/auth-context';
 
 type UserListProps = {
   initialUsers: User[];
@@ -32,14 +33,13 @@ type UserListProps = {
 
 export default function UserList({ initialUsers }: UserListProps) {
   const { searchTerm } = useSearch();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = React.useState(initialUsers);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
 
   React.useEffect(() => {
-    // The user object from the server via initialUsers already lacks the password.
-    // No need to map and remove it again.
     setUsers(initialUsers);
   }, [initialUsers]);
 
@@ -82,6 +82,8 @@ export default function UserList({ initialUsers }: UserListProps) {
         return 'destructive';
       case 'manager':
         return 'default';
+      case 'analista':
+        return 'outline';
       case 'usuario':
         return 'secondary';
       default:
@@ -92,6 +94,7 @@ export default function UserList({ initialUsers }: UserListProps) {
   const displayRole: Record<User['role'], string> = {
     'master': 'Master',
     'manager': 'Manager',
+    'analista': 'Analista',
     'usuario': 'Usuario'
   };
 
@@ -116,10 +119,12 @@ export default function UserList({ initialUsers }: UserListProps) {
                 <CardTitle>Gestión de Usuarios</CardTitle>
                 <CardDescription>Agregue, edite o elimine usuarios.</CardDescription>
             </div>
-            <Button onClick={handleAddUser} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nuevo Usuario
-            </Button>
+            {currentUser && ['master', 'manager'].includes(currentUser.role) && (
+                <Button onClick={handleAddUser} size="sm">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nuevo Usuario
+                </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>

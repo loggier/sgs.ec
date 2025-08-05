@@ -21,7 +21,7 @@ import type { User } from './user-schema';
 import { getWoxClients } from './wox-actions';
 
 
-// Helper function to convert Firestore Timestamps to Dates in a document
+// Helper function to convert Firestore Timestamps to a document
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
   for (const key in data) {
@@ -33,17 +33,23 @@ const convertTimestamps = (docData: any) => {
 };
 
 // Gets locally stored clients
-export async function getClients(currentUserId: string, currentUserRole: User['role']): Promise<ClientDisplay[]> {
+export async function getClients(currentUserId: string, currentUserRole: User['role'], creatorId?: string): Promise<ClientDisplay[]> {
     if (!currentUserId) return [];
   
     try {
       let clientsQuery;
       const clientsCollectionRef = collection(db, 'clients');
+      let ownerIdToFilter = currentUserId;
+
+      // If the user is an analyst, they should see the clients of their manager
+      if (currentUserRole === 'analista' && creatorId) {
+          ownerIdToFilter = creatorId;
+      }
   
       if (currentUserRole === 'master') {
         clientsQuery = query(clientsCollectionRef);
       } else {
-        clientsQuery = query(clientsCollectionRef, where('ownerId', '==', currentUserId));
+        clientsQuery = query(clientsCollectionRef, where('ownerId', '==', ownerIdToFilter));
       }
       
       const clientSnapshot = await getDocs(clientsQuery);
@@ -71,8 +77,8 @@ export async function getClients(currentUserId: string, currentUserRole: User['r
     }
 }
   
-export async function getClientById(id: string, currentUserId: string, currentUserRole: User['role']): Promise<ClientDisplay | undefined> {
-     if (!currentUserId) return undefined;
+export async function getClientById(id: string, currentUser: User): Promise<ClientDisplay | undefined> {
+     if (!currentUser) return undefined;
   
     try {
       const clientDocRef = doc(db, 'clients', id);
@@ -83,13 +89,18 @@ export async function getClientById(id: string, currentUserId: string, currentUs
   
       const data = convertTimestamps(clientDoc.data()) as Client;
       
-      if (currentUserRole !== 'master' && data.ownerId !== currentUserId) {
+      let ownerIdToCheck = data.ownerId;
+      if (currentUser.role === 'analista' && currentUser.creatorId) {
+          if (ownerIdToCheck !== currentUser.creatorId) {
+              return undefined;
+          }
+      } else if (currentUser.role !== 'master' && ownerIdToCheck !== currentUser.id) {
           return undefined;
       }
       
       let clientData: ClientDisplay = { id: clientDoc.id, ...data };
       
-      if (currentUserRole === 'master' && data.ownerId) {
+      if (currentUser.role === 'master' && data.ownerId) {
           const ownerDocRef = doc(db, 'users', data.ownerId);
           const ownerDoc = await getDoc(ownerDocRef);
           if (ownerDoc.exists()) {
@@ -98,7 +109,8 @@ export async function getClientById(id: string, currentUserId: string, currentUs
       }
   
       return clientData;
-    } catch (error) {
+    } catch (error)
+    {
       console.error("Error getting client by ID:", error);
       return undefined;
     }
@@ -106,15 +118,20 @@ export async function getClientById(id: string, currentUserId: string, currentUs
 
 export async function saveClient(
     data: Omit<Client, 'id'>,
-    ownerId: string,
+    currentUser: User,
     clientId?: string
   ): Promise<{ success: boolean; message: string; client?: ClientDisplay; }> {
+    if (!currentUser) {
+        return { success: false, message: 'No se pudo identificar al usuario.' };
+    }
+    
+    // Determine the owner of the client. For analysts, it's their creator.
+    const ownerId = currentUser.role === 'analista' ? currentUser.creatorId : currentUser.id;
     if (!ownerId) {
-        return { success: false, message: 'No se pudo identificar al propietario.' };
+         return { success: false, message: 'No se pudo determinar el propietario del cliente.' };
     }
 
-    const userDoc = await getDoc(doc(db, 'users', ownerId));
-    if (!userDoc.exists() || !['master', 'manager'].includes(userDoc.data()?.role)) {
+    if (!['master', 'manager', 'analista'].includes(currentUser.role)) {
         return { success: false, message: 'No tiene permiso para guardar clientes.' };
     }
   
@@ -175,7 +192,13 @@ export async function saveClient(
             if (!currentClientDoc.exists()) {
                 return { success: false, message: 'Cliente no encontrado.' };
             }
-            if (userDoc.data()?.role !== 'master' && currentClientDoc.data()?.ownerId !== ownerId) {
+            
+            const currentOwnerId = currentClientDoc.data()?.ownerId;
+            const canEdit = currentUser.role === 'master' || 
+                            currentOwnerId === currentUser.id || 
+                            (currentUser.role === 'analista' && currentOwnerId === currentUser.creatorId);
+
+            if (!canEdit) {
                 return { success: false, message: 'No tiene permiso para editar este cliente.' };
             }
             await updateDoc(clientDocRef, dataToSave);
@@ -186,7 +209,7 @@ export async function saveClient(
         }
   
       revalidatePath('/');
-      const savedClient = await getClientById(savedClientId!, ownerId, userDoc.data()?.role);
+      const savedClient = await getClientById(savedClientId!, currentUser);
       const baseMessage = `Cliente ${clientId ? 'actualizado' : 'creado'} con éxito.`;
       return {
         success: true,
@@ -195,13 +218,13 @@ export async function saveClient(
       };
     } catch (error) {
       console.error(error);
-      const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+      const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
       return { success: false, message: `Error al guardar el cliente: ${errorMessage}` };
     }
 }
   
-export async function deleteClient(id: string, currentUserId: string, currentUserRole: User['role']): Promise<{ success: boolean; message: string }> {
-     if (!currentUserId) {
+export async function deleteClient(id: string, currentUser: User): Promise<{ success: boolean; message: string }> {
+     if (!currentUser) {
          return { success: false, message: 'Acción no permitida.' };
      }
   
@@ -212,7 +235,12 @@ export async function deleteClient(id: string, currentUserId: string, currentUse
         return { success: false, message: 'Cliente no encontrado.' };
       }
      
-      if (currentUserRole !== 'master' && clientDoc.data()?.ownerId !== currentUserId) {
+      const clientOwnerId = clientDoc.data()?.ownerId;
+      const canDelete = currentUser.role === 'master' || 
+                        clientOwnerId === currentUser.id ||
+                        (currentUser.role === 'analista' && clientOwnerId === currentUser.creatorId);
+
+      if (!canDelete) {
           return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
       }
   

@@ -115,13 +115,12 @@ export async function registerPayment(
 
 
 export async function getAllPayments(
-  currentUserId: string,
-  currentUserRole: User['role']
+  currentUser: User
 ): Promise<PaymentHistoryEntry[]> {
-  if (!currentUserId) return [];
+  if (!currentUser) return [];
 
   try {
-    const userClients = await getClients(currentUserId, currentUserRole);
+    const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
     const usersSnapshot = await getDocs(collection(db, 'users'));
     const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 

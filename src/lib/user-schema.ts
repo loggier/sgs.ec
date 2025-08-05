@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 
-export const UserRole = z.enum(['master', 'manager', 'usuario']);
+export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario']);
 export type UserRole = z.infer<typeof UserRole>;
 
 export const UserSchema = z.object({
@@ -14,11 +14,12 @@ export const UserSchema = z.object({
   telefono: z.string().optional(),
   empresa: z.string().optional(),
   nota: z.string().optional(),
+  creatorId: z.string().optional(), // ID of the manager who created this user (if role is 'analista')
 });
 export type User = z.infer<typeof UserSchema>;
 
 
-// Schema for the user management form (by master users)
+// Schema for the user management form (by master/manager users)
 export const UserFormSchema = (isEditing: boolean) => z.object({
   username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres.'),
   password: isEditing 
