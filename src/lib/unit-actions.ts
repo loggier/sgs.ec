@@ -146,10 +146,10 @@ export async function saveUnit(
          unitDataForFirestore.saldoContrato = costoTotalContrato;
       }
 
-      // Clean up undefined/null/empty values before saving
       Object.keys(unitDataForFirestore).forEach(key => {
-        if (unitDataForFirestore[key] === undefined || unitDataForFirestore[key] === null || unitDataForFirestore[key] === '') {
-            delete unitDataForFirestore[key];
+        const k = key as keyof typeof unitDataForFirestore;
+        if (unitDataForFirestore[k] === undefined || unitDataForFirestore[k] === null || unitDataForFirestore[k] === '') {
+          delete unitDataForFirestore[k];
         }
       });
 
@@ -168,10 +168,10 @@ export async function saveUnit(
         unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
       }
       
-      // Clean up undefined/null/empty values before saving
       Object.keys(unitDataForFirestore).forEach(key => {
-        if (unitDataForFirestore[key] === undefined || unitDataForFirestore[key] === null || unitDataForFirestore[key] === '') {
-            delete unitDataForFirestore[key];
+        const k = key as keyof typeof unitDataForFirestore;
+        if (unitDataForFirestore[k] === undefined || unitDataForFirestore[k] === null || unitDataForFirestore[k] === '') {
+          delete unitDataForFirestore[k];
         }
       });
       
@@ -187,7 +187,7 @@ export async function saveUnit(
   } catch (error) {
     console.error("Error saving unit:", error);
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-    return { success: false, message: `Error al guardar la unidad: ${errorMessage}` };
+    return { success: false, message: errorMessage };
   }
 }
 

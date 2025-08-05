@@ -526,9 +526,10 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
         });
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al guardar la unidad.';
       toast({
         title: 'Error',
-        description: 'Ocurrió un error inesperado al guardar la unidad.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
