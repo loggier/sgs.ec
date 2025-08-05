@@ -4,9 +4,14 @@ import { z } from 'zod';
 export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario']);
 export type UserRole = z.infer<typeof UserRole>;
 
+const usernameValidation = z
+  .string()
+  .min(3, 'El nombre de usuario debe tener al menos 3 caracteres.')
+  .regex(/^[a-zA-Z0-9_-]+$/, 'El nombre de usuario solo puede contener letras, números, guiones y guiones bajos.');
+
 export const UserSchema = z.object({
   id: z.string(),
-  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres.'),
+  username: usernameValidation,
   password: z.string(), // This will be the hashed password, so no length validation here
   role: UserRole,
   nombre: z.string().optional(),
@@ -21,7 +26,7 @@ export type User = z.infer<typeof UserSchema>;
 
 // Schema for the user management form (by master/manager users)
 export const UserFormSchema = (isEditing: boolean) => z.object({
-  username: z.string().min(3, 'El nombre de usuario debe tener al menos 3 caracteres.'),
+  username: usernameValidation,
   password: isEditing 
     ? z.string().optional().refine(val => !val || val.length >= 6, {
         message: 'La nueva contraseña debe tener al menos 6 caracteres.',
