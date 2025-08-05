@@ -43,11 +43,17 @@ export type WoxDevice = {
     active: boolean;
     protocol: string;
     plate_number: string;
+    user_id: number; // Important for filtering
 };
 
+
+// This response type is for the /api/admin/devices endpoint
 type WoxDeviceListApiResponse = {
-    data: { id: number, name: string, imei: string }[];
+    items: {
+        data: WoxDevice[];
+    };
 };
+
 
 // This type now expects the structure from /api/admin/device/{id}
 type WoxDeviceDetailApiResponse = {
@@ -134,26 +140,33 @@ export async function getWoxClientDetailsById(woxId: string): Promise<Partial<Cl
 }
 
 
-export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ devices: { id: number, name: string, imei: string }[]; error?: string }> {
+export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ devices: WoxDevice[]; error?: string }> {
     try {
         const settings = await getWoxSettings();
         if (!settings?.url || !settings?.apiKey) {
-            return { devices: [], error: 'WOX settings are not configured.' };
+            return { devices: [], error: 'La configuración de WOX no está completa.' };
         }
 
         const numericId = woxClientId.replace('wox-', '');
-        const apiUrl = new URL(`/api/client/${numericId}/devices`, settings.url);
+        // Use the admin endpoint to get all devices and then filter by user_id
+        const apiUrl = new URL('/api/admin/devices', settings.url);
         apiUrl.searchParams.append('user_api_hash', settings.apiKey);
+        apiUrl.searchParams.append('user_id', numericId); // Filter by user ID
 
         const response = await fetch(apiUrl.toString());
 
         if (!response.ok) {
-            console.error(`Error fetching devices from WOX API: ${response.status} ${response.statusText}`);
+            const errorBody = await response.text();
+            console.error(`Error fetching devices from WOX API (${apiUrl}): ${response.status} ${response.statusText}`, errorBody);
             return { devices: [], error: `Error de la API de WOX: ${response.statusText}` };
         }
 
         const jsonResponse: WoxDeviceListApiResponse = await response.json();
-        return { devices: jsonResponse.data || [] };
+        
+        // The structure is { items: { data: [...] } }
+        const devices = jsonResponse.items?.data || [];
+
+        return { devices: devices };
 
     } catch (error) {
         console.error(`Failed to get WOX devices for client ${woxClientId}:`, error);
