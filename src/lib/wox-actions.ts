@@ -213,7 +213,7 @@ export async function setWoxDeviceStatus(
       return { success: false, message: 'La configuración de WOX no está completa.' };
     }
 
-    const apiUrl = new URL(`/api/device/${deviceId}/status`, settings.url);
+    const apiUrl = new URL(`/api/admin/device/${deviceId}/status`, settings.url);
     const formData = new FormData();
     formData.append('user_api_hash', settings.apiKey);
     formData.append('active', active ? 'true' : 'false');
