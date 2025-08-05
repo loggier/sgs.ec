@@ -40,14 +40,18 @@ export type WoxDevice = {
     fuel_measurement_id: string;
     tail_length: string;
     tail_color: string;
+    active: boolean;
+    protocol: string;
+    plate_number: string;
 };
 
 type WoxDeviceListApiResponse = {
     data: { id: number, name: string, imei: string }[];
 };
 
+// This type now expects the structure from /api/admin/device/{id}
 type WoxDeviceDetailApiResponse = {
-    item: WoxDevice;
+    data: WoxDevice;
 };
 
 
@@ -165,7 +169,8 @@ export async function getWoxDeviceDetails(deviceId: string): Promise<{ device: W
             return { device: null, error: 'WOX settings are not configured.' };
         }
 
-        const apiUrl = new URL(`/api/devices/${deviceId}`, settings.url);
+        // Use the more detailed admin endpoint
+        const apiUrl = new URL(`/api/admin/device/${deviceId}`, settings.url);
         apiUrl.searchParams.append('user_api_hash', settings.apiKey);
 
         const response = await fetch(apiUrl.toString());
@@ -176,7 +181,8 @@ export async function getWoxDeviceDetails(deviceId: string): Promise<{ device: W
         
         const jsonResponse: WoxDeviceDetailApiResponse = await response.json();
         
-        return { device: jsonResponse.item || null };
+        // The detailed response is nested under a "data" key
+        return { device: jsonResponse.data || null };
 
     } catch (error) {
         console.error(`Failed to get WOX device details for id ${deviceId}:`, error);
