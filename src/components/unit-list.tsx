@@ -222,7 +222,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Plan</TableHead>
-                <TableHead>Contrato</TableHead>
+                <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Próximo Pago</TableHead>
                 <TableHead>

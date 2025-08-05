@@ -178,7 +178,7 @@ function UnitFormFields({ showClientSelector, isEditing, woxDeviceId }: { showCl
 
   React.useEffect(() => {
     if (showClientSelector && user) {
-      getClients(user.id, user.role).then(setClients);
+      getClients(user.id, user.role, user.creatorId).then(setClients);
     }
   }, [showClientSelector, user]);
   
@@ -301,7 +301,7 @@ function UnitFormFields({ showClientSelector, isEditing, woxDeviceId }: { showCl
           name="tipoPlan"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tipo de Plan</FormLabel>
+              <FormLabel>Plan</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -323,11 +323,11 @@ function UnitFormFields({ showClientSelector, isEditing, woxDeviceId }: { showCl
           name="tipoContrato"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tipo de Contrato</FormLabel>
+              <FormLabel>Tipo de Plan</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione un tipo de contrato" />
+                    <SelectValue placeholder="Seleccione un tipo de plan" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>

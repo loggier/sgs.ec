@@ -265,7 +265,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
                 <TableHead>Plan</TableHead>
-                <TableHead>Contrato</TableHead>
+                <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Estado de Pago</TableHead>
                 <TableHead>Monto Vencido</TableHead>
