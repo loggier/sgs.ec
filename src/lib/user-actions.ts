@@ -175,6 +175,7 @@ export async function saveUser(
           nota,
           creatorId: currentUser.role === 'manager' ? currentUser.id : undefined,
       };
+      
       const newUserRef = await addDoc(usersCollection, newUser);
 
       revalidatePath('/users');
