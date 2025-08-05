@@ -214,7 +214,14 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
 
   const isExpired = (date: Date) => {
     return new Date(date) < new Date();
-  }
+  };
+  
+  const getDeviceStatus = (device?: WoxDevice | null) => {
+      if (!device) return { text: 'N/A', color: 'bg-gray-400' };
+      if (!device.active) return { text: 'Inactivo', color: 'bg-gray-400' };
+      if (device.engine_status) return { text: 'En Movimiento', color: 'bg-green-500' };
+      return { text: 'Detenido', color: 'bg-yellow-500' };
+  };
 
   return (
     <>
@@ -247,7 +254,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 <TableHead>Placa / Disp. WOX</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Estado WOX</TableHead>
-                <TableHead>Última Conexión</TableHead>
+                <TableHead>Detalle WOX</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
@@ -261,6 +268,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               {filteredUnits.length > 0 ? (
                 filteredUnits.map(unit => {
                   const isUnconfigured = needsConfiguration(unit);
+                  const deviceStatus = getDeviceStatus(unit.woxDevice);
                   return (
                   <TableRow key={unit.id} className={cn(
                       isExpired(unit.fechaVencimiento) && 'bg-red-50 dark:bg-red-900/20',
@@ -275,7 +283,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                                         <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3"/></Badge>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Vinculado a WOX</p>
+                                        <p>Vinculado a WOX (ID: {unit.woxDeviceId})</p>
                                     </TooltipContent>
                                 </Tooltip>
                             )}
@@ -286,8 +294,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                      <TableCell>
                         {unit.woxDevice ? (
                             <div className='flex items-center gap-2'>
-                                <span className={cn('h-2 w-2 rounded-full', unit.woxDevice.online === 'online' ? 'bg-green-500' : 'bg-gray-400')} />
-                                <span className='capitalize'>{unit.woxDevice.online}</span>
+                                <span className={cn('h-2 w-2 rounded-full', deviceStatus.color)} />
+                                <span className='text-sm'>{deviceStatus.text}</span>
                             </div>
                         ) : (
                             <span className="text-muted-foreground">N/A</span>
@@ -297,10 +305,14 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         {unit.woxDevice ? (
                            <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <span className="text-sm">{formatTimeAgo(unit.woxDevice.time)}</span>
+                                    <div className="text-sm flex flex-col">
+                                        <span>{formatTimeAgo(unit.woxDevice.moved_timestamp ? new Date(unit.woxDevice.moved_timestamp * 1000).toISOString() : null)}</span>
+                                        <span className="text-xs text-muted-foreground">{unit.woxDevice.stop_duration} detenido</span>
+                                    </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>{unit.woxDevice.time ? new Date(unit.woxDevice.time).toLocaleString() : 'N/A'}</p>
+                                    <p>Última conexión: {unit.woxDevice.moved_timestamp ? new Date(unit.woxDevice.moved_timestamp * 1000).toLocaleString() : 'N/A'}</p>
+                                    <p>Protocolo: {unit.woxDevice.protocol}</p>
                                 </TooltipContent>
                            </Tooltip>
                         ) : (

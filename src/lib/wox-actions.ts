@@ -34,29 +34,26 @@ export type WoxDevice = {
     id: number;
     name: string;
     imei: string;
-    online: 'online' | 'offline'; // Status of the device
-    time: string; // Last connection time (e.g., "2024-05-20 15:30:00")
-    fuel_quantity: string;
-    fuel_measurement_id: string;
-    tail_length: string;
-    tail_color: string;
     active: boolean;
     protocol: string;
     plate_number: string;
-    user_id: number; // Important for filtering
+    user_id: number;
+    // Fields from detailed endpoint
+    engine_status?: boolean;
+    stop_duration?: string;
+    moved_timestamp?: number;
 };
 
 
-// This response type is for the /api/admin/devices endpoint
-type WoxDeviceListApiResponse = {
-    items: {
-        data: WoxDevice[];
-    };
+// This response type is for the /api/admin/client/{id}/devices endpoint
+type WoxDeviceListForClientApiResponse = {
+    data: WoxDevice[];
 };
 
 
 // This type now expects the structure from /api/admin/device/{id}
 type WoxDeviceDetailApiResponse = {
+    status: number;
     data: WoxDevice;
 };
 
@@ -148,11 +145,9 @@ export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ de
         }
 
         const numericId = woxClientId.replace('wox-', '');
-        // Use the admin endpoint to get all devices and then filter by user_id
-        const apiUrl = new URL('/api/admin/devices', settings.url);
+        const apiUrl = new URL(`/api/admin/client/${numericId}/devices`, settings.url);
         apiUrl.searchParams.append('user_api_hash', settings.apiKey);
-        apiUrl.searchParams.append('user_id', numericId); // Filter by user ID
-
+        
         const response = await fetch(apiUrl.toString());
 
         if (!response.ok) {
@@ -161,10 +156,8 @@ export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ de
             return { devices: [], error: `Error de la API de WOX: ${response.statusText}` };
         }
 
-        const jsonResponse: WoxDeviceListApiResponse = await response.json();
-        
-        // The structure is { items: { data: [...] } }
-        const devices = jsonResponse.items?.data || [];
+        const jsonResponse: WoxDeviceListForClientApiResponse = await response.json();
+        const devices = jsonResponse.data || [];
 
         return { devices: devices };
 
@@ -182,7 +175,6 @@ export async function getWoxDeviceDetails(deviceId: string): Promise<{ device: W
             return { device: null, error: 'WOX settings are not configured.' };
         }
 
-        // Use the more detailed admin endpoint
         const apiUrl = new URL(`/api/admin/device/${deviceId}`, settings.url);
         apiUrl.searchParams.append('user_api_hash', settings.apiKey);
 
@@ -194,7 +186,6 @@ export async function getWoxDeviceDetails(deviceId: string): Promise<{ device: W
         
         const jsonResponse: WoxDeviceDetailApiResponse = await response.json();
         
-        // The detailed response is nested under a "data" key
         return { device: jsonResponse.data || null };
 
     } catch (error) {

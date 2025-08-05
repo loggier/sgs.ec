@@ -86,10 +86,11 @@ export async function saveUnit(
   }
   
   try {
-    const { fechaInicioContrato, tipoContrato, mesesContrato, costoTotalContrato, ...restOfData } = validation.data;
+    const { fechaInicioContrato, tipoContrato, mesesContrato, costoTotalContrato, imei, ...restOfData } = validation.data;
     
     const unitDataForFirestore: { [key: string]: any } = {
       ...restOfData,
+      imei,
       fechaInicioContrato: new Date(fechaInicioContrato),
       tipoContrato,
       mesesContrato,
@@ -97,9 +98,9 @@ export async function saveUnit(
     };
 
     // Auto-link with WOX device based on IMEI
-    if (clientData.woxId && unitDataForFirestore.imei) {
+    if (clientData.woxId && imei) {
         const { devices: woxDevices } = await getWoxDevicesByClientId(clientData.woxId);
-        const matchedDevice = woxDevices.find(d => d.imei === unitDataForFirestore.imei);
+        const matchedDevice = woxDevices.find(d => d.imei === imei);
         unitDataForFirestore.woxDeviceId = matchedDevice ? String(matchedDevice.id) : undefined;
     } else {
         unitDataForFirestore.woxDeviceId = undefined;
@@ -146,14 +147,6 @@ export async function saveUnit(
          unitDataForFirestore.saldoContrato = costoTotalContrato;
       }
 
-      Object.keys(unitDataForFirestore).forEach(key => {
-        const k = key as keyof typeof unitDataForFirestore;
-        if (unitDataForFirestore[k] === undefined || unitDataForFirestore[k] === null || unitDataForFirestore[k] === '') {
-          delete unitDataForFirestore[k];
-        }
-      });
-
-      await updateDoc(unitDocRef, unitDataForFirestore);
     } else { // Creating new unit
       const newStartDate = new Date(fechaInicioContrato);
       unitDataForFirestore.ultimoPago = null;
@@ -167,16 +160,21 @@ export async function saveUnit(
       } else {
         unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
       }
-      
-      Object.keys(unitDataForFirestore).forEach(key => {
-        const k = key as keyof typeof unitDataForFirestore;
-        if (unitDataForFirestore[k] === undefined || unitDataForFirestore[k] === null || unitDataForFirestore[k] === '') {
-          delete unitDataForFirestore[k];
-        }
-      });
-      
-      const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
-      savedUnitId = newUnitRef.id;
+    }
+    
+    // Clean up undefined/null/empty values before saving
+    Object.keys(unitDataForFirestore).forEach(key => {
+      const k = key as keyof typeof unitDataForFirestore;
+      if (unitDataForFirestore[k] === undefined || unitDataForFirestore[k] === null || unitDataForFirestore[k] === '') {
+        delete unitDataForFirestore[k];
+      }
+    });
+
+    if (savedUnitId) {
+        await updateDoc(doc(unitsCollectionRef, savedUnitId), unitDataForFirestore);
+    } else {
+        const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
+        savedUnitId = newUnitRef.id;
     }
 
     revalidatePath(`/clients/${clientId}/units`);
@@ -186,7 +184,7 @@ export async function saveUnit(
 
   } catch (error) {
     console.error("Error saving unit:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al guardar la unidad.';
     return { success: false, message: errorMessage };
   }
 }
