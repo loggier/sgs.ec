@@ -15,6 +15,7 @@ const badgeVariants = {
   success: 'bg-green-100 text-green-800 border-green-200',
   warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   destructive: 'bg-red-100 text-red-800 border-red-200',
+  info: 'bg-blue-100 text-blue-800 border-blue-200',
 };
 
 export default function PaymentStatusBadge({ paymentDate, className }: PaymentStatusBadgeProps) {
@@ -42,7 +43,7 @@ export default function PaymentStatusBadge({ paymentDate, className }: PaymentSt
     variant = 'destructive';
   } else if (daysDiff === 0) {
     text = 'Vence hoy';
-    variant = 'destructive';
+    variant = 'info';
   } else if (daysDiff <= 7) {
     text = `Vence en ${daysDiff} día(s)`;
     variant = 'warning';

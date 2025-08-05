@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle } from 'lucide-react';
-import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import Link from 'next/link';
@@ -139,6 +139,32 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     }
     return <div className="font-medium">{formatCurrency(unit.costoMensual)}</div>;
   };
+
+  const getMonthlyRate = (unit: Unit): number => {
+    if (unit.tipoContrato === 'con_contrato') {
+        return (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
+    }
+    return unit.costoMensual ?? 0;
+  };
+  
+  const calculateOverdueAmount = (unit: Unit): number => {
+      const today = startOfDay(new Date());
+      const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+
+      if (isBefore(today, nextPaymentDate)) {
+          return 0;
+      }
+      
+      const daysOverdue = differenceInDays(today, nextPaymentDate);
+      const monthlyRate = getMonthlyRate(unit);
+      
+      if (monthlyRate === 0) return 0;
+
+      // Calculate how many full 30-day periods have passed
+      const monthsOverdue = Math.floor(daysOverdue / 30) + 1;
+      
+      return monthsOverdue * monthlyRate;
+  };
   
   const getContractDisplay = (unit: Unit) => {
     const baseText = unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato';
@@ -241,10 +267,8 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
-                <TableHead>Fecha de Instalación</TableHead>
-                <TableHead>Fecha de Vencimiento</TableHead>
-                <TableHead>Próximo Pago</TableHead>
                 <TableHead>Estado de Pago</TableHead>
+                <TableHead>Monto Vencido</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -272,19 +296,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                       {getCostForUnit(unit)}
                     </TableCell>
                     <TableCell>
-                      {hasMounted ? formatDateSafe(unit.fechaInstalacion) : ''}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{hasMounted ? formatDateSafe(unit.fechaVencimiento) : ''}</span>
-                        {isExpired(unit.fechaVencimiento) && <span className="text-xs text-red-600">Vencido</span>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                        {hasMounted ? formatDateSafe(unit.fechaSiguientePago) : ''}
-                    </TableCell>
-                    <TableCell>
                       <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
+                    </TableCell>
+                    <TableCell>
+                      {hasMounted ? formatCurrency(calculateOverdueAmount(unit)) : ''}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -312,7 +327,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 12 : 11} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 10 : 9} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
