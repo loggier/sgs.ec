@@ -93,6 +93,7 @@ export async function getUsers(): Promise<User[]> {
         return usersWithoutPassword;
     }
     
+    // Correctly filter users for the manager
     if (currentUser.role === 'manager') {
         return usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
     }
