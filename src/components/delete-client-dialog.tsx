@@ -41,7 +41,7 @@ export default function DeleteClientDialog({
 
     setIsDeleting(true);
     try {
-      const result = await deleteClient(client.id!, user.id, user.role);
+      const result = await deleteClient(client.id!, user);
       if (result.success) {
         toast({
           title: 'Éxito',

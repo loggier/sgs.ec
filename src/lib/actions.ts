@@ -252,3 +252,49 @@ export async function deleteClient(id: string, user: User): Promise<{ success: b
       return { success: false, message: 'Error al eliminar el cliente.' };
     }
 }
+
+export async function deleteClientById(id: string, userId: string, userRole: string): Promise<{ success: boolean; message: string }> {
+  if (!userId || !userRole) {
+      return { success: false, message: 'Acción no permitida. Usuario no autenticado.' };
+  }
+
+  try {
+      const clientDocRef = doc(db, 'clients', id);
+      const clientDoc = await getDoc(clientDocRef);
+
+      if (!clientDoc.exists()) {
+          return { success: false, message: 'Cliente no encontrado.' };
+      }
+      
+      const clientData = clientDoc.data();
+      
+      // Permission check: only master or the owner can delete.
+      if (userRole !== 'master' && clientData.ownerId !== userId) {
+          return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
+      }
+
+      // Delete all subcollections (units and their payments) first
+      const unitsCollectionRef = collection(db, 'clients', id, 'units');
+      const unitsSnapshot = await getDocs(unitsCollectionRef);
+      const batch = writeBatch(db);
+
+      for (const unitDoc of unitsSnapshot.docs) {
+          const paymentsCollectionRef = collection(unitDoc.ref, 'payments');
+          const paymentsSnapshot = await getDocs(paymentsCollectionRef);
+          paymentsSnapshot.forEach(paymentDoc => batch.delete(paymentDoc.ref));
+          batch.delete(unitDoc.ref);
+      }
+      
+      // Delete the client itself
+      batch.delete(clientDocRef);
+
+      await batch.commit();
+
+      revalidatePath('/');
+      revalidatePath(`/clients/${id}/units`);
+      return { success: true, message: 'Cliente y todos sus datos asociados eliminados con éxito.' };
+  } catch (error) {
+      console.error("Error deleting client by ID:", error);
+      return { success: false, message: 'Error al eliminar el cliente.' };
+  }
+}
