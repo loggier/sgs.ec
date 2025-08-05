@@ -37,7 +37,7 @@ function UnitsPageContent() {
       setIsLoading(true);
       try {
         const [clientData, unitsData] = await Promise.all([
-          getClientById(clientId, user.id, user.role),
+          getClientById(clientId, user),
           getUnitsByClientId(clientId)
         ]);
         
@@ -54,7 +54,7 @@ function UnitsPageContent() {
         setIsLoading(false);
       }
     }
-  }, [clientId, user, toast]);
+  }, [clientId, user]);
 
   React.useEffect(() => {
     fetchData();
