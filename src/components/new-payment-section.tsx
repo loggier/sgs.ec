@@ -20,7 +20,7 @@ export default function NewPaymentSection({ onPaymentSaved }: NewPaymentSectionP
 
   React.useEffect(() => {
     if (user) {
-      getClients(user.id, user.role).then(setClients);
+      getClients(user.id, user.role, user.creatorId).then(setClients);
     }
   }, [user]);
 

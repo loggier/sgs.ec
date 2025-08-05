@@ -19,7 +19,7 @@ function PaymentsPageContent() {
   const fetchPayments = React.useCallback(() => {
     if (user) {
       setIsLoading(true);
-      getAllPayments(user.id, user.role)
+      getAllPayments(user)
         .then(data => {
           setPayments(data);
           setIsLoading(false);

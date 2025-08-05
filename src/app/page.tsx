@@ -28,8 +28,8 @@ function HomePageContent() {
       setIsLoading(true);
       try {
         const [internalClients, unitData] = await Promise.all([
-            getClients(user.id, user.role),
-            getAllUnits(user.id, user.role),
+            getClients(user.id, user.role, user.creatorId),
+            getAllUnits(user),
         ]);
 
         // Enrich internal clients with WOX data if linked

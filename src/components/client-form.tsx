@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
 
-import { ClientSchema, type ClientDisplay } from '@/lib/schema';
+import { ClientSchema, type ClientDisplay, type Client } from '@/lib/schema';
 import { saveClient } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -40,10 +40,11 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const form = useForm<Omit<ClientDisplay, 'id'>>({
+  const form = useForm<Omit<Client, 'id' | 'ownerId'>>({
     resolver: zodResolver(ClientSchema.omit({id: true, ownerId: true})),
     defaultValues: client
       ? {
+          woxId: client.woxId ?? undefined,
           codTipoId: client.codTipoId ?? 'C',
           codIdSujeto: client.codIdSujeto ?? '',
           nomSujeto: client.nomSujeto ?? '',
@@ -65,7 +66,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
         },
   });
 
-  async function onSubmit(values: Omit<ClientDisplay, 'id'>) {
+  async function onSubmit(values: Omit<Client, 'id' | 'ownerId'>) {
     if (!user) {
         toast({
             title: 'Error de autenticación',
@@ -78,7 +79,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
     setIsSubmitting(true);
     
     try {
-      const result = await saveClient(values, user.id, client?.id);
+      const result = await saveClient(values, user, client?.id);
       if (result.success && result.client) {
           toast({ title: 'Éxito', description: result.message });
           onSave();
