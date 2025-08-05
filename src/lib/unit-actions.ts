@@ -216,29 +216,34 @@ export async function saveUnit(
   }
 }
 
-export async function deleteUnit(unitId: string, clientId: string, user: User): Promise<{ success: boolean; message: string }> {
+export async function deleteUnit(unitId: string, clientId: string, user: User | null): Promise<{ success: boolean; message: string }> {
   if (!user || !['master', 'manager', 'analista'].includes(user.role)) {
-      return { success: false, message: 'Acción no permitida.' };
-  }
-  
-  const clientDocRef = doc(db, 'clients', clientId);
-  const clientDoc = await getDoc(clientDocRef);
-  if (!clientDoc.exists()) {
-      return { success: false, message: 'El cliente especificado no existe.' };
-  }
-
-  const clientOwnerId = clientDoc.data().ownerId;
-  const canDelete = user.role === 'master' ||
-                    clientOwnerId === user.id ||
-                    (user.role === 'analista' && clientOwnerId === user.creatorId);
-
-  if (!canDelete) {
-      return { success: false, message: 'No tiene permiso para eliminar unidades de este cliente.' };
+    return { success: false, message: 'Acción no permitida.' };
   }
 
   try {
+    const clientDocRef = doc(db, 'clients', clientId);
+    const clientDoc = await getDoc(clientDocRef);
+    if (!clientDoc.exists()) {
+      return { success: false, message: 'El cliente especificado no existe.' };
+    }
+
+    const clientOwnerId = clientDoc.data().ownerId;
+    const canDelete =
+      user.role === 'master' ||
+      clientOwnerId === user.id ||
+      (user.role === 'analista' && clientOwnerId === user.creatorId);
+
+    if (!canDelete) {
+      return {
+        success: false,
+        message: 'No tiene permiso para eliminar unidades de este cliente.',
+      };
+    }
+    
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     await deleteDoc(unitDocRef);
+    
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
     return { success: true, message: 'Unidad eliminada con éxito.' };

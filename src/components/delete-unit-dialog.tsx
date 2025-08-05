@@ -42,7 +42,7 @@ export default function DeleteUnitDialog({
 
     setIsDeleting(true);
     try {
-      const result = await deleteUnit(unit.id, clientId, user.id, user.role);
+      const result = await deleteUnit(unit.id, clientId, user);
       if (result.success) {
         toast({
           title: 'Éxito',
