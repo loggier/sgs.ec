@@ -119,12 +119,16 @@ export async function getAllPayments(
   if (!currentUser) return [];
 
   try {
+    // Correctly get clients based on the current user's role and ownership
     const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
+    
+    // Get all users to map owner names later
     const usersSnapshot = await getDocs(collection(db, 'users'));
     const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
     const allPayments: PaymentHistoryEntry[] = [];
 
+    // Iterate through the filtered list of clients
     for (const client of userClients) {
       const units = await getUnitsByClientId(client.id);
       for (const unit of units) {
@@ -147,6 +151,7 @@ export async function getAllPayments(
       }
     }
     
+    // Sort all collected payments by date
     allPayments.sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
 
     return allPayments;
