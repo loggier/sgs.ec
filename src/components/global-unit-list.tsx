@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle } from 'lucide-react';
-import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays } from 'date-fns';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import Link from 'next/link';
