@@ -16,6 +16,12 @@ import AppContent from '@/components/app-content';
 import { Button } from '@/components/ui/button';
 import { DownloadCloud, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export const dynamic = 'force-dynamic';
 
@@ -130,18 +136,25 @@ function UnitsPageContent() {
   }, {} as Record<string, number>);
 
   return (
-    <>
+    <TooltipProvider>
       <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/" />
       <div className='flex justify-end mb-6'>
           {client.woxId && (
-              <Button onClick={handleSyncWithWox} disabled={isSyncing}>
-                  {isSyncing ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                      <DownloadCloud className="mr-2 h-4 w-4" />
-                  )}
-                  {isSyncing ? 'Sincronizando...' : 'Sincronizar con WOX'}
-              </Button>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button onClick={handleSyncWithWox} disabled={isSyncing}>
+                        {isSyncing ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <DownloadCloud className="mr-2 h-4 w-4" />
+                        )}
+                        {isSyncing ? 'Sincronizando...' : 'Sincronizar con WOX'}
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Sincroniza e importa las unidades del cliente desde la plataforma WOX.</p>
+                </TooltipContent>
+            </Tooltip>
           )}
       </div>
       <div className="space-y-6">
@@ -157,7 +170,7 @@ function UnitsPageContent() {
             onDataChange={fetchData} 
         />
       </div>
-    </>
+    </TooltipProvider>
   );
 }
 
