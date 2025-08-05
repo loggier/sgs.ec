@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2 } from 'lucide-react';
-import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
@@ -37,6 +37,7 @@ import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 type UnitListProps = {
   initialUnits: DisplayUnit[];
@@ -70,6 +71,17 @@ function formatDateSafe(date: Date | string | null | undefined): string {
         return 'Fecha inválida';
     }
 }
+
+function formatTimeAgo(dateString?: string | null): string {
+    if (!dateString) return 'Nunca';
+    try {
+        const date = new Date(dateString);
+        return formatDistanceToNow(date, { addSuffix: true, locale: es });
+    } catch (e) {
+        return 'Fecha inválida';
+    }
+}
+
 
 export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
@@ -227,19 +239,19 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
         </div>
       </CardHeader>
       <CardContent>
+        <TooltipProvider>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Placa / Disp. WOX</TableHead>
                 <TableHead>IMEI</TableHead>
+                <TableHead>Estado WOX</TableHead>
+                <TableHead>Última Conexión</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
-                <TableHead>Fecha de Instalación</TableHead>
-                <TableHead>Fecha de Vencimiento</TableHead>
                 <TableHead>Próximo Pago</TableHead>
-                <TableHead>Estado de Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -255,12 +267,46 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                       isUnconfigured && 'bg-yellow-50 dark:bg-yellow-900/20'
                   )}>
                     <TableCell>
-                        <div className="font-medium flex items-center gap-2">{unit.placa}
-                            {unit.woxDeviceId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
+                        <div className="font-medium flex items-center gap-2">
+                            {unit.placa}
+                            {unit.woxDeviceId && (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3"/></Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Vinculado a WOX</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            )}
                         </div>
                         {unit.woxDevice?.name && <div className="text-sm text-muted-foreground">{unit.woxDevice.name}</div>}
                     </TableCell>
                     <TableCell>{unit.imei}</TableCell>
+                     <TableCell>
+                        {unit.woxDevice ? (
+                            <div className='flex items-center gap-2'>
+                                <span className={cn('h-2 w-2 rounded-full', unit.woxDevice.online === 'online' ? 'bg-green-500' : 'bg-gray-400')} />
+                                <span className='capitalize'>{unit.woxDevice.online}</span>
+                            </div>
+                        ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                        )}
+                    </TableCell>
+                    <TableCell>
+                        {unit.woxDevice ? (
+                           <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="text-sm">{formatTimeAgo(unit.woxDevice.time)}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>{unit.woxDevice.time ? new Date(unit.woxDevice.time).toLocaleString() : 'N/A'}</p>
+                                </TooltipContent>
+                           </Tooltip>
+                        ) : (
+                             <span className="text-muted-foreground">N/A</span>
+                        )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
@@ -269,18 +315,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                     </TableCell>
                     <TableCell>
                       {getCostForUnit(unit)}
-                    </TableCell>
-                    <TableCell>
-                      {hasMounted ? formatDateSafe(unit.fechaInstalacion) : ''}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span>{hasMounted ? formatDateSafe(unit.fechaVencimiento) : ''}</span>
-                        {isExpired(unit.fechaVencimiento) && <span className="text-xs text-red-600">Vencido</span>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                        {hasMounted ? formatDateSafe(unit.fechaSiguientePago) : ''}
                     </TableCell>
                     <TableCell>
                         <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
@@ -315,7 +349,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -323,6 +357,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
             </TableBody>
           </Table>
         </div>
+        </TooltipProvider>
       </CardContent>
       </Card>
       

@@ -34,6 +34,8 @@ export type WoxDevice = {
     id: number;
     name: string;
     imei: string;
+    online: 'online' | 'offline'; // Status of the device
+    time: string; // Last connection time (e.g., "2024-05-20 15:30:00")
     fuel_quantity: string;
     fuel_measurement_id: string;
     tail_length: string;
