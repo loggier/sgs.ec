@@ -156,6 +156,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   
   const calculateOverdueAmount = (unit: Unit): number => {
       const today = startOfDay(new Date());
+      if (!unit.fechaSiguientePago) return 0;
       const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
       if (isBefore(today, nextPaymentDate)) {

@@ -14,6 +14,7 @@ import {
   query,
   where,
   limit,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientDisplay } from './schema';
@@ -202,7 +203,7 @@ export async function saveClient(
             savedClientId = newClientRef.id;
         }
   
-      revalidatePath('/');
+      revalidatePath('/clients');
       const savedClient = await getClientById(savedClientId!, user);
       const baseMessage = `Cliente ${clientId ? 'actualizado' : 'creado'} con éxito.`;
       return {
@@ -244,7 +245,7 @@ export async function deleteClient(id: string, user: User): Promise<{ success: b
   
       await deleteDoc(doc(db, 'clients', id));
       
-      revalidatePath('/');
+      revalidatePath('/clients');
       revalidatePath(`/clients/${id}/units`);
       return { success: true, message: 'Cliente y todas sus unidades eliminados con éxito.' };
     } catch (error) {
@@ -290,7 +291,7 @@ export async function deleteClientById(id: string, userId: string, userRole: str
 
       await batch.commit();
 
-      revalidatePath('/');
+      revalidatePath('/clients');
       revalidatePath(`/clients/${id}/units`);
       return { success: true, message: 'Cliente y todos sus datos asociados eliminados con éxito.' };
   } catch (error) {

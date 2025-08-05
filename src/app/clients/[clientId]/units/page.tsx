@@ -106,7 +106,7 @@ function UnitsPageContent() {
   if (isLoading || !client) {
     return (
       <>
-        <Header title="Cargando..." showBackButton backButtonHref="/" />
+        <Header title="Cargando..." showBackButton backButtonHref="/clients" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-64 w-full mt-6" />
       </>
@@ -137,7 +137,7 @@ function UnitsPageContent() {
 
   return (
     <TooltipProvider>
-      <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/" />
+      <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/clients" />
       <div className='flex justify-end mb-6'>
           {client.woxId && (
             <Tooltip>

@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard } from 'lucide-react';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -73,6 +73,12 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
             <SidebarMenu>
               <SidebarMenuItem>
                  <NavLink href="/">
+                    <LayoutDashboard className="h-4 w-4" />
+                    {!isCollapsed && <span>Dashboard</span>}
+                 </NavLink>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                 <NavLink href="/clients">
                     <Briefcase className="h-4 w-4" />
                     {!isCollapsed && <span>Clientes</span>}
                  </NavLink>
