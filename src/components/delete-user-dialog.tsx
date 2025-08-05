@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -21,7 +22,7 @@ type DeleteUserDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   user: User | null;
-  onDelete: (userId: string) => void;
+  onDelete: () => void;
 };
 
 export default function DeleteUserDialog({
@@ -44,7 +45,7 @@ export default function DeleteUserDialog({
           title: 'Éxito',
           description: result.message,
         });
-        onDelete(user.id);
+        onDelete();
       } else {
         toast({
           title: 'Error',

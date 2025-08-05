@@ -33,7 +33,7 @@ import { Textarea } from './ui/textarea';
 
 type UserFormProps = {
   user: User | null;
-  onSave: (user: User) => void;
+  onSave: () => void;
   onCancel: () => void;
 };
 
@@ -86,7 +86,7 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
           title: 'Éxito',
           description: result.message,
         });
-        onSave(result.user);
+        onSave();
       } else {
         toast({
           title: 'Error',

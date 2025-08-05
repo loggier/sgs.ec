@@ -25,14 +25,20 @@ function UsersPageContent() {
     }
   }, [user, isAuthLoading, router]);
 
-  React.useEffect(() => {
+  const fetchUsers = React.useCallback(() => {
     if (user && ['master', 'manager'].includes(user.role)) {
+        setIsLoading(true);
         getUsers().then(data => {
             setUsers(data);
             setIsLoading(false);
         });
     }
   }, [user]);
+
+  React.useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
 
   if (isAuthLoading || isLoading) {
     return (
@@ -63,7 +69,7 @@ function UsersPageContent() {
   return (
     <>
        <Header title="Usuarios" />
-       <UserList initialUsers={users} />
+       <UserList initialUsers={users} onDataChange={fetchUsers} />
     </>
   );
 }

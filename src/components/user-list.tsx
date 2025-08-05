@@ -29,9 +29,10 @@ import { useAuth } from '@/context/auth-context';
 
 type UserListProps = {
   initialUsers: User[];
+  onDataChange: () => void;
 };
 
-export default function UserList({ initialUsers }: UserListProps) {
+export default function UserList({ initialUsers, onDataChange }: UserListProps) {
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = React.useState(initialUsers);
@@ -58,20 +59,14 @@ export default function UserList({ initialUsers }: UserListProps) {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleFormSave = (savedUser: User) => {
-    setUsers(currentUsers => {
-      const existingUser = currentUsers.find(u => u.id === savedUser.id);
-      if (existingUser) {
-        return currentUsers.map(u => (u.id === savedUser.id ? savedUser : u));
-      }
-      return [...currentUsers, savedUser];
-    });
+  const handleFormSave = () => {
+    onDataChange();
     setIsSheetOpen(false);
     setSelectedUser(null);
   };
 
-  const onUserDeleted = (userId: string) => {
-    setUsers(currentUsers => currentUsers.filter(u => u.id !== userId));
+  const onUserDeleted = () => {
+    onDataChange();
     setIsDeleteDialogOpen(false);
     setSelectedUser(null);
   };
