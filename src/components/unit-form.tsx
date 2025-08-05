@@ -5,9 +5,9 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
-import { format, addMonths } from 'date-fns';
+import { format, addMonths, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Loader2, AlertTriangle, Link2 } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle, Link2, Wifi, WifiOff } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
@@ -16,6 +16,7 @@ import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
+import { getWoxDeviceDetails, type WoxDevice } from '@/lib/wox-actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from './ui/textarea';
 import { Combobox } from './ui/combobox';
 import { Alert, AlertDescription } from './ui/alert';
+import { Skeleton } from './ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 type UnitFormProps = {
   unit: Unit | null;
@@ -61,7 +64,86 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
   'con_contrato': 'Con Contrato',
 };
 
-function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector: boolean, isEditing: boolean }) {
+function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
+    const [deviceInfo, setDeviceInfo] = React.useState<WoxDevice | null>(null);
+    const [isLoading, setIsLoading] = React.useState(true);
+
+    React.useEffect(() => {
+        if (!woxDeviceId) return;
+        setIsLoading(true);
+        getWoxDeviceDetails(woxDeviceId)
+            .then(({ device }) => setDeviceInfo(device))
+            .finally(() => setIsLoading(false));
+    }, [woxDeviceId]);
+
+    const formatTimeAgo = (dateString?: string | null): string => {
+        if (!dateString) return 'Nunca';
+        try {
+            const date = new Date(dateString);
+            return formatDistanceToNow(date, { addSuffix: true, locale: es });
+        } catch (e) {
+            return 'Fecha inválida';
+        }
+    };
+    
+    const getDeviceStatus = (device?: WoxDevice | null) => {
+        if (!device) return { text: 'N/A', Icon: WifiOff, color: 'text-gray-400' };
+        if (!device.active) return { text: 'Inactivo', Icon: WifiOff, color: 'text-gray-400' };
+        if (device.engine_status) return { text: 'En Movimiento', Icon: Wifi, color: 'text-green-500' };
+        return { text: 'Detenido', Icon: Wifi, color: 'text-yellow-500' };
+    };
+    
+    const status = getDeviceStatus(deviceInfo);
+
+    return (
+        <Card className="bg-secondary/50">
+            <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <Link2 className="h-5 w-5 text-primary"/>
+                    Información de WOX
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {isLoading ? (
+                    <div className="space-y-2">
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-5 w-1/2" />
+                    </div>
+                ) : deviceInfo ? (
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p className="font-semibold">Nombre Disp.</p>
+                            <p>{deviceInfo.name}</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold">IMEI</p>
+                            <p>{deviceInfo.imei}</p>
+                        </div>
+                        <div>
+                            <p className="font-semibold">Estado</p>
+                            <p className={cn("flex items-center gap-1.5", status.color)}>
+                                <status.Icon className="h-4 w-4" />
+                                {status.text}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="font-semibold">Última Conexión</p>
+                            <p>{formatTimeAgo(deviceInfo.moved_timestamp ? new Date(deviceInfo.moved_timestamp * 1000).toISOString() : null)}</p>
+                        </div>
+                        <div className="col-span-2">
+                            <p className="font-semibold">Detalle</p>
+                            <p>{deviceInfo.stop_duration} detenido</p>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="text-muted-foreground">No se pudo cargar la información del dispositivo de WOX.</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function UnitFormFields({ showClientSelector, isEditing, woxDeviceId }: { showClientSelector: boolean, isEditing: boolean, woxDeviceId?: string }) {
   const { control, setValue, getValues } = useFormContext<UnitFormInput>();
   
   const [
@@ -131,6 +213,8 @@ function UnitFormFields({ showClientSelector, isEditing }: { showClientSelector:
   
   return (
     <div className="space-y-4 py-4">
+      {woxDeviceId && <WoxInfoDisplay woxDeviceId={woxDeviceId} />}
+
       {showClientSelector && (
         <FormField
           control={control}
@@ -541,7 +625,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} />
+          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} woxDeviceId={unit?.woxDeviceId} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>

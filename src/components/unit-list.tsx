@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2 } from 'lucide-react';
-import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, formatDistanceToNow } from 'date-fns';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
@@ -63,26 +63,6 @@ function formatCurrency(amount?: number | null) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
-function formatDateSafe(date: Date | string | null | undefined): string {
-    if (!date) return 'N/A';
-    try {
-        return format(new Date(date), 'P', { locale: es });
-    } catch (error) {
-        return 'Fecha inválida';
-    }
-}
-
-function formatTimeAgo(dateString?: string | null): string {
-    if (!dateString) return 'Nunca';
-    try {
-        const date = new Date(dateString);
-        return formatDistanceToNow(date, { addSuffix: true, locale: es });
-    } catch (e) {
-        return 'Fecha inválida';
-    }
-}
-
-
 export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
   const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
@@ -93,11 +73,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
 
   const [filter, setFilter] = React.useState('all');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
-
-  const [hasMounted, setHasMounted] = React.useState(false);
-  React.useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   React.useEffect(() => {
     setUnits(initialUnits);
@@ -215,13 +190,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const isExpired = (date: Date) => {
     return new Date(date) < new Date();
   };
-  
-  const getDeviceStatus = (device?: WoxDevice | null) => {
-      if (!device) return { text: 'N/A', color: 'bg-gray-400' };
-      if (!device.active) return { text: 'Inactivo', color: 'bg-gray-400' };
-      if (device.engine_status) return { text: 'En Movimiento', color: 'bg-green-500' };
-      return { text: 'Detenido', color: 'bg-yellow-500' };
-  };
 
   return (
     <>
@@ -251,10 +219,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Placa / Disp. WOX</TableHead>
+                <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
-                <TableHead>Estado WOX</TableHead>
-                <TableHead>Detalle WOX</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Contrato</TableHead>
                 <TableHead>Costo</TableHead>
@@ -268,7 +234,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               {filteredUnits.length > 0 ? (
                 filteredUnits.map(unit => {
                   const isUnconfigured = needsConfiguration(unit);
-                  const deviceStatus = getDeviceStatus(unit.woxDevice);
                   return (
                   <TableRow key={unit.id} className={cn(
                       isExpired(unit.fechaVencimiento) && 'bg-red-50 dark:bg-red-900/20',
@@ -288,37 +253,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                                 </Tooltip>
                             )}
                         </div>
-                        {unit.woxDevice?.name && <div className="text-sm text-muted-foreground">{unit.woxDevice.name}</div>}
                     </TableCell>
                     <TableCell>{unit.imei}</TableCell>
-                     <TableCell>
-                        {unit.woxDevice ? (
-                            <div className='flex items-center gap-2'>
-                                <span className={cn('h-2 w-2 rounded-full', deviceStatus.color)} />
-                                <span className='text-sm'>{deviceStatus.text}</span>
-                            </div>
-                        ) : (
-                            <span className="text-muted-foreground">N/A</span>
-                        )}
-                    </TableCell>
-                    <TableCell>
-                        {unit.woxDevice ? (
-                           <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div className="text-sm flex flex-col">
-                                        <span>{formatTimeAgo(unit.woxDevice.moved_timestamp ? new Date(unit.woxDevice.moved_timestamp * 1000).toISOString() : null)}</span>
-                                        <span className="text-xs text-muted-foreground">{unit.woxDevice.stop_duration} detenido</span>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Última conexión: {unit.woxDevice.moved_timestamp ? new Date(unit.woxDevice.moved_timestamp * 1000).toLocaleString() : 'N/A'}</p>
-                                    <p>Protocolo: {unit.woxDevice.protocol}</p>
-                                </TooltipContent>
-                           </Tooltip>
-                        ) : (
-                             <span className="text-muted-foreground">N/A</span>
-                        )}
-                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
@@ -361,7 +297,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={7} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

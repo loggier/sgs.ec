@@ -16,13 +16,10 @@ import AppContent from '@/components/app-content';
 import { Button } from '@/components/ui/button';
 import { DownloadCloud, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getWoxDeviceDetails, type WoxDevice } from '@/lib/wox-actions';
 
 export const dynamic = 'force-dynamic';
 
-export type DisplayUnit = Unit & {
-    woxDevice?: WoxDevice | null;
-}
+export type DisplayUnit = Unit;
 
 function UnitsPageContent() {
   const { user } = useAuth();
@@ -48,16 +45,7 @@ function UnitsPageContent() {
           notFound();
         } else {
           setClient(clientData);
-          
-          const enrichedUnits = await Promise.all(unitsData.map(async (unit) => {
-              if (unit.woxDeviceId) {
-                  const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
-                  return { ...unit, woxDevice: device };
-              }
-              return { ...unit, woxDevice: null };
-          }));
-
-          setUnits(enrichedUnits);
+          setUnits(unitsData);
         }
       } catch (error) {
         console.error('Error fetching data for units page:', error);
