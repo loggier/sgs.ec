@@ -54,18 +54,19 @@ function UnitsPageContent() {
                   const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
                   return { ...unit, woxDevice: device };
               }
-              return unit;
+              return { ...unit, woxDevice: null };
           }));
 
           setUnits(enrichedUnits);
         }
       } catch (error) {
+        console.error('Error fetching data for units page:', error);
         notFound();
       } finally {
         setIsLoading(false);
       }
     }
-  }, [clientId, user]);
+  }, [clientId, user, toast]);
 
   React.useEffect(() => {
     fetchData();
@@ -121,8 +122,8 @@ function UnitsPageContent() {
   // Calculate summary data
   const totalUnits = units.length;
   const totalMonthlyAmount = units.reduce((sum, unit) => {
-    if (unit.tipoContrato === 'con_contrato') {
-      const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
+    if (unit.tipoContrato === 'con_contrato' && unit.mesesContrato) {
+      const monthlyCost = (unit.costoTotalContrato ?? 0) / unit.mesesContrato;
       return sum + monthlyCost;
     }
     return sum + (unit.costoMensual ?? 0);

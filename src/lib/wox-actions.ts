@@ -40,16 +40,14 @@ export type WoxDevice = {
     fuel_measurement_id: string;
     tail_length: string;
     tail_color: string;
-    // Add other fields as needed from the device list endpoint
 };
 
 type WoxDeviceListApiResponse = {
-    data: WoxDevice[];
+    data: { id: number, name: string, imei: string }[];
 };
 
 type WoxDeviceDetailApiResponse = {
     item: WoxDevice;
-    // other properties if any
 };
 
 
@@ -132,7 +130,7 @@ export async function getWoxClientDetailsById(woxId: string): Promise<Partial<Cl
 }
 
 
-export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ devices: WoxDevice[]; error?: string }> {
+export async function getWoxDevicesByClientId(woxClientId: string): Promise<{ devices: { id: number, name: string, imei: string }[]; error?: string }> {
     try {
         const settings = await getWoxSettings();
         if (!settings?.url || !settings?.apiKey) {
