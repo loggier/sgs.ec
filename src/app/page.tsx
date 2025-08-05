@@ -47,8 +47,9 @@ function HomePageContent() {
                     }
                 }
 
-                // Calculate financial totals for this client
+                // Calculate financial totals and unit count for this client
                 const clientUnits = unitData.filter(u => u.clientId === client.id);
+                const unitCount = clientUnits.length;
                 const financials = clientUnits.reduce((acc, unit) => {
                     if (unit.tipoContrato === 'con_contrato') {
                         acc.totalContractAmount += unit.costoTotalContrato ?? 0;
@@ -64,6 +65,7 @@ function HomePageContent() {
                 return {
                     ...enrichedClient,
                     ...financials,
+                    unitCount,
                 };
             })
         );

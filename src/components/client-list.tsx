@@ -174,6 +174,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                   <TableRow>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Financiero</TableHead>
+                    <TableHead>Unidades</TableHead>
                     <TableHead>Estado</TableHead>
                     {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                     <TableHead>
@@ -211,6 +212,12 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                                 </div>
                               </>
                             }
+                        </TableCell>
+                         <TableCell>
+                           <div className="flex items-center gap-2">
+                            <Car className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{client.unitCount ?? 0}</span>
+                           </div>
                         </TableCell>
                         <TableCell>
                            <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
@@ -255,7 +262,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={user?.role === 'master' ? 5 : 4} className="text-center">
+                      <TableCell colSpan={user?.role === 'master' ? 6 : 5} className="text-center">
                         No se encontraron clientes.
                       </TableCell>
                     </TableRow>

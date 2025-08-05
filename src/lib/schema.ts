@@ -34,4 +34,5 @@ export type ClientDisplay = Client & {
   totalContractAmount?: number;
   totalContractBalance?: number;
   totalMonthlyPayment?: number;
+  unitCount?: number;
 };
