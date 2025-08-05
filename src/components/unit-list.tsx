@@ -29,7 +29,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/context/auth-context';
-import { getWoxDeviceDetails, type WoxDevice } from '@/lib/wox-actions';
+import type { DisplayUnit } from '@/app/clients/[clientId]/units/page';
 
 import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
@@ -38,15 +38,9 @@ import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
 import { cn } from '@/lib/utils';
 
-// Extend the Unit type to include optional wox device details
-type DisplayUnit = Unit & {
-    woxDevice?: WoxDevice | null;
-}
-
 type UnitListProps = {
-  initialUnits: Unit[];
+  initialUnits: DisplayUnit[];
   clientId: string;
-  clientWoxId?: string | null;
   onDataChange: () => void;
 };
 
@@ -77,7 +71,7 @@ function formatDateSafe(date: Date | string | null | undefined): string {
     }
 }
 
-export default function UnitList({ initialUnits, clientId, clientWoxId, onDataChange }: UnitListProps) {
+export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
   const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -94,17 +88,7 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
   }, []);
 
   React.useEffect(() => {
-    async function enrichUnits() {
-        const enriched = await Promise.all(initialUnits.map(async (unit) => {
-            if (unit.woxDeviceId) {
-                const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
-                return { ...unit, woxDevice: device };
-            }
-            return unit;
-        }));
-        setUnits(enriched);
-    }
-    enrichUnits();
+    setUnits(initialUnits);
   }, [initialUnits]);
 
   const filteredUnits = React.useMemo(() => {
@@ -350,7 +334,6 @@ export default function UnitList({ initialUnits, clientId, clientWoxId, onDataCh
           <UnitForm
             unit={selectedUnit}
             clientId={clientId}
-            clientWoxId={clientWoxId}
             onSave={handleFormSave}
             onCancel={() => setIsSheetOpen(false)}
           />

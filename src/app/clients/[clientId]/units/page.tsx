@@ -16,8 +16,13 @@ import AppContent from '@/components/app-content';
 import { Button } from '@/components/ui/button';
 import { DownloadCloud, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getWoxDeviceDetails, type WoxDevice } from '@/lib/wox-actions';
 
 export const dynamic = 'force-dynamic';
+
+export type DisplayUnit = Unit & {
+    woxDevice?: WoxDevice | null;
+}
 
 function UnitsPageContent() {
   const { user } = useAuth();
@@ -26,28 +31,39 @@ function UnitsPageContent() {
   const { toast } = useToast();
 
   const [client, setClient] = React.useState<ClientDisplay | null>(null);
-  const [units, setUnits] = React.useState<Unit[]>([]);
+  const [units, setUnits] = React.useState<DisplayUnit[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSyncing, setIsSyncing] = React.useState(false);
 
-  const fetchData = React.useCallback(() => {
+  const fetchData = React.useCallback(async () => {
     if (user && clientId) {
       setIsLoading(true);
-      Promise.all([
-        getClientById(clientId, user.id, user.role),
-        getUnitsByClientId(clientId)
-      ]).then(([clientData, unitsData]) => {
+      try {
+        const [clientData, unitsData] = await Promise.all([
+          getClientById(clientId, user.id, user.role),
+          getUnitsByClientId(clientId)
+        ]);
+        
         if (!clientData) {
           notFound();
         } else {
           setClient(clientData);
-          setUnits(unitsData);
+          
+          const enrichedUnits = await Promise.all(unitsData.map(async (unit) => {
+              if (unit.woxDeviceId) {
+                  const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
+                  return { ...unit, woxDevice: device };
+              }
+              return unit;
+          }));
+
+          setUnits(enrichedUnits);
         }
-        setIsLoading(false);
-      }).catch(() => {
-        setIsLoading(false);
+      } catch (error) {
         notFound();
-      });
+      } finally {
+        setIsLoading(false);
+      }
     }
   }, [clientId, user]);
 
@@ -149,7 +165,6 @@ function UnitsPageContent() {
         <UnitList 
             initialUnits={units} 
             clientId={clientId} 
-            clientWoxId={client.woxId} 
             onDataChange={fetchData} 
         />
       </div>
