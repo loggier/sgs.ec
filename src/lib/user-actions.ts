@@ -79,23 +79,21 @@ export async function logoutUser() {
 }
 
 
-export async function getUsers(): Promise<User[]> {
+export async function getUsers(currentUser: User | null): Promise<User[]> {
   try {
-    const currentUser = await getCurrentUser();
     if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
-        return [];
+      return [];
     }
 
-    const users = await fetchUsersFromFirestore();
-    const usersWithoutPassword = users.map(({ password, ...user }) => user as User);
-    
+    const allUsers = await fetchUsersFromFirestore();
+    const usersWithoutPassword = allUsers.map(({ password, ...user }) => user);
+
     if (currentUser.role === 'master') {
-        return usersWithoutPassword;
+      return usersWithoutPassword;
     }
-    
-    // Correctly filter users for the manager
+
     if (currentUser.role === 'manager') {
-        return usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
+      return usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
     }
     
     return [];

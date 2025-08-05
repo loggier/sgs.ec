@@ -28,7 +28,7 @@ function UsersPageContent() {
   const fetchUsers = React.useCallback(() => {
     if (user && ['master', 'manager'].includes(user.role)) {
         setIsLoading(true);
-        getUsers().then(data => {
+        getUsers(user).then(data => {
             setUsers(data);
             setIsLoading(false);
         });
