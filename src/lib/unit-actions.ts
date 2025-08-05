@@ -21,7 +21,7 @@ import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
-import { getWoxDevicesByClientId } from './wox-actions';
+import { getWoxDevicesByClientId, getWoxDeviceDetails } from './wox-actions';
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -37,10 +37,21 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   try {
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     const unitSnapshot = await getDocs(unitsCollectionRef);
-    const unitsList = unitSnapshot.docs.map(doc => {
+
+    const unitsList = await Promise.all(unitSnapshot.docs.map(async (doc) => {
       const data = convertTimestamps(doc.data());
-      return { id: doc.id, clientId, ...data } as Unit;
-    });
+      let unit: Unit = { id: doc.id, clientId, ...data } as Unit;
+
+      // Enrich with WOX device status if linked
+      if (unit.woxDeviceId) {
+        const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
+        if (device) {
+          unit.woxDeviceActive = device.active;
+        }
+      }
+      return unit;
+    }));
+
     return unitsList;
   } catch (error) {
     console.error("Error getting units by client ID:", error);
@@ -54,7 +65,17 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
     if (!unitDoc.exists()) return null;
 
     const data = convertTimestamps(unitDoc.data());
-    return { id: unitDoc.id, clientId, ...data } as Unit;
+    let unit: Unit = { id: unitDoc.id, clientId, ...data } as Unit;
+
+    // Enrich with WOX device status if linked
+    if (unit.woxDeviceId) {
+        const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
+        if (device) {
+            unit.woxDeviceActive = device.active;
+        }
+    }
+
+    return unit;
 }
 
 
@@ -247,24 +268,35 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
         const usersSnapshot = await getDocs(collection(db, 'users'));
         const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-        const allUnits = [];
-
-        for (const client of userClients) {
+        const allUnitsPromises = userClients.map(async (client) => {
             const unitsSnapshot = await getDocs(collection(db, 'clients', client.id, 'units'));
             const owner = usersMap.get(client.ownerId);
 
-            for (const unitDoc of unitsSnapshot.docs) {
+            const clientUnitsPromises = unitsSnapshot.docs.map(async (unitDoc) => {
                 const data = convertTimestamps(unitDoc.data());
-                allUnits.push({
+                let unit: Unit & { clientName: string; ownerId: string; ownerName?: string } = {
                     id: unitDoc.id,
                     clientId: client.id,
                     clientName: client.nomSujeto,
                     ownerId: client.ownerId,
                     ownerName: owner?.nombre || 'Propietario Desconocido',
                     ...data
-                } as Unit & { clientName: string; ownerId: string; ownerName?: string });
-            }
-        }
+                };
+
+                // Enrich with WOX device status if linked
+                if (unit.woxDeviceId) {
+                    const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
+                    if (device) {
+                        unit.woxDeviceActive = device.active;
+                    }
+                }
+                return unit;
+            });
+            return Promise.all(clientUnitsPromises);
+        });
+        
+        const allUnitsNested = await Promise.all(allUnitsPromises);
+        const allUnits = allUnitsNested.flat();
 
         return allUnits;
     } catch (error) {

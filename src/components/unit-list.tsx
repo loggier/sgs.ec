@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2, Power, PowerOff } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -38,6 +38,7 @@ import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import SetWoxStatusDialog from './set-wox-status-dialog';
 
 type UnitListProps = {
   initialUnits: DisplayUnit[];
@@ -69,6 +70,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
+  const [isWoxStatusDialogOpen, setIsWoxStatusDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<DisplayUnit | null>(null);
 
   const [filter, setFilter] = React.useState('all');
@@ -135,16 +137,18 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsPaymentDialogOpen(true);
   };
 
-  const handleFormSave = () => {
+  const handleSetWoxStatus = (unit: DisplayUnit) => {
+    setSelectedUnit(unit);
+    setIsWoxStatusDialogOpen(true);
+  };
+
+  const handleSuccess = () => {
     onDataChange();
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
-    setSelectedUnit(null);
-  };
-  
-  const onUnitDeleted = () => {
-    onDataChange();
     setIsDeleteDialogOpen(false);
+    setIsWoxStatusDialogOpen(false);
+    setSelectedUnit(null);
   };
   
   const needsConfiguration = (unit: DisplayUnit) => {
@@ -245,10 +249,12 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                             {unit.woxDeviceId && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3"/></Badge>
+                                        <Badge variant="outline" className={cn(badgeVariants.info, unit.woxDeviceActive ? 'border-green-400' : 'border-red-400')}>
+                                            <Link2 className={cn("h-3 w-3", unit.woxDeviceActive ? 'text-green-600' : 'text-red-600')}/>
+                                        </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Vinculado a WOX (ID: {unit.woxDeviceId})</p>
+                                        <p>Vinculado a WOX (ID: {unit.woxDeviceId}) - {unit.woxDeviceActive ? 'Activo' : 'Inactivo'}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             )}
@@ -282,6 +288,12 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                           {user && ['master', 'manager', 'usuario'].includes(user.role) && (
                             <>
                               <DropdownMenuSeparator />
+                              {unit.woxDeviceId && (
+                                <DropdownMenuItem onClick={() => handleSetWoxStatus(unit)} className={!unit.woxDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
+                                    {!unit.woxDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
+                                    {!unit.woxDeviceActive ? 'Activar en WOX' : 'Desactivar en WOX'}
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
                                 <Edit className="mr-2 h-4 w-4" /> Editar
                               </DropdownMenuItem>
@@ -317,7 +329,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           <UnitForm
             unit={selectedUnit}
             clientId={clientId}
-            onSave={handleFormSave}
+            onSave={handleSuccess}
             onCancel={() => setIsSheetOpen(false)}
           />
         </SheetContent>
@@ -328,7 +340,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
         onOpenChange={setIsDeleteDialogOpen}
         unit={selectedUnit}
         clientId={clientId}
-        onDelete={onUnitDeleted}
+        onDelete={handleSuccess}
       />
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
@@ -342,12 +354,19 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               {selectedUnit && (
                   <PaymentForm 
                       unit={selectedUnit}
-                      onSave={handleFormSave}
+                      onSave={handleSuccess}
                       onCancel={() => setIsPaymentDialogOpen(false)}
                   />
               )}
           </DialogContent>
       </Dialog>
+      
+      <SetWoxStatusDialog
+          isOpen={isWoxStatusDialogOpen}
+          onOpenChange={setIsWoxStatusDialogOpen}
+          unit={selectedUnit}
+          onSuccess={handleSuccess}
+      />
     </>
   );
 }

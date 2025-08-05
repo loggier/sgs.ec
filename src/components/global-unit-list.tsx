@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, Power, PowerOff } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -37,6 +37,7 @@ import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
+import SetWoxStatusDialog from './set-wox-status-dialog';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
@@ -75,6 +76,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
+  const [isWoxStatusDialogOpen, setIsWoxStatusDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<GlobalUnit | null>(null);
 
   const [filter, setFilter] = React.useState('all');
@@ -109,18 +111,20 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     setIsPaymentDialogOpen(true);
   };
 
-  const handleFormSave = () => {
+  const handleSetWoxStatus = (unit: GlobalUnit) => {
+    setSelectedUnit(unit);
+    setIsWoxStatusDialogOpen(true);
+  };
+
+  const handleSuccess = () => {
     onDataChange();
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
+    setIsDeleteDialogOpen(false);
+    setIsWoxStatusDialogOpen(false);
     setSelectedUnit(null);
   };
   
-  const onUnitDeleted = () => {
-    onDataChange();
-    setIsDeleteDialogOpen(false);
-  };
-
   const getCostForUnit = (unit: Unit) => {
     if (unit.tipoContrato === 'con_contrato') {
       const monthlyCost = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1);
@@ -314,6 +318,12 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
+                          {unit.woxDeviceId && (
+                            <DropdownMenuItem onClick={() => handleSetWoxStatus(unit)} className={!unit.woxDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
+                                {!unit.woxDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
+                                {!unit.woxDeviceActive ? 'Activar en WOX' : 'Desactivar en WOX'}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
@@ -346,7 +356,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
            <UnitForm
               unit={selectedUnit}
               clientId={selectedUnit?.clientId} 
-              onSave={handleFormSave}
+              onSave={handleSuccess}
               onCancel={() => setIsSheetOpen(false)}
           />
         </SheetContent>
@@ -357,7 +367,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
         onOpenChange={setIsDeleteDialogOpen}
         unit={selectedUnit}
         clientId={selectedUnit?.clientId ?? ''}
-        onDelete={onUnitDeleted}
+        onDelete={handleSuccess}
       />
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
@@ -371,12 +381,19 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
               {selectedUnit && (
                   <PaymentForm 
                       unit={selectedUnit}
-                      onSave={handleFormSave}
+                      onSave={handleSuccess}
                       onCancel={() => setIsPaymentDialogOpen(false)}
                   />
               )}
           </DialogContent>
       </Dialog>
+      
+      <SetWoxStatusDialog
+          isOpen={isWoxStatusDialogOpen}
+          onOpenChange={setIsWoxStatusDialogOpen}
+          unit={selectedUnit}
+          onSuccess={handleSuccess}
+      />
     </>
   );
 }

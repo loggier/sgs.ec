@@ -201,3 +201,45 @@ export async function getWoxDeviceDetails(deviceId: string): Promise<{ device: W
         return { device: null, error: message };
     }
 }
+
+
+export async function setWoxDeviceStatus(
+  deviceId: string,
+  active: boolean
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const settings = await getWoxSettings();
+    if (!settings?.url || !settings?.apiKey) {
+      return { success: false, message: 'La configuración de WOX no está completa.' };
+    }
+
+    const apiUrl = new URL(`/api/device/${deviceId}/status`, settings.url);
+    const formData = new FormData();
+    formData.append('user_api_hash', settings.apiKey);
+    formData.append('active', active ? 'true' : 'false');
+    
+    const response = await fetch(apiUrl.toString(), {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+        const errorBody = await response.json();
+        const errorMessage = errorBody?.errors?.[0]?.message || response.statusText;
+        console.error(`Error setting device status in WOX API: ${response.status} ${errorMessage}`, errorBody);
+        return { success: false, message: `Error de la API de WOX: ${errorMessage}` };
+    }
+
+    const jsonResponse = await response.json();
+    if (jsonResponse.status !== 1) {
+        return { success: false, message: 'La API de WOX indicó un error al cambiar el estado.' };
+    }
+
+    return { success: true, message: 'El estado del dispositivo se actualizó con éxito en WOX.' };
+
+  } catch (error) {
+    console.error(`Failed to set WOX device status for device ${deviceId}:`, error);
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    return { success: false, message };
+  }
+}
