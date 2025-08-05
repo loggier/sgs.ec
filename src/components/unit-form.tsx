@@ -5,7 +5,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
-import { format, addMonths, formatDistanceToNow } from 'date-fns';
+import { format, addMonths, formatDistanceToNow, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2, AlertTriangle, Link2, Wifi, WifiOff } from 'lucide-react';
 
@@ -76,15 +76,26 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
             .finally(() => setIsLoading(false));
     }, [woxDeviceId]);
 
-    const formatTimeAgo = (dateString?: string | null): string => {
-        if (!dateString) return 'Nunca';
+    const formatTimeAgo = (timestamp?: number | null): string => {
+        if (!timestamp) return 'Nunca';
         try {
-            const date = new Date(dateString);
+            const date = new Date(timestamp * 1000); // Convert seconds to milliseconds
             return formatDistanceToNow(date, { addSuffix: true, locale: es });
         } catch (e) {
             return 'Fecha inválida';
         }
     };
+    
+    const formatExpirationDate = (dateString?: string | null): string => {
+        if (!dateString) return 'N/A';
+        try {
+             // The date string is in 'YYYY-MM-DD HH:mm:ss' format
+            const date = parseISO(dateString.replace(' ', 'T'));
+            return format(date, 'PPP', { locale: es });
+        } catch (e) {
+            return 'Fecha inválida';
+        }
+    }
     
     const getDeviceStatus = (device?: WoxDevice | null) => {
         if (!device) return { text: 'N/A', Icon: WifiOff, color: 'text-gray-400' };
@@ -95,12 +106,19 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
     
     const status = getDeviceStatus(deviceInfo);
 
+    const InfoField = ({ label, value }: { label: string, value: React.ReactNode }) => (
+        <div>
+            <p className="font-semibold text-sm text-muted-foreground">{label}</p>
+            <p className="text-sm">{value || '-'}</p>
+        </div>
+    );
+
     return (
         <Card className="bg-secondary/50">
             <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Link2 className="h-5 w-5 text-primary"/>
-                    Información de WOX
+                    Información de WOX (ID: {woxDeviceId})
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -108,32 +126,30 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
                     <div className="space-y-2">
                         <Skeleton className="h-5 w-3/4" />
                         <Skeleton className="h-5 w-1/2" />
+                        <Skeleton className="h-5 w-2/3" />
                     </div>
                 ) : deviceInfo ? (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <p className="font-semibold">Nombre Disp.</p>
-                            <p>{deviceInfo.name}</p>
-                        </div>
-                        <div>
-                            <p className="font-semibold">IMEI</p>
-                            <p>{deviceInfo.imei}</p>
-                        </div>
-                        <div>
-                            <p className="font-semibold">Estado</p>
-                            <p className={cn("flex items-center gap-1.5", status.color)}>
-                                <status.Icon className="h-4 w-4" />
-                                {status.text}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="font-semibold">Última Conexión</p>
-                            <p>{formatTimeAgo(deviceInfo.moved_timestamp ? new Date(deviceInfo.moved_timestamp * 1000).toISOString() : null)}</p>
-                        </div>
-                        <div className="col-span-2">
-                            <p className="font-semibold">Detalle</p>
-                            <p>{deviceInfo.stop_duration} detenido</p>
-                        </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-5">
+                       <InfoField label="Estado Dispositivo" value={
+                           <span className={cn("flex items-center gap-1.5", status.color)}>
+                               <status.Icon className="h-4 w-4" />
+                               {status.text}
+                           </span>
+                       } />
+                       <InfoField label="Activo (WOX)" value={deviceInfo.active ? 'Sí' : 'No'} />
+                       <InfoField label="Última Conexión" value={formatTimeAgo(deviceInfo.moved_timestamp)} />
+                       <InfoField label="Nombre (WOX)" value={deviceInfo.name} />
+                       <InfoField label="IMEI (WOX)" value={deviceInfo.imei} />
+                       <InfoField label="Placa (WOX)" value={deviceInfo.plate_number} />
+                       <InfoField label="Protocolo" value={deviceInfo.protocol} />
+                       <InfoField label="Modelo" value={deviceInfo.device_model} />
+                       <InfoField label="VIN" value={deviceInfo.vin} />
+                       <InfoField label="No. SIM" value={deviceInfo.sim_number} />
+                       <InfoField label="Vencimiento (WOX)" value={formatExpirationDate(deviceInfo.expiration_date)} />
+                       <InfoField label="Propietario (WOX)" value={deviceInfo.object_owner} />
+                       <div className="col-span-full">
+                         <InfoField label="Notas Adicionales (WOX)" value={deviceInfo.additional_notes} />
+                       </div>
                     </div>
                 ) : (
                     <p className="text-muted-foreground">No se pudo cargar la información del dispositivo de WOX.</p>

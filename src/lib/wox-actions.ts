@@ -39,6 +39,13 @@ export type WoxDevice = {
     plate_number: string;
     user_id: number;
     // Fields from detailed endpoint
+    sim_number?: string;
+    device_model?: string;
+    vin?: string;
+    registration_number?: string;
+    object_owner?: string;
+    additional_notes?: string;
+    expiration_date?: string | null;
     engine_status?: boolean;
     stop_duration?: string;
     moved_timestamp?: number;
