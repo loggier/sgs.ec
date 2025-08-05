@@ -69,7 +69,7 @@ function HomePageContent() {
         );
         
         setClients(enrichedClients);
-        setUnits(unitData);
+        setUnits(unitData as UnitWithClient[]);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {

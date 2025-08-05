@@ -21,7 +21,7 @@ function GlobalUnitsPageContent() {
   const fetchUnits = React.useCallback(() => {
     if (user) {
       setIsLoading(true);
-      getAllUnits(user.id, user.role)
+      getAllUnits(user) // Pass the full user object
         .then(data => {
           setUnits(data);
           setIsLoading(false);
