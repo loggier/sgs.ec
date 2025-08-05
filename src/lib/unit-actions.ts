@@ -88,7 +88,7 @@ export async function saveUnit(
   try {
     const { fechaInicioContrato, tipoContrato, mesesContrato, costoTotalContrato, ...restOfData } = validation.data;
     
-    const unitDataForFirestore: any = {
+    const unitDataForFirestore: { [key: string]: any } = {
       ...restOfData,
       fechaInicioContrato: new Date(fechaInicioContrato),
       tipoContrato,
@@ -102,15 +102,15 @@ export async function saveUnit(
         const matchedDevice = woxDevices.find(d => d.imei === unitDataForFirestore.imei);
         unitDataForFirestore.woxDeviceId = matchedDevice ? String(matchedDevice.id) : undefined;
     } else {
-        unitDataForFirestore.woxDeviceId = undefined; // Unlink if no IMEI or no client woxId
+        unitDataForFirestore.woxDeviceId = undefined;
     }
     
     if (tipoContrato === 'sin_contrato') {
-      delete unitDataForFirestore.costoTotalContrato;
-      delete unitDataForFirestore.mesesContrato;
-      delete unitDataForFirestore.saldoContrato;
+      unitDataForFirestore.costoTotalContrato = undefined;
+      unitDataForFirestore.mesesContrato = undefined;
+      unitDataForFirestore.saldoContrato = undefined;
     } else {
-      delete unitDataForFirestore.costoMensual;
+      unitDataForFirestore.costoMensual = undefined;
     }
 
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
@@ -133,7 +133,7 @@ export async function saveUnit(
         unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
         
         if (tipoContrato === 'con_contrato') {
-            unitDataForFirestore.saldoContrato = costoTotalContrato; // Reset balance
+            unitDataForFirestore.saldoContrato = costoTotalContrato;
             if (mesesContrato) {
               unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
             }
@@ -142,11 +142,16 @@ export async function saveUnit(
         }
       }
       
-      // If it's a contract unit and the balance is null/undefined (for old records), initialize it.
       if (tipoContrato === 'con_contrato' && (unitDataForFirestore.saldoContrato === undefined || unitDataForFirestore.saldoContrato === null)) {
          unitDataForFirestore.saldoContrato = costoTotalContrato;
       }
 
+      // Clean up undefined/null/empty values before saving
+      Object.keys(unitDataForFirestore).forEach(key => {
+        if (unitDataForFirestore[key] === undefined || unitDataForFirestore[key] === null || unitDataForFirestore[key] === '') {
+            delete unitDataForFirestore[key];
+        }
+      });
 
       await updateDoc(unitDocRef, unitDataForFirestore);
     } else { // Creating new unit
@@ -155,13 +160,20 @@ export async function saveUnit(
       unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
       
       if (tipoContrato === 'con_contrato') {
-        unitDataForFirestore.saldoContrato = costoTotalContrato; // Initialize balance for new contract
+        unitDataForFirestore.saldoContrato = costoTotalContrato;
         if (mesesContrato) {
           unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
         }
       } else {
         unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
       }
+      
+      // Clean up undefined/null/empty values before saving
+      Object.keys(unitDataForFirestore).forEach(key => {
+        if (unitDataForFirestore[key] === undefined || unitDataForFirestore[key] === null || unitDataForFirestore[key] === '') {
+            delete unitDataForFirestore[key];
+        }
+      });
       
       const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
       savedUnitId = newUnitRef.id;
