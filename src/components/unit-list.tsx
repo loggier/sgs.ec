@@ -64,6 +64,17 @@ function formatCurrency(amount?: number | null) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
+function formatDateSafe(date: Date | string | null | undefined): string {
+    if (!date) return 'N/A';
+    try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return 'N/A';
+        return format(d, 'P', { locale: es });
+    } catch (error) {
+        return 'Fecha inválida';
+    }
+}
+
 export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
   const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
@@ -225,6 +236,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               <TableRow>
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
+                <TableHead>Fecha de Instalación</TableHead>
+                <TableHead>Fecha de Suspensión</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
@@ -261,6 +274,10 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         </div>
                     </TableCell>
                     <TableCell>{unit.imei}</TableCell>
+                    <TableCell>{formatDateSafe(unit.fechaInstalacion)}</TableCell>
+                    <TableCell className={unit.fechaSuspension ? 'font-semibold text-destructive' : ''}>
+                        {formatDateSafe(unit.fechaSuspension)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
@@ -285,7 +302,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                            <DropdownMenuItem onClick={() => handleRegisterPayment(unit)} disabled={isUnconfigured}>
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
-                          {user && ['master', 'manager', 'usuario'].includes(user.role) && (
+                          {user && ['master', 'manager', 'analista'].includes(user.role) && (
                             <>
                               <DropdownMenuSeparator />
                               {unit.woxDeviceId && (
@@ -309,7 +326,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

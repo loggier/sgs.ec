@@ -21,7 +21,7 @@ import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
-import { getWoxDevicesByClientId, getWoxDeviceDetails } from './wox-actions';
+import { getWoxDevicesByClientId, getWoxDeviceDetails, setWoxDeviceStatus } from './wox-actions';
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -347,6 +347,7 @@ export async function importWoxDevicesAsUnits(
                 tipoContrato: 'sin_contrato',
                 costoMensual: 0, // Default cost, indicating it needs configuration
                 fechaInstalacion: now,
+                fechaSuspension: null,
                 fechaInicioContrato: now,
                 fechaVencimiento: addMonths(now, 1),
                 ultimoPago: null,
@@ -370,4 +371,36 @@ export async function importWoxDevicesAsUnits(
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         return { success: false, message: `Error al importar unidades: ${errorMessage}` };
     }
+}
+
+export async function updateUnitWoxStatus(
+  unitId: string,
+  clientId: string,
+  woxDeviceId: string,
+  active: boolean
+): Promise<{ success: boolean; message: string }> {
+  try {
+    // 1. Call WOX API to change status
+    const woxResult = await setWoxDeviceStatus(woxDeviceId, active);
+    if (!woxResult.success) {
+      return woxResult; // Propagate error message from WOX action
+    }
+
+    // 2. Update the local unit document in Firestore
+    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+    const updateData: { fechaSuspension: Date | null } = {
+      fechaSuspension: active ? null : new Date(),
+    };
+    await updateDoc(unitDocRef, updateData);
+
+    // 3. Revalidate paths to refresh data on the client
+    revalidatePath(`/clients/${clientId}/units`);
+    revalidatePath('/units');
+
+    return { success: true, message: 'Estado del dispositivo actualizado con éxito.' };
+  } catch (error) {
+    console.error("Error updating unit WOX status:", error);
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    return { success: false, message };
+  }
 }

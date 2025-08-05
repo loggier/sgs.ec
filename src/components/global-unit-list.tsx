@@ -63,7 +63,10 @@ function formatCurrency(amount?: number | null) {
 function formatDateSafe(date: Date | string | null | undefined): string {
     if (!date) return 'N/A';
     try {
-        return format(new Date(date), 'P', { locale: es });
+        const d = new Date(date);
+        // Check if date is valid
+        if (isNaN(d.getTime())) return 'N/A';
+        return format(d, 'P', { locale: es });
     } catch (error) {
         return 'Fecha inválida';
     }
@@ -268,6 +271,8 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>Cliente</TableHead>
                 {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
+                <TableHead>Fecha de Instalación</TableHead>
+                <TableHead>Fecha de Suspensión</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
@@ -290,6 +295,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                     </TableCell>
                     {user?.role === 'master' && <TableCell>{unit.ownerName}</TableCell>}
                     <TableCell>{unit.imei}</TableCell>
+                    <TableCell>{formatDateSafe(unit.fechaInstalacion)}</TableCell>
+                    <TableCell className={unit.fechaSuspension ? 'font-semibold text-destructive' : ''}>
+                        {formatDateSafe(unit.fechaSuspension)}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
@@ -337,7 +346,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 10 : 9} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 12 : 11} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

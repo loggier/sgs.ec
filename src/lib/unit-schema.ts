@@ -28,6 +28,7 @@ export const UnitSchema = z.object({
   saldoContrato: z.coerce.number().optional(),
   mesesContrato: z.coerce.number().optional(),
   fechaInstalacion: nullableDateOrTimestamp,
+  fechaSuspension: nullableDateOrTimestamp,
   fechaInicioContrato: dateOrTimestamp.refine(val => val !== null, 'Fecha de inicio es requerida.'),
   fechaVencimiento: dateOrTimestamp.refine(val => val !== null, 'Fecha de vencimiento del contrato es requerida.'),
   ultimoPago: nullableDateOrTimestamp,
@@ -40,6 +41,7 @@ export type Unit = z.infer<typeof UnitSchema>;
 export const UnitFormSchema = UnitSchema.omit({ 
   id: true, 
   woxDeviceActive: true,
+  fechaSuspension: true,
 }).extend({
   clientId: z.string().optional(), // Make clientId optional in the base for refinement
 }).superRefine((data, ctx) => {

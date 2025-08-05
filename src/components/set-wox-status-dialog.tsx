@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { setWoxDeviceStatus } from '@/lib/wox-actions';
+import { updateUnitWoxStatus } from '@/lib/unit-actions';
 import type { Unit } from '@/lib/unit-schema';
 import {
   AlertDialog,
@@ -44,11 +44,11 @@ export default function SetWoxStatusDialog({
 
     setIsSubmitting(true);
     try {
-      const result = await setWoxDeviceStatus(unit.woxDeviceId, targetStatus);
+      const result = await updateUnitWoxStatus(unit.id, unit.clientId, unit.woxDeviceId, targetStatus);
       if (result.success) {
         toast({
           title: 'Éxito',
-          description: `Dispositivo ${unit.placa} ${actionText === 'activar' ? 'activado' : 'desactivado'} en WOX con éxito.`,
+          description: result.message,
         });
         onSuccess();
       } else {
@@ -77,7 +77,8 @@ export default function SetWoxStatusDialog({
           <AlertDialogTitle>¿Estás seguro que deseas {actionText} el dispositivo?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción cambiará el estado del dispositivo con placa{' '}
-            <span className="font-semibold">{unit.placa}</span> (IMEI: {unit.imei}) en la plataforma WOX.
+            <span className="font-semibold">{unit.placa}</span> (IMEI: {unit.imei}) en la plataforma WOX y en el sistema local.
+            {actionText === 'desactivar' && ' Se registrará la fecha de suspensión.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
