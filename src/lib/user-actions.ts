@@ -81,9 +81,24 @@ export async function logoutUser() {
 
 export async function getUsers(): Promise<User[]> {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+        return [];
+    }
+
     const users = await fetchUsersFromFirestore();
-    // Ensure password is not returned
-    return users.map(({ password, ...user }) => user as User);
+    const usersWithoutPassword = users.map(({ password, ...user }) => user as User);
+    
+    if (currentUser.role === 'master') {
+        return usersWithoutPassword;
+    }
+    
+    if (currentUser.role === 'manager') {
+        return usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
+    }
+    
+    return [];
+
   } catch (error) {
     console.error("Error getting users:", error);
     return [];
@@ -175,15 +190,26 @@ export async function saveUser(
 
 export async function deleteUser(id: string): Promise<{ success: boolean; message: string }> {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+        return { success: false, message: 'No tiene permiso para eliminar usuarios.' };
+    }
+
     const userDocRef = doc(db, 'users', id);
     const userDoc = await getDoc(userDocRef);
 
     if (!userDoc.exists()) {
       return { success: false, message: 'Usuario no encontrado.' };
     }
+    
+    const userToDelete = userDoc.data() as User;
+    
+    if (currentUser.role === 'manager' && userToDelete.creatorId !== currentUser.id) {
+        return { success: false, message: 'No tiene permiso para eliminar a este usuario.' };
+    }
 
     // Prevent deleting the last master user
-    if (userDoc.data().role === 'master') {
+    if (userToDelete.role === 'master') {
       const masterQuery = query(collection(db, 'users'), where("role", "==", "master"));
       const masterSnapshot = await getDocs(masterQuery);
       if (masterSnapshot.size <= 1) {

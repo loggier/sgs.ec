@@ -109,6 +109,13 @@ export default function UserList({ initialUsers }: UserListProps) {
     );
   }, [searchTerm, users]);
 
+  const canManageUser = (targetUser: User) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'master') return true;
+    if (currentUser.role === 'manager' && targetUser.creatorId === currentUser.id) return true;
+    return false;
+  };
+
 
   return (
     <>
@@ -157,22 +164,24 @@ export default function UserList({ initialUsers }: UserListProps) {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Alternar menú</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
-                              <Edit className="mr-2 h-4 w-4" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteUser(user)} className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {canManageUser(user) && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Alternar menú</span>
+                                </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDeleteUser(user)} className="text-red-600">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
