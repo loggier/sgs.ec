@@ -19,6 +19,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,6 +40,7 @@ import UnitFilterControls from './unit-filter-controls';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import SetWoxStatusDialog from './set-wox-status-dialog';
+import BulkSetWoxStatusDialog from './bulk-set-wox-status-dialog';
 
 type UnitListProps = {
   initialUnits: DisplayUnit[];
@@ -82,13 +84,18 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [isWoxStatusDialogOpen, setIsWoxStatusDialogOpen] = React.useState(false);
+  const [isBulkStatusDialogOpen, setIsBulkStatusDialogOpen] = React.useState(false);
+  const [bulkAction, setBulkAction] = React.useState<'activate' | 'deactivate' | null>(null);
   const [selectedUnit, setSelectedUnit] = React.useState<DisplayUnit | null>(null);
+  const [selectedUnitIds, setSelectedUnitIds] = React.useState<string[]>([]);
+
 
   const [filter, setFilter] = React.useState('all');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
 
   React.useEffect(() => {
     setUnits(initialUnits);
+    setSelectedUnitIds([]);
   }, [initialUnits]);
 
   const filteredUnits = React.useMemo(() => {
@@ -159,9 +166,26 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
     setIsWoxStatusDialogOpen(false);
+    setIsBulkStatusDialogOpen(false);
     setSelectedUnit(null);
+    setBulkAction(null);
   };
   
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedUnitIds(checked ? filteredUnits.map(u => u.id) : []);
+  };
+  
+  const handleSelectOne = (unitId: string, checked: boolean) => {
+    setSelectedUnitIds(prev => 
+      checked ? [...prev, unitId] : prev.filter(id => id !== unitId)
+    );
+  };
+  
+  const handleBulkAction = (action: 'activate' | 'deactivate') => {
+    setBulkAction(action);
+    setIsBulkStatusDialogOpen(true);
+  };
+
   const needsConfiguration = (unit: DisplayUnit) => {
     if (unit.tipoContrato === 'con_contrato') {
       return !unit.costoTotalContrato || unit.costoTotalContrato === 0;
@@ -206,6 +230,10 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     return new Date(date) < new Date();
   };
 
+  const selectedUnitsForBulkAction = React.useMemo(() => {
+      return units.filter(u => selectedUnitIds.includes(u.id));
+  }, [selectedUnitIds, units]);
+
   return (
     <>
     <Card>
@@ -227,6 +255,32 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
             )}
           </div>
         </div>
+        {selectedUnitIds.length > 0 && (
+            <div className="mt-4 flex items-center justify-between gap-4 p-3 bg-secondary rounded-lg">
+                <span className="text-sm font-medium text-secondary-foreground">
+                    {selectedUnitIds.length} unidad(es) seleccionada(s)
+                </span>
+                <div className="flex gap-2">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+                        onClick={() => handleBulkAction('activate')}
+                    >
+                        <Power className="mr-2 h-4 w-4" />
+                        Activar Lote
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleBulkAction('deactivate')}
+                    >
+                        <PowerOff className="mr-2 h-4 w-4" />
+                        Desactivar Lote
+                    </Button>
+                </div>
+            </div>
+        )}
       </CardHeader>
       <CardContent>
         <TooltipProvider>
@@ -234,6 +288,13 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead padding="checkbox">
+                    <Checkbox
+                        checked={filteredUnits.length > 0 && selectedUnitIds.length === filteredUnits.length}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                        aria-label="Seleccionar todo"
+                    />
+                </TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
@@ -251,11 +312,24 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               {filteredUnits.length > 0 ? (
                 filteredUnits.map(unit => {
                   const isUnconfigured = needsConfiguration(unit);
+                  const isSelected = selectedUnitIds.includes(unit.id);
                   return (
-                  <TableRow key={unit.id} className={cn(
-                      isExpired(unit.fechaVencimiento) && 'bg-red-50 dark:bg-red-900/20',
-                      isUnconfigured && 'bg-yellow-50 dark:bg-yellow-900/20'
-                  )}>
+                  <TableRow 
+                    key={unit.id} 
+                    className={cn(
+                        isExpired(unit.fechaVencimiento) && 'bg-red-50 dark:bg-red-900/20',
+                        isUnconfigured && 'bg-yellow-50 dark:bg-yellow-900/20',
+                        isSelected && 'bg-blue-50 dark:bg-blue-900/20'
+                    )}
+                    data-state={isSelected ? "selected" : undefined}
+                  >
+                    <TableCell padding="checkbox">
+                        <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => handleSelectOne(unit.id, !!checked)}
+                            aria-label={`Seleccionar unidad ${unit.placa}`}
+                        />
+                    </TableCell>
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                             {unit.placa}
@@ -326,7 +400,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={10} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -383,6 +457,14 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           onOpenChange={setIsWoxStatusDialogOpen}
           unit={selectedUnit}
           onSuccess={handleSuccess}
+      />
+
+      <BulkSetWoxStatusDialog
+        isOpen={isBulkStatusDialogOpen}
+        onOpenChange={setIsBulkStatusDialogOpen}
+        units={selectedUnitsForBulkAction}
+        action={bulkAction}
+        onSuccess={handleSuccess}
       />
     </>
   );

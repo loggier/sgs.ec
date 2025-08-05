@@ -409,3 +409,61 @@ export async function updateUnitWoxStatus(
     return { success: false, message };
   }
 }
+
+export async function bulkUpdateUnitWoxStatus(
+    units: { unitId: string; clientId: string; woxDeviceId: string }[],
+    active: boolean
+): Promise<{ success: boolean; message: string; failures: number }> {
+    let successCount = 0;
+    let failureCount = 0;
+    const batch = writeBatch(db);
+
+    for (const { unitId, clientId, woxDeviceId } of units) {
+        try {
+            const woxResult = await setWoxDeviceStatus(woxDeviceId, active);
+            if (woxResult.success) {
+                const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+                const updateData = { fechaSuspension: active ? null : new Date() };
+                batch.update(unitDocRef, updateData);
+                successCount++;
+            } else {
+                failureCount++;
+            }
+        } catch (error) {
+            console.error(`Error processing unit ${unitId} in bulk update:`, error);
+            failureCount++;
+        }
+    }
+
+    try {
+        await batch.commit();
+        if (units.length > 0) {
+            revalidatePath(`/clients/${units[0].clientId}/units`);
+            revalidatePath('/units');
+        }
+    } catch (error) {
+        console.error("Error committing batch update to Firestore:", error);
+        return {
+            success: false,
+            message: 'Error al actualizar los datos locales, aunque algunos estados en WOX pueden haber cambiado.',
+            failures: units.length,
+        };
+    }
+
+    let message = '';
+    if (successCount > 0) {
+        message += `${successCount} unidad(es) actualizada(s) con éxito. `;
+    }
+    if (failureCount > 0) {
+        message += `${failureCount} unidad(es) no se pudieron actualizar.`;
+    }
+    if (successCount === 0 && failureCount === 0) {
+        message = 'No se seleccionaron unidades para actualizar.';
+    }
+
+    return {
+        success: failureCount === 0,
+        message: message.trim(),
+        failures: failureCount,
+    };
+}
