@@ -214,13 +214,17 @@ export async function setWoxDeviceStatus(
     }
 
     const apiUrl = new URL(`/api/admin/device/${deviceId}/status`, settings.url);
-    const formData = new FormData();
-    formData.append('user_api_hash', settings.apiKey);
-    formData.append('active', active ? 'true' : 'false');
+    apiUrl.searchParams.append('user_api_hash', settings.apiKey);
     
     const response = await fetch(apiUrl.toString(), {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        active: active ? 1 : 0
+      }),
     });
     
     if (!response.ok) {
