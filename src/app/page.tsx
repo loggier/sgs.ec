@@ -35,20 +35,39 @@ function HomePageContent() {
         // Enrich internal clients with WOX data if linked
         const enrichedClients = await Promise.all(
             internalClients.map(async (client) => {
+                let enrichedClient: ClientDisplay = { ...client };
                 if (client.woxId) {
                     const woxDetails = await getWoxClientDetailsById(client.woxId);
                     if (woxDetails) {
-                        return {
-                            ...client,
+                        enrichedClient = {
+                            ...enrichedClient,
                             correo: woxDetails.correo,
-                            telefono: woxDetails.telefono || client.telefono, // Prioritize WOX phone, but keep local if wox is null
+                            telefono: woxDetails.telefono || client.telefono,
                         };
                     }
                 }
-                return client;
+
+                // Calculate financial totals for this client
+                const clientUnits = unitData.filter(u => u.clientId === client.id);
+                const financials = clientUnits.reduce((acc, unit) => {
+                    if (unit.tipoContrato === 'con_contrato') {
+                        acc.totalContractAmount += unit.costoTotalContrato ?? 0;
+                        acc.totalContractBalance += unit.saldoContrato ?? 0;
+                        const monthlyContractPayment = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
+                        acc.totalMonthlyPayment += monthlyContractPayment;
+                    } else {
+                        acc.totalMonthlyPayment += unit.costoMensual ?? 0;
+                    }
+                    return acc;
+                }, { totalContractAmount: 0, totalContractBalance: 0, totalMonthlyPayment: 0 });
+
+                return {
+                    ...enrichedClient,
+                    ...financials,
+                };
             })
         );
-
+        
         setClients(enrichedClients);
         setUnits(unitData);
       } catch (error) {

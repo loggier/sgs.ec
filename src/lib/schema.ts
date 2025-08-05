@@ -30,4 +30,8 @@ export type ClientDisplay = Client & {
   id: string; // Firestore ID for internal
   ownerName?: string;
   correo?: string; // Derived from 'usuario' if linked
+  // Calculated financial fields
+  totalContractAmount?: number;
+  totalContractBalance?: number;
+  totalMonthlyPayment?: number;
 };

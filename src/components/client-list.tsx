@@ -41,6 +41,11 @@ type ClientListProps = {
 
 const CLIENTS_PER_PAGE = 10;
 
+function formatCurrency(amount?: number) {
+  if (amount === undefined || amount === null) return '$0.00';
+  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
 export default function ClientList({ initialClients, onDataChange }: ClientListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -168,7 +173,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                 <TableHeader>
                   <TableRow>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Contacto</TableHead>
+                    <TableHead>Financiero</TableHead>
                     <TableHead>Estado</TableHead>
                     {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                     <TableHead>
@@ -186,11 +191,26 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                               {client.woxId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
                             </div>
                             <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
-                             {client.woxId && client.correo && <div className="text-sm text-muted-foreground">{client.correo}</div>}
+                             {client.correo ? 
+                                <div className="text-sm text-muted-foreground">{client.correo}</div> :
+                                client.telefono && <div className="text-sm text-muted-foreground">{client.telefono}</div>
+                             }
                         </TableCell>
                         <TableCell>
-                            <div>{client.ciudad || 'N/A'}</div>
-                            <div className="text-sm text-muted-foreground">{client.telefono || 'N/A'}</div>
+                            <div title="Pago mensual total" className="flex items-center text-sm">
+                              <span className="font-semibold">{formatCurrency(client.totalMonthlyPayment)}</span>
+                              <span className="text-muted-foreground ml-1">/mes</span>
+                            </div>
+                            {(client.totalContractAmount ?? 0) > 0 &&
+                              <>
+                                <div title="Monto total de contratos" className="text-xs text-muted-foreground">
+                                  Contratos: {formatCurrency(client.totalContractAmount)}
+                                </div>
+                                <div title="Saldo pendiente de contratos" className="text-xs text-blue-600 font-semibold">
+                                  Saldo: {formatCurrency(client.totalContractBalance)}
+                                </div>
+                              </>
+                            }
                         </TableCell>
                         <TableCell>
                            <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
@@ -212,7 +232,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                                 <DropdownMenuItem onClick={() => handleEditClient(client)}>
                                   <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem asChild>
                                   <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
                                     <Car className="mr-2 h-4 w-4" /> Ver Unidades
                                   </Link>
