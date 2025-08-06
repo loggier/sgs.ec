@@ -4,25 +4,25 @@
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { revalidatePath } from 'next/cache';
-import { PgpsSettingsSchema, type PgpsSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput } from './settings-schema';
+import { WoxSettingsSchema, type WoxSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput } from './settings-schema';
 
 const SETTINGS_DOC_ID = 'integrations';
 const TEMPLATES_COLLECTION = 'message_templates';
 
 
-// --- P. GPS Settings ---
+// --- WOX Settings ---
 
-export async function savePgpsSettings(
-  data: PgpsSettings
+export async function saveWoxSettings(
+  data: WoxSettings
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const validation = PgpsSettingsSchema.safeParse(data);
+    const validation = WoxSettingsSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, message: 'Datos no válidos.' };
     }
 
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
-    await setDoc(settingsDocRef, { pgps: validation.data }, { merge: true });
+    await setDoc(settingsDocRef, { wox: validation.data }, { merge: true });
 
     return { success: true, message: 'Configuración de P. GPS guardada con éxito.' };
   } catch (error) {
@@ -32,14 +32,14 @@ export async function savePgpsSettings(
   }
 }
 
-export async function getPgpsSettings(): Promise<PgpsSettings | null> {
+export async function getWoxSettings(): Promise<WoxSettings | null> {
   try {
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      return data.pgps ? (data.pgps as PgpsSettings) : null;
+      return data.wox ? (data.wox as WoxSettings) : null;
     }
     return null;
   } catch (error) {

@@ -21,7 +21,7 @@ import { db } from './firebase';
 import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
-import { getPgpsDevicesByClientId, getPgpsDeviceDetails, setPgpsDeviceStatus } from './pgps-actions';
+import { getWoxDevicesByClientId, getWoxDeviceDetails, setWoxDeviceStatus } from './wox-actions';
 import { sendTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any) => {
@@ -44,10 +44,10 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
       let unit: Unit = { id: doc.id, clientId, ...data } as Unit;
 
       // Enrich with P. GPS device status if linked
-      if (unit.pgpsDeviceId) {
-        const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
+      if (unit.woxDeviceId) {
+        const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
         if (device) {
-          unit.pgpsDeviceActive = device.active;
+          unit.woxDeviceActive = device.active;
         }
       }
       return unit;
@@ -69,10 +69,10 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
     let unit: Unit = { id: unitDoc.id, clientId, ...data } as Unit;
 
     // Enrich with P. GPS device status if linked
-    if (unit.pgpsDeviceId) {
-        const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
+    if (unit.woxDeviceId) {
+        const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
         if (device) {
-            unit.pgpsDeviceActive = device.active;
+            unit.woxDeviceActive = device.active;
         }
     }
 
@@ -126,12 +126,12 @@ export async function saveUnit(
     };
 
     // Auto-link with P. GPS device based on IMEI
-    if (clientData.pgpsId && imei) {
-        const { devices: pgpsDevices } = await getPgpsDevicesByClientId(clientData.pgpsId);
-        const matchedDevice = pgpsDevices.find(d => d.imei === imei);
-        unitDataForFirestore.pgpsDeviceId = matchedDevice ? String(matchedDevice.id) : undefined;
+    if (clientData.woxId && imei) {
+        const { devices: woxDevices } = await getWoxDevicesByClientId(clientData.woxId);
+        const matchedDevice = woxDevices.find(d => d.imei === imei);
+        unitDataForFirestore.woxDeviceId = matchedDevice ? String(matchedDevice.id) : undefined;
     } else {
-        unitDataForFirestore.pgpsDeviceId = undefined;
+        unitDataForFirestore.woxDeviceId = undefined;
     }
     
     if (tipoContrato === 'sin_contrato') {
@@ -290,10 +290,10 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
                 };
 
                 // Enrich with P. GPS device status if linked
-                if (unit.pgpsDeviceId) {
-                    const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
+                if (unit.woxDeviceId) {
+                    const { device } = await getWoxDeviceDetails(unit.woxDeviceId);
                     if (device) {
-                        unit.pgpsDeviceActive = device.active;
+                        unit.woxDeviceActive = device.active;
                     }
                 }
                 return unit;
@@ -312,17 +312,17 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
 }
 
 
-export async function importPgpsDevicesAsUnits(
+export async function importWoxDevicesAsUnits(
     clientId: string,
-    clientPgpsId: string
+    clientWoxId: string
 ): Promise<{ success: boolean; message: string; importedCount?: number }> {
     try {
         // 1. Fetch devices from P. GPS
-        const { devices: pgpsDevices, error: pgpsError } = await getPgpsDevicesByClientId(clientPgpsId);
-        if (pgpsError) {
-            return { success: false, message: `No se pudo obtener dispositivos de P. GPS: ${pgpsError}` };
+        const { devices: woxDevices, error: woxError } = await getWoxDevicesByClientId(clientWoxId);
+        if (woxError) {
+            return { success: false, message: `No se pudo obtener dispositivos de P. GPS: ${woxError}` };
         }
-        if (pgpsDevices.length === 0) {
+        if (woxDevices.length === 0) {
             return { success: true, message: 'No hay nuevos dispositivos para importar desde P. GPS.', importedCount: 0 };
         }
 
@@ -331,7 +331,7 @@ export async function importPgpsDevicesAsUnits(
         const existingImeis = new Set(existingUnits.map(unit => unit.imei));
 
         // 3. Filter for new devices to import
-        const devicesToImport = pgpsDevices.filter(device => !existingImeis.has(device.imei));
+        const devicesToImport = woxDevices.filter(device => !existingImeis.has(device.imei));
 
         if (devicesToImport.length === 0) {
             return { success: true, message: 'Todas las unidades de P. GPS ya están sincronizadas.', importedCount: 0 };
@@ -345,7 +345,7 @@ export async function importPgpsDevicesAsUnits(
             const newUnitRef = doc(unitsCollectionRef); // Create a new doc reference
             const now = new Date();
             const newUnitData: Omit<Unit, 'id' | 'clientId'> = {
-                pgpsDeviceId: String(device.id),
+                woxDeviceId: String(device.id),
                 imei: device.imei,
                 placa: device.name, // Use P. GPS device name as default plate
                 modelo: 'Importado desde P. GPS',
@@ -379,17 +379,17 @@ export async function importPgpsDevicesAsUnits(
     }
 }
 
-export async function updateUnitPgpsStatus(
+export async function updateUnitWoxStatus(
   unitId: string,
   clientId: string,
-  pgpsDeviceId: string,
+  woxDeviceId: string,
   active: boolean
 ): Promise<{ success: boolean; message: string }> {
   try {
     // 1. Call P. GPS API to change status
-    const pgpsResult = await setPgpsDeviceStatus(pgpsDeviceId, active);
-    if (!pgpsResult.success) {
-      return pgpsResult; // Propagate error message from P. GPS action
+    const woxResult = await setWoxDeviceStatus(woxDeviceId, active);
+    if (!woxResult.success) {
+      return woxResult; // Propagate error message from P. GPS action
     }
 
     // 2. Update the local unit document in Firestore
@@ -416,8 +416,8 @@ export async function updateUnitPgpsStatus(
   }
 }
 
-export async function bulkUpdateUnitPgpsStatus(
-    units: { unitId: string; clientId: string; pgpsDeviceId: string }[],
+export async function bulkUpdateUnitWoxStatus(
+    units: { unitId: string; clientId: string; woxDeviceId: string }[],
     active: boolean
 ): Promise<{ success: boolean; message: string; failures: number }> {
     let successCount = 0;
@@ -425,10 +425,10 @@ export async function bulkUpdateUnitPgpsStatus(
     const batch = writeBatch(db);
     const eventType = active ? 'service_reactivated' : 'service_suspended';
 
-    for (const { unitId, clientId, pgpsDeviceId } of units) {
+    for (const { unitId, clientId, woxDeviceId } of units) {
         try {
-            const pgpsResult = await setPgpsDeviceStatus(pgpsDeviceId, active);
-            if (pgpsResult.success) {
+            const woxResult = await setWoxDeviceStatus(woxDeviceId, active);
+            if (woxResult.success) {
                 const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
                 const updateData = { fechaSuspension: active ? null : new Date() };
                 batch.update(unitDocRef, updateData);

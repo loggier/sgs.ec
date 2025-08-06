@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { getClientById } from '@/lib/actions';
-import { getUnitsByClientId, importPgpsDevicesAsUnits } from '@/lib/unit-actions';
+import { getUnitsByClientId, importWoxDevicesAsUnits } from '@/lib/unit-actions';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
 import { notFound, useParams } from 'next/navigation';
@@ -66,8 +66,8 @@ function UnitsPageContent() {
     fetchData();
   }, [fetchData]);
 
-  const handleSyncWithPgps = async () => {
-    if (!client || !client.pgpsId) {
+  const handleSyncWithWox = async () => {
+    if (!client || !client.woxId) {
         toast({
             title: 'Cliente no vinculado',
             description: 'Este cliente no está vinculado a P. GPS. Edite el cliente y añada un "Usuario (API)" para vincularlo.',
@@ -78,7 +78,7 @@ function UnitsPageContent() {
 
     setIsSyncing(true);
     try {
-        const result = await importPgpsDevicesAsUnits(client.id, client.pgpsId);
+        const result = await importWoxDevicesAsUnits(client.id, client.woxId);
         if (result.success) {
             toast({
                 title: 'Sincronización completada',
@@ -139,10 +139,10 @@ function UnitsPageContent() {
     <TooltipProvider>
       <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/clients" />
       <div className='flex justify-end mb-6'>
-          {client.pgpsId && (
+          {client.woxId && (
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button onClick={handleSyncWithPgps} disabled={isSyncing}>
+                    <Button onClick={handleSyncWithWox} disabled={isSyncing}>
                         {isSyncing ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (

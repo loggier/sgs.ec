@@ -16,8 +16,8 @@ export type UnitContractType = z.infer<typeof UnitContractType>;
 export const UnitSchema = z.object({
   id: z.string(),
   clientId: z.string(),
-  pgpsDeviceId: z.string().optional(), // ID from P. GPS API to link devices
-  pgpsDeviceActive: z.boolean().optional(), // Status from P. GPS API
+  woxDeviceId: z.string().optional(), // ID from WOX API to link devices
+  woxDeviceActive: z.boolean().optional(), // Status from WOX API
   imei: z.string().min(1, 'IMEI es requerido.'),
   placa: z.string().min(1, 'Placa es requerida.'),
   modelo: z.string().optional(),
@@ -40,7 +40,7 @@ export type Unit = z.infer<typeof UnitSchema>;
 
 export const UnitFormSchema = UnitSchema.omit({ 
   id: true, 
-  pgpsDeviceActive: true,
+  woxDeviceActive: true,
   fechaSuspension: true,
 }).extend({
   clientId: z.string().optional(), // Make clientId optional in the base for refinement

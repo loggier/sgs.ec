@@ -44,7 +44,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
     resolver: zodResolver(ClientSchema.omit({id: true, ownerId: true})),
     defaultValues: client
       ? {
-          pgpsId: client.pgpsId ?? undefined,
+          woxId: client.woxId ?? undefined,
           codTipoId: client.codTipoId ?? 'C',
           codIdSujeto: client.codIdSujeto ?? '',
           nomSujeto: client.nomSujeto ?? '',

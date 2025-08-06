@@ -3,7 +3,7 @@
  
 import * as React from 'react';
 import { getClients } from '@/lib/actions';
-import { getPgpsClientDetailsById } from '@/lib/pgps-actions';
+import { getWoxClientDetailsById } from '@/lib/wox-actions';
 import { getAllUnits } from '@/lib/unit-actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
@@ -36,13 +36,13 @@ function ClientsPageContent() {
         const enrichedClients = await Promise.all(
             internalClients.map(async (client) => {
                 let enrichedClient: ClientDisplay = { ...client };
-                if (client.pgpsId) {
-                    const pgpsDetails = await getPgpsClientDetailsById(client.pgpsId);
-                    if (pgpsDetails) {
+                if (client.woxId) {
+                    const woxDetails = await getWoxClientDetailsById(client.woxId);
+                    if (woxDetails) {
                         enrichedClient = {
                             ...enrichedClient,
-                            correo: pgpsDetails.correo,
-                            telefono: pgpsDetails.telefono || client.telefono,
+                            correo: woxDetails.correo,
+                            telefono: woxDetails.telefono || client.telefono,
                         };
                     }
                 }
