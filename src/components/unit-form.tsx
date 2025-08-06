@@ -10,7 +10,7 @@ import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2, AlertTriangle, Link2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
+import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
 import { saveUnit } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
@@ -63,6 +63,9 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
   'sin_contrato': 'Sin Contrato',
   'con_contrato': 'Con Contrato',
 };
+
+const unitCategoryOptions = UnitCategory.options;
+
 
 function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
     const [deviceInfo, setDeviceInfo] = React.useState<PgpsDevice | null>(null);
@@ -292,6 +295,29 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
           </FormItem>
         )}
       />
+
+       <FormField
+          control={control}
+          name="categoriaVehiculo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Categoría de Vehículo</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione una categoría" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {unitCategoryOptions.map((category) => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
@@ -567,6 +593,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
       ? { 
           ...unit,
           clientId: unit.clientId,
+          categoriaVehiculo: unit.categoriaVehiculo ?? undefined,
           costoMensual: unit.costoMensual ?? undefined,
           costoTotalContrato: unit.costoTotalContrato ?? undefined,
           mesesContrato: unit.mesesContrato ?? undefined,
@@ -581,6 +608,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           imei: '',
           placa: '',
           modelo: '',
+          categoriaVehiculo: 'Vehículo liviano',
           tipoPlan: 'estandar-sc',
           tipoContrato: 'sin_contrato',
           costoMensual: undefined,

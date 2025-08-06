@@ -13,6 +13,15 @@ export type UnitPlanType = z.infer<typeof UnitPlanType>;
 export const UnitContractType = z.enum(['sin_contrato', 'con_contrato']);
 export type UnitContractType = z.infer<typeof UnitContractType>;
 
+export const UnitCategory = z.enum([
+    'Vehículo liviano',
+    'Moto lineal',
+    'Mototaxi',
+    'Vehículo pesado',
+    'Maquinaria'
+]);
+export type UnitCategory = z.infer<typeof UnitCategory>;
+
 export const UnitSchema = z.object({
   id: z.string(),
   clientId: z.string(),
@@ -22,6 +31,7 @@ export const UnitSchema = z.object({
   imei: z.string().min(1, 'IMEI es requerido.'),
   placa: z.string().min(1, 'Placa es requerida.'),
   modelo: z.string().optional(),
+  categoriaVehiculo: UnitCategory.optional(),
   tipoPlan: UnitPlanType,
   tipoContrato: UnitContractType,
   costoMensual: z.coerce.number().optional(),

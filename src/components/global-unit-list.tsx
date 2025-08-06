@@ -276,6 +276,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
             <TableHeader>
               <TableRow>
                 <TableHead>Placa</TableHead>
+                <TableHead>Categoría</TableHead>
                 <TableHead>Cliente</TableHead>
                 {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
@@ -313,6 +314,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                           )}
                       </div>
                     </TableCell>
+                    <TableCell>{unit.categoriaVehiculo || 'N/A'}</TableCell>
                     <TableCell>
                       <Link href={`/clients/${unit.clientId}/units`} className="hover:underline text-primary">
                         {unit.clientName}
@@ -374,7 +376,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 13 : 12} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 14 : 13} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

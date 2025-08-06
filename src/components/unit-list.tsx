@@ -296,6 +296,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                     />
                 </TableHead>
                 <TableHead>Placa</TableHead>
+                <TableHead>Categoría</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
@@ -350,6 +351,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                             )}
                         </div>
                     </TableCell>
+                    <TableCell>{unit.categoriaVehiculo || 'N/A'}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
                         <Badge variant={unit.estaSuspendido ? 'destructive' : 'default'}>
@@ -409,7 +411,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center">
+                  <TableCell colSpan={13} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
