@@ -33,7 +33,7 @@ type NavLinkProps = {
 function NavLink({ href, children }: NavLinkProps) {
     const pathname = usePathname();
     const { isCollapsed } = useSidebar();
-    const isActive = pathname === href;
+    const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
     return (
       <Link href={href} className="block">
         <Button variant={isActive ? "secondary" : "ghost"} className="w-full justify-start gap-2">

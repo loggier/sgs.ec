@@ -13,6 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 import QyvooSettingsForm from '@/components/qyvoo-settings-form';
+import Link from 'next/link';
 
 function SettingsPageContent() {
   const { user, isLoading } = useAuth();
@@ -51,31 +52,44 @@ function SettingsPageContent() {
     <>
       <Header title="Configuración" />
       <div className="space-y-6">
-        <Tabs defaultValue="wox" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="wox">Integración WOX</TabsTrigger>
-            <TabsTrigger value="qyvoo">Integración Qyvoo</TabsTrigger>
+        <Tabs defaultValue="integrations" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
+            <TabsTrigger value="integrations">Integraciones</TabsTrigger>
+            <TabsTrigger value="templates">Plantillas de Mensajes</TabsTrigger>
           </TabsList>
-          <TabsContent value="wox">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Configuración de WOX</CardTitle>
-                    <CardDescription>
-                        Configure los detalles para conectar con el servidor de GPS de WOX.
-                    </CardDescription>
-                </CardHeader>
-                <WoxSettingsForm />
-            </Card>
+          <TabsContent value="integrations">
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Integración WOX</CardTitle>
+                        <CardDescription>
+                            Configure los detalles para conectar con el servidor de GPS de WOX.
+                        </CardDescription>
+                    </CardHeader>
+                    <WoxSettingsForm />
+                </Card>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Integración Qyvoo</CardTitle>
+                        <CardDescription>
+                            Configure los detalles para la integración de notificaciones con Qyvoo.
+                        </CardDescription>
+                    </CardHeader>
+                    <QyvooSettingsForm />
+                </Card>
+            </div>
           </TabsContent>
-          <TabsContent value="qyvoo">
+          <TabsContent value="templates">
             <Card>
                 <CardHeader>
-                    <CardTitle>Configuración de Qyvoo</CardTitle>
+                    <CardTitle>Plantillas de Mensajes de WhatsApp</CardTitle>
                     <CardDescription>
-                        Configure los detalles para la integración de notificaciones con Qyvoo.
+                       Gestione las plantillas para las notificaciones automáticas y manuales enviadas a través de Qyvoo.
+                       <Link href="/settings/templates" className="text-primary hover:underline ml-2">
+                            Ir al gestor de plantillas
+                       </Link>
                     </CardDescription>
                 </CardHeader>
-                <QyvooSettingsForm />
             </Card>
           </TabsContent>
         </Tabs>
