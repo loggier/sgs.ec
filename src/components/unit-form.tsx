@@ -99,9 +99,8 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
     
     const getDeviceStatus = (device?: WoxDevice | null) => {
         if (!device) return { text: 'N/A', Icon: WifiOff, color: 'text-gray-400' };
-        if (!device.active) return { text: 'Inactivo', Icon: WifiOff, color: 'text-gray-400' };
-        if (device.engine_status) return { text: 'En Movimiento', Icon: Wifi, color: 'text-green-500' };
-        return { text: 'Detenido', Icon: Wifi, color: 'text-yellow-500' };
+        if (device.active) return { text: 'Activo', Icon: Wifi, color: 'text-green-500' };
+        return { text: 'Suspendido', Icon: WifiOff, color: 'text-red-500' };
     };
     
     const status = getDeviceStatus(deviceInfo);
