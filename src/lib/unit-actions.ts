@@ -358,7 +358,7 @@ export async function importWoxDevicesAsUnits(
                 fechaVencimiento: addMonths(now, 1),
                 ultimoPago: null,
                 fechaSiguientePago: addMonths(now, 1),
-                observacion: `Importado automáticamente desde P. GPS el ${now.toLocaleDateString()}`,
+                observacion: `Importado automáticamente desde P. GPS el ${now.toLocaleDateString('es-EC')}`,
             };
             batch.set(newUnitRef, newUnitData);
         });
