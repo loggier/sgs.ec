@@ -22,6 +22,7 @@ import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
 import { getWoxDevicesByClientId, getWoxDeviceDetails, setWoxDeviceStatus } from './wox-actions';
+import { sendTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any) => {
   const data = { ...docData };
@@ -398,7 +399,12 @@ export async function updateUnitWoxStatus(
     };
     await updateDoc(unitDocRef, updateData);
 
-    // 3. Revalidate paths to refresh data on the client
+    // 3. Send notification
+    const eventType = active ? 'service_reactivated' : 'service_suspended';
+    await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
+
+
+    // 4. Revalidate paths to refresh data on the client
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
 
@@ -417,6 +423,7 @@ export async function bulkUpdateUnitWoxStatus(
     let successCount = 0;
     let failureCount = 0;
     const batch = writeBatch(db);
+    const eventType = active ? 'service_reactivated' : 'service_suspended';
 
     for (const { unitId, clientId, woxDeviceId } of units) {
         try {
@@ -425,6 +432,10 @@ export async function bulkUpdateUnitWoxStatus(
                 const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
                 const updateData = { fechaSuspension: active ? null : new Date() };
                 batch.update(unitDocRef, updateData);
+                
+                // Send notification for each successful update
+                await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
+
                 successCount++;
             } else {
                 failureCount++;
