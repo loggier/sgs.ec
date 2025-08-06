@@ -14,6 +14,7 @@ import {
   orderBy,
   runTransaction,
   limit,
+  where,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -205,15 +206,15 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
 
             // Find the new "ultimoPago" by looking at the remaining payments
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
-            
-            // Note: Cannot run getDocs inside a transaction. Fetching outside if needed, but for simplicity, we'll find another way.
-            // Let's find the second to last payment to become the new 'ultimoPago'
-            // This is tricky inside a transaction. Let's simplify and find the payment before the one deleted.
-            // A better approach is to query all payments outside transaction, but let's try a simpler logic.
-            // For now, let's just find the last payment before this one.
-            const paymentsQuery = query(paymentsCollectionRef, where('fechaPago', '<', paymentData.fechaPago), orderBy('fechaPago', 'desc'), limit(1));
-            const previousPaymentsSnapshot = await getDocs(paymentsQuery);
+            const q = query(
+                paymentsCollectionRef, 
+                where('__name__', '!=', paymentId), 
+                orderBy('__name__'), // We need another orderBy for inequality
+                orderBy('fechaPago', 'desc'), 
+                limit(1)
+            );
+
+            const previousPaymentsSnapshot = await getDocs(q);
 
             if (!previousPaymentsSnapshot.empty) {
                 unitUpdate.ultimoPago = convertTimestamps(previousPaymentsSnapshot.docs[0].data()).fechaPago;
@@ -234,7 +235,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
 
     } catch (error) {
         console.error("Error deleting payment:", error);
-        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
         return { success: false, message: errorMessage };
     }
 }
