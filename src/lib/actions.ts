@@ -299,3 +299,5 @@ export async function deleteClientById(id: string, userId: string, userRole: str
       return { success: false, message: 'Error al eliminar el cliente.' };
   }
 }
+
+    
