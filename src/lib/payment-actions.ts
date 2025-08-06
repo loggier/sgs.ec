@@ -20,7 +20,7 @@ import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
-import { getCurrentUser } from './user-actions';
+import { getCurrentUser } from './auth';
 import { sendTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any): any => {
