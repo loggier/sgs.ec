@@ -202,13 +202,21 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
             }
 
-            const paymentsCollectionRef = collection(unitDocRef, 'payments');
+            // Find the new "ultimoPago" by looking at the remaining payments
+            const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
-            const paymentsSnapshot = await getDocs(q);
+            const allPaymentsSnapshot = await getDocs(q);
             
-            const previousPaymentDoc = paymentsSnapshot.docs.find(doc => doc.id !== paymentId);
+            // Filter out the payment being deleted and find the most recent one remaining
+            const remainingPayments = allPaymentsSnapshot.docs
+                .filter(doc => doc.id !== paymentId)
+                .map(doc => convertTimestamps(doc.data()) as Payment);
 
-            unitUpdate.ultimoPago = previousPaymentDoc ? convertTimestamps(previousPaymentDoc.data()).fechaPago : null;
+            if (remainingPayments.length > 0) {
+                 unitUpdate.ultimoPago = remainingPayments[0].fechaPago;
+            } else {
+                 unitUpdate.ultimoPago = null;
+            }
             
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
