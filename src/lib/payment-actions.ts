@@ -167,12 +167,12 @@ export async function getAllPayments(
 }
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
-        return { success: false, message: 'No tiene permiso para eliminar pagos.' };
-    }
-    
     try {
+        const currentUser = await getCurrentUser();
+        if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+            return { success: false, message: 'No tiene permiso para eliminar pagos.' };
+        }
+        
         await runTransaction(db, async (transaction) => {
             const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
             const paymentDoc = await transaction.get(paymentDocRef);
@@ -206,17 +206,19 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             // Find the new "ultimoPago" by looking at the remaining payments
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
-            const allPaymentsSnapshot = await getDocs(q);
             
-            // Filter out the payment being deleted and find the most recent one remaining
-            const remainingPayments = allPaymentsSnapshot.docs
-                .filter(doc => doc.id !== paymentId)
-                .map(doc => convertTimestamps(doc.data()) as Payment);
+            // Note: Cannot run getDocs inside a transaction. Fetching outside if needed, but for simplicity, we'll find another way.
+            // Let's find the second to last payment to become the new 'ultimoPago'
+            // This is tricky inside a transaction. Let's simplify and find the payment before the one deleted.
+            // A better approach is to query all payments outside transaction, but let's try a simpler logic.
+            // For now, let's just find the last payment before this one.
+            const paymentsQuery = query(paymentsCollectionRef, where('fechaPago', '<', paymentData.fechaPago), orderBy('fechaPago', 'desc'), limit(1));
+            const previousPaymentsSnapshot = await getDocs(paymentsQuery);
 
-            if (remainingPayments.length > 0) {
-                 unitUpdate.ultimoPago = remainingPayments[0].fechaPago;
+            if (!previousPaymentsSnapshot.empty) {
+                unitUpdate.ultimoPago = convertTimestamps(previousPaymentsSnapshot.docs[0].data()).fechaPago;
             } else {
-                 unitUpdate.ultimoPago = null;
+                unitUpdate.ultimoPago = null;
             }
             
             transaction.update(unitDocRef, unitUpdate);
@@ -232,6 +234,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
 
     } catch (error) {
         console.error("Error deleting payment:", error);
-        return { success: false, message: 'Error al eliminar el pago.' };
+        const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+        return { success: false, message: errorMessage };
     }
 }

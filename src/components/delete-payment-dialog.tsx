@@ -48,15 +48,16 @@ export default function DeletePaymentDialog({
         onDelete();
       } else {
         toast({
-          title: 'Error',
-          description: result.message,
+          title: 'Error al eliminar',
+          description: result.message, // This will now show the detailed error from the server
           variant: 'destructive',
         });
       }
     } catch (error) {
+       const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
        toast({
-        title: 'Error',
-        description: 'Ocurrió un error inesperado al eliminar el pago.',
+        title: 'Error Inesperado',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
