@@ -168,11 +168,6 @@ export async function getAllPayments(
 }
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
-    const currentUser = await getCurrentUser();
-    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
-        return { success: false, message: 'No tiene permiso para eliminar pagos.' };
-    }
-
     try {
         await runTransaction(db, async (transaction) => {
             const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
