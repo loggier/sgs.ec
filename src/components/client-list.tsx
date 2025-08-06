@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 
 import type { ClientDisplay } from '@/lib/schema';
@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
+import SendQyvooMessageDialog from './send-qyvoo-message-dialog';
 
 
 type ClientListProps = {
@@ -53,6 +54,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
+  const [isQyvooDialogOpen, setIsQyvooDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientDisplay | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
 
@@ -80,6 +82,11 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     setSelectedClient(client);
     setIsPaymentDialogOpen(true);
   }
+
+  const handleOpenQyvooDialog = (client: ClientDisplay) => {
+    setSelectedClient(client);
+    setIsQyvooDialogOpen(true);
+  };
 
   const handleFormSave = () => {
     onDataChange();
@@ -247,6 +254,11 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                                 <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
                                   <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                                 </DropdownMenuItem>
+                                {client.telefono && (
+                                  <DropdownMenuItem onClick={() => handleOpenQyvooDialog(client)}>
+                                    <MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp
+                                  </DropdownMenuItem>
+                                )}
                                 {user && (user.role === 'master' || user.id === client.ownerId) && (
                                   <>
                                     <DropdownMenuSeparator />
@@ -342,6 +354,11 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
               </DialogContent>
           </Dialog>
 
+          <SendQyvooMessageDialog
+            isOpen={isQyvooDialogOpen}
+            onOpenChange={setIsQyvooDialogOpen}
+            client={selectedClient}
+          />
       </div>
     </>
   );
