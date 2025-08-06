@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { getClientById } from '@/lib/actions';
-import { getUnitsByClientId, importWoxDevicesAsUnits } from '@/lib/unit-actions';
+import { getUnitsByClientId, importPgpsDevicesAsUnits } from '@/lib/unit-actions';
 import UnitList from '@/components/unit-list';
 import UnitSummary from '@/components/unit-summary';
 import { notFound, useParams } from 'next/navigation';
@@ -66,11 +66,11 @@ function UnitsPageContent() {
     fetchData();
   }, [fetchData]);
 
-  const handleSyncWithWox = async () => {
-    if (!client || !client.woxId) {
+  const handleSyncWithPgps = async () => {
+    if (!client || !client.pgpsId) {
         toast({
             title: 'Cliente no vinculado',
-            description: 'Este cliente no está vinculado a WOX. Edite el cliente y añada un "Usuario (API)" para vincularlo.',
+            description: 'Este cliente no está vinculado a P. GPS. Edite el cliente y añada un "Usuario (API)" para vincularlo.',
             variant: 'destructive',
         });
         return;
@@ -78,11 +78,11 @@ function UnitsPageContent() {
 
     setIsSyncing(true);
     try {
-        const result = await importWoxDevicesAsUnits(client.id, client.woxId);
+        const result = await importPgpsDevicesAsUnits(client.id, client.pgpsId);
         if (result.success) {
             toast({
                 title: 'Sincronización completada',
-                description: `${result.importedCount} unidad(es) nueva(s) importada(s) desde WOX.`,
+                description: `${result.importedCount} unidad(es) nueva(s) importada(s) desde P. GPS.`,
             });
             fetchData(); // Refresh data
         } else {
@@ -95,7 +95,7 @@ function UnitsPageContent() {
     } catch (error) {
         toast({
             title: 'Error Inesperado',
-            description: 'Ocurrió un error al intentar sincronizar con WOX.',
+            description: 'Ocurrió un error al intentar sincronizar con P. GPS.',
             variant: 'destructive',
         });
     } finally {
@@ -139,20 +139,20 @@ function UnitsPageContent() {
     <TooltipProvider>
       <Header title={`Unidades de ${client.nomSujeto}`} showBackButton backButtonHref="/clients" />
       <div className='flex justify-end mb-6'>
-          {client.woxId && (
+          {client.pgpsId && (
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button onClick={handleSyncWithWox} disabled={isSyncing}>
+                    <Button onClick={handleSyncWithPgps} disabled={isSyncing}>
                         {isSyncing ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
                             <DownloadCloud className="mr-2 h-4 w-4" />
                         )}
-                        {isSyncing ? 'Sincronizando...' : 'Sincronizar con WOX'}
+                        {isSyncing ? 'Sincronizando...' : 'Sincronizar con P. GPS'}
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                    <p>Sincroniza e importa las unidades del cliente desde la plataforma WOX.</p>
+                    <p>Sincroniza e importa las unidades del cliente desde la plataforma P. GPS.</p>
                 </TooltipContent>
             </Tooltip>
           )}

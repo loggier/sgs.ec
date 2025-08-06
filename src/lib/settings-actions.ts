@@ -4,46 +4,46 @@
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { revalidatePath } from 'next/cache';
-import { WoxSettingsSchema, type WoxSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput } from './settings-schema';
+import { PgpsSettingsSchema, type PgpsSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput } from './settings-schema';
 
 const SETTINGS_DOC_ID = 'integrations';
 const TEMPLATES_COLLECTION = 'message_templates';
 
 
-// --- WOX Settings ---
+// --- P. GPS Settings ---
 
-export async function saveWoxSettings(
-  data: WoxSettings
+export async function savePgpsSettings(
+  data: PgpsSettings
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const validation = WoxSettingsSchema.safeParse(data);
+    const validation = PgpsSettingsSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, message: 'Datos no válidos.' };
     }
 
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
-    await setDoc(settingsDocRef, { wox: validation.data }, { merge: true });
+    await setDoc(settingsDocRef, { pgps: validation.data }, { merge: true });
 
-    return { success: true, message: 'Configuración de WOX guardada con éxito.' };
+    return { success: true, message: 'Configuración de P. GPS guardada con éxito.' };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-    console.error("Error saving WOX settings:", message);
+    console.error("Error saving P. GPS settings:", message);
     return { success: false, message };
   }
 }
 
-export async function getWoxSettings(): Promise<WoxSettings | null> {
+export async function getPgpsSettings(): Promise<PgpsSettings | null> {
   try {
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      return data.wox ? (data.wox as WoxSettings) : null;
+      return data.pgps ? (data.pgps as PgpsSettings) : null;
     }
     return null;
   } catch (error) {
-     console.error("Error getting WOX settings:", error);
+     console.error("Error getting P. GPS settings:", error);
      if (error instanceof Error) {
         throw error;
      }

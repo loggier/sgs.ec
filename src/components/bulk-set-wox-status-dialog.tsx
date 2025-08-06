@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { bulkUpdateUnitWoxStatus } from '@/lib/unit-actions';
+import { bulkUpdateUnitPgpsStatus } from '@/lib/unit-actions';
 import type { Unit } from '@/lib/unit-schema';
 import {
   AlertDialog,
@@ -18,7 +18,7 @@ import {
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 
-type BulkSetWoxStatusDialogProps = {
+type BulkSetPgpsStatusDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   units: Unit[];
@@ -26,13 +26,13 @@ type BulkSetWoxStatusDialogProps = {
   onSuccess: () => void;
 };
 
-export default function BulkSetWoxStatusDialog({
+export default function BulkSetPgpsStatusDialog({
   isOpen,
   onOpenChange,
   units,
   action,
   onSuccess,
-}: BulkSetWoxStatusDialogProps) {
+}: BulkSetPgpsStatusDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -43,13 +43,13 @@ export default function BulkSetWoxStatusDialog({
 
   const handleSubmit = async () => {
     const unitsToUpdate = units
-        .filter(u => u.woxDeviceId)
-        .map(u => ({ unitId: u.id, clientId: u.clientId, woxDeviceId: u.woxDeviceId! }));
+        .filter(u => u.pgpsDeviceId)
+        .map(u => ({ unitId: u.id, clientId: u.clientId, pgpsDeviceId: u.pgpsDeviceId! }));
 
     if (unitsToUpdate.length === 0) {
         toast({
             title: 'No hay unidades vinculadas',
-            description: 'Ninguna de las unidades seleccionadas está vinculada a WOX.',
+            description: 'Ninguna de las unidades seleccionadas está vinculada a P. GPS.',
             variant: 'destructive',
         });
         onOpenChange(false);
@@ -58,7 +58,7 @@ export default function BulkSetWoxStatusDialog({
 
     setIsSubmitting(true);
     try {
-      const result = await bulkUpdateUnitWoxStatus(unitsToUpdate, targetStatus);
+      const result = await bulkUpdateUnitPgpsStatus(unitsToUpdate, targetStatus);
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -90,7 +90,7 @@ export default function BulkSetWoxStatusDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>¿Estás seguro que deseas {actionText} las unidades seleccionadas?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta acción cambiará el estado de <span className="font-semibold">{units.length}</span> unidad(es) en la plataforma WOX y en el sistema local.
+            Esta acción cambiará el estado de <span className="font-semibold">{units.length}</span> unidad(es) en la plataforma P. GPS y en el sistema local.
             {actionText === 'desactivar' && ' Se registrará la fecha de suspensión para cada unidad.'}
           </AlertDialogDescription>
         </AlertDialogHeader>

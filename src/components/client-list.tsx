@@ -196,7 +196,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                         <TableCell>
                             <div className="font-medium flex items-center gap-2">
                               {client.nomSujeto}
-                              {client.woxId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>WOX</Badge>}
+                              {client.pgpsId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
                             </div>
                             <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
                              {client.correo ? 

@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { updateUnitWoxStatus } from '@/lib/unit-actions';
+import { updateUnitPgpsStatus } from '@/lib/unit-actions';
 import type { Unit } from '@/lib/unit-schema';
 import {
   AlertDialog,
@@ -18,33 +18,33 @@ import {
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 
-type SetWoxStatusDialogProps = {
+type SetPgpsStatusDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   unit: Unit | null;
   onSuccess: () => void;
 };
 
-export default function SetWoxStatusDialog({
+export default function SetPgpsStatusDialog({
   isOpen,
   onOpenChange,
   unit,
   onSuccess,
-}: SetWoxStatusDialogProps) {
+}: SetPgpsStatusDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   if (!unit) return null;
 
-  const targetStatus = !unit.woxDeviceActive;
+  const targetStatus = !unit.pgpsDeviceActive;
   const actionText = targetStatus ? 'activar' : 'desactivar';
 
   const handleSubmit = async () => {
-    if (!unit.woxDeviceId) return;
+    if (!unit.pgpsDeviceId) return;
 
     setIsSubmitting(true);
     try {
-      const result = await updateUnitWoxStatus(unit.id, unit.clientId, unit.woxDeviceId, targetStatus);
+      const result = await updateUnitPgpsStatus(unit.id, unit.clientId, unit.pgpsDeviceId, targetStatus);
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -77,7 +77,7 @@ export default function SetWoxStatusDialog({
           <AlertDialogTitle>¿Estás seguro que deseas {actionText} el dispositivo?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción cambiará el estado del dispositivo con placa{' '}
-            <span className="font-semibold">{unit.placa}</span> (IMEI: {unit.imei}) en la plataforma WOX y en el sistema local.
+            <span className="font-semibold">{unit.placa}</span> (IMEI: {unit.imei}) en la plataforma P. GPS y en el sistema local.
             {actionText === 'desactivar' && ' Se registrará la fecha de suspensión.'}
           </AlertDialogDescription>
         </AlertDialogHeader>

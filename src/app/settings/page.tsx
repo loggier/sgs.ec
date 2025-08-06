@@ -7,7 +7,7 @@ import Header from '@/components/header';
 import AppContent from '@/components/app-content';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import WoxSettingsForm from '@/components/wox-settings-form';
+import PgpsSettingsForm from '@/components/pgps-settings-form';
 import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -61,12 +61,12 @@ function SettingsPageContent() {
             <div className="space-y-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Integración WOX</CardTitle>
+                        <CardTitle>Integración P. GPS</CardTitle>
                         <CardDescription>
-                            Configure los detalles para conectar con el servidor de GPS de WOX.
+                            Configure los detalles para conectar con el servidor de P. GPS.
                         </CardDescription>
                     </CardHeader>
-                    <WoxSettingsForm />
+                    <PgpsSettingsForm />
                 </Card>
                  <Card>
                     <CardHeader>

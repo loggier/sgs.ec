@@ -8,8 +8,8 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 
-import { WoxSettingsSchema, type WoxSettingsFormInput } from '@/lib/settings-schema';
-import { getWoxSettings, saveWoxSettings } from '@/lib/settings-actions';
+import { PgpsSettingsSchema, type PgpsSettingsFormInput } from '@/lib/settings-schema';
+import { getPgpsSettings, savePgpsSettings } from '@/lib/settings-actions';
 
 import { Button } from '@/components/ui/button';
 import { CardContent, CardFooter } from '@/components/ui/card';
@@ -25,15 +25,15 @@ import { Skeleton } from './ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { AlertTriangle } from 'lucide-react';
 
-export default function WoxSettingsForm() {
+export default function PgpsSettingsForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [permissionError, setPermissionError] = React.useState<string | null>(null);
 
-  const form = useForm<WoxSettingsFormInput>({
-    resolver: zodResolver(WoxSettingsSchema),
+  const form = useForm<PgpsSettingsFormInput>({
+    resolver: zodResolver(PgpsSettingsSchema),
     defaultValues: {
       url: '',
       user: '',
@@ -51,7 +51,7 @@ export default function WoxSettingsForm() {
 
       setIsLoading(true);
       try {
-        const settings = await getWoxSettings();
+        const settings = await getPgpsSettings();
         if (settings) {
           form.reset({
               url: settings.url || '',
@@ -62,7 +62,7 @@ export default function WoxSettingsForm() {
       } catch (error) {
         toast({
           title: 'Error al cargar',
-          description: 'No se pudo cargar la configuración de WOX.',
+          description: 'No se pudo cargar la configuración de P. GPS.',
           variant: 'destructive',
         });
       } finally {
@@ -74,7 +74,7 @@ export default function WoxSettingsForm() {
     }
   }, [form, toast, user]);
 
-  async function onSubmit(values: WoxSettingsFormInput) {
+  async function onSubmit(values: PgpsSettingsFormInput) {
     if (user?.role !== 'master') {
       toast({
           title: 'Error de permisos',
@@ -86,7 +86,7 @@ export default function WoxSettingsForm() {
 
     setIsSubmitting(true);
     try {
-      const result = await saveWoxSettings(values);
+      const result = await savePgpsSettings(values);
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -146,7 +146,7 @@ export default function WoxSettingsForm() {
                 <FormItem>
                   <FormLabel>URL del Servidor</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://api.wox.com" {...field} />
+                    <Input placeholder="https://api.example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
