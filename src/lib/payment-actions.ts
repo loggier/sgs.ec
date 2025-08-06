@@ -168,6 +168,11 @@ export async function getAllPayments(
 }
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
+    const currentUser = await getCurrentUser();
+    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+        return { success: false, message: 'No tiene permiso para eliminar pagos.' };
+    }
+
     try {
         await runTransaction(db, async (transaction) => {
             const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
@@ -198,25 +203,18 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             } else {
                 unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
             }
-
-            // Find the new "ultimoPago" by looking at the remaining payments
-            const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const q = query(
-                paymentsCollectionRef, 
-                where('__name__', '!=', paymentId), 
-                orderBy('__name__'), // We need another orderBy for inequality
-                orderBy('fechaPago', 'desc'), 
-                limit(1)
-            );
-
-            const previousPaymentsSnapshot = await getDocs(q);
-
-            if (!previousPaymentsSnapshot.empty) {
-                unitUpdate.ultimoPago = convertTimestamps(previousPaymentsSnapshot.docs[0].data()).fechaPago;
-            } else {
-                unitUpdate.ultimoPago = null;
-            }
             
+            // Correctly find the new "ultimoPago" by querying all other payments for the unit
+            const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
+            const otherPaymentsQuery = query(paymentsCollectionRef, where('__name__', '!=', paymentId));
+            const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
+
+            const otherPayments = otherPaymentsSnapshot.docs
+                .map(doc => convertTimestamps(doc.data()) as Payment)
+                .sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
+
+            unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
+
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
         });
