@@ -124,19 +124,21 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
                       </TableCell>
                       <TableCell>{payment.numeroFactura}</TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Alternar menú</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleDeletePayment(payment)} className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" /> Eliminar Pago
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        {user && ['master', 'manager'].includes(user.role) && (
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Alternar menú</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleDeletePayment(payment)} className="text-red-600">
+                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar Pago
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

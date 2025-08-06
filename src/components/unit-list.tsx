@@ -247,7 +247,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               dateRange={dateRange}
               setDateRange={setDateRange}
             />
-            {user && ['master', 'manager'].includes(user.role) && (
+            {user && ['master', 'manager', 'analista'].includes(user.role) && (
               <Button onClick={handleAddUnit} size="sm" className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Nueva Unidad
@@ -389,20 +389,18 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                            <DropdownMenuItem onClick={() => handleRegisterPayment(unit)} disabled={isUnconfigured}>
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
-                          {user && ['master', 'manager', 'analista'].includes(user.role) && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleSetUnitStatus(unit)} className={!unit.estaSuspendido ? "text-red-600 focus:text-red-600" : "text-green-600 focus:text-green-600"}>
-                                  {!unit.estaSuspendido ? <ShieldOff className="mr-2 h-4 w-4" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-                                  {!unit.estaSuspendido ? 'Suspender Servicio' : 'Activar Servicio'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
-                                <Edit className="mr-2 h-4 w-4" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
+                          <DropdownMenuItem onClick={() => handleSetUnitStatus(unit)} className={!unit.estaSuspendido ? "text-red-600 focus:text-red-600" : "text-green-600 focus:text-green-600"}>
+                              {!unit.estaSuspendido ? <ShieldOff className="mr-2 h-4 w-4" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                              {!unit.estaSuspendido ? 'Suspender Servicio' : 'Activar Servicio'}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
+                            <Edit className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          {user && ['master', 'manager'].includes(user.role) && (
+                            <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                              </DropdownMenuItem>
-                            </>
+                            </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>

@@ -172,7 +172,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                   <CardTitle>Gestión de Clientes</CardTitle>
                   <CardDescription>Agregue, edite o elimine clientes.</CardDescription>
                 </div>
-                {user && ['master', 'manager'].includes(user.role) && (
+                {user && ['master', 'manager', 'analista'].includes(user.role) && (
                   <Button onClick={handleAddClient} size="sm">
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Nuevo Cliente
@@ -273,7 +273,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                                     <MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp
                                   </DropdownMenuItem>
                                 )}
-                                {user && (user.role === 'master' || user.id === client.ownerId) && (
+                                {user && ['master', 'manager'].includes(user.role) && (
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
