@@ -50,13 +50,13 @@ export async function sendQyvooMessage(
 
         const responseBody = await response.json();
 
-        if (!response.ok || responseBody.status !== 'success') {
+        if (!response.ok || !responseBody.success) {
             const errorMessage = responseBody.message || `Error de la API de Qyvoo: ${response.statusText}`;
             console.error(`Error sending message via Qyvoo API: ${response.status} ${errorMessage}`, responseBody);
             return { success: false, message: `No se pudo enviar el mensaje: ${errorMessage}` };
         }
 
-        return { success: true, message: 'Mensaje enviado a través de Qyvoo con éxito.' };
+        return { success: true, message: responseBody.message };
 
     } catch (error) {
         console.error("Failed to send Qyvoo message:", error);
