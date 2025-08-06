@@ -7,7 +7,7 @@ import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form
 import { z } from 'zod';
 import { format, addMonths, formatDistanceToNow, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Loader2, AlertTriangle, Link2, Wifi, WifiOff } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle, Link2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput } from '@/lib/unit-schema';
@@ -98,9 +98,9 @@ function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
     }
     
     const getDeviceStatus = (device?: PgpsDevice | null) => {
-        if (!device) return { text: 'N/A', Icon: WifiOff, color: 'text-gray-400' };
-        if (device.active) return { text: 'Activo', Icon: Wifi, color: 'text-green-500' };
-        return { text: 'Suspendido', Icon: WifiOff, color: 'text-red-500' };
+        if (!device) return { text: 'N/A', color: 'text-gray-400' };
+        if (device.active) return { text: 'Activo', color: 'text-green-500' };
+        return { text: 'Suspendido', color: 'text-red-500' };
     };
     
     const status = getDeviceStatus(deviceInfo);
@@ -130,8 +130,7 @@ function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
                 ) : deviceInfo ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-5">
                        <InfoField label="Estado Dispositivo" value={
-                           <span className={cn("flex items-center gap-1.5", status.color)}>
-                               <status.Icon className="h-4 w-4" />
+                           <span className={cn("font-semibold", status.color)}>
                                {status.text}
                            </span>
                        } />
