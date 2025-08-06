@@ -12,6 +12,7 @@ import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import QyvooSettingsForm from '@/components/qyvoo-settings-form';
 
 function SettingsPageContent() {
   const { user, isLoading } = useAuth();
@@ -71,9 +72,10 @@ function SettingsPageContent() {
                 <CardHeader>
                     <CardTitle>Configuración de Qyvoo</CardTitle>
                     <CardDescription>
-                        Configure los detalles para la integración de notificaciones con Qyvoo (Próximamente).
+                        Configure los detalles para la integración de notificaciones con Qyvoo.
                     </CardDescription>
                 </CardHeader>
+                <QyvooSettingsForm />
             </Card>
           </TabsContent>
         </Tabs>
