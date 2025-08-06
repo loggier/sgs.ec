@@ -126,6 +126,12 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     default: 'bg-gray-100 text-gray-800 border-gray-200',
     info: 'bg-blue-100 text-blue-800 border-blue-200',
   };
+
+  const clientTypeBadgeVariants: Record<string, string> = {
+    Personal: 'bg-purple-100 text-purple-800 border-purple-200',
+    Negocio: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    Corporativo: 'bg-sky-100 text-sky-800 border-sky-200',
+  };
   
   const displayStatus: Record<ClientDisplay['estado'], string> = {
     'al dia': 'Al día',
@@ -199,10 +205,15 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                               {client.pgpsId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
                             </div>
                             <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
-                             {client.correo ? 
-                                <div className="text-sm text-muted-foreground">{client.correo}</div> :
-                                client.telefono && <div className="text-sm text-muted-foreground">{client.telefono}</div>
-                             }
+                             <div className="flex items-center gap-2 mt-1">
+                                {client.correo ? 
+                                    <div className="text-sm text-muted-foreground">{client.correo}</div> :
+                                    client.telefono && <div className="text-sm text-muted-foreground">{client.telefono}</div>
+                                }
+                                <Badge variant="outline" className={clientTypeBadgeVariants[client.tipoCliente || 'Personal']}>
+                                  {client.tipoCliente || 'Personal'}
+                                </Badge>
+                             </div>
                         </TableCell>
                         <TableCell>
                             <div title="Pago mensual total" className="flex items-center text-sm">
@@ -363,5 +374,3 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     </>
   );
 }
-
-    

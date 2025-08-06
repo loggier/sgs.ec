@@ -21,6 +21,7 @@ export const ClientSchema = z.object({
   estado: z.enum(['al dia', 'adeuda', 'retirado'], {
     required_error: 'Estado es requerido.',
   }),
+  tipoCliente: z.enum(['Personal', 'Negocio', 'Corporativo']).optional(),
 });
 
 export type Client = z.infer<typeof ClientSchema>;

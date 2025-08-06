@@ -53,6 +53,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           telefono: client.telefono ?? '',
           usuario: client.usuario ?? '',
           estado: client.estado ?? 'al dia',
+          tipoCliente: client.tipoCliente ?? 'Personal',
         }
       : {
           codTipoId: 'C',
@@ -63,6 +64,7 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
           telefono: '',
           usuario: '',
           estado: 'al dia',
+          tipoCliente: 'Personal',
         },
   });
 
@@ -107,6 +109,29 @@ export default function ClientForm({ client, onSave, onCancel }: ClientFormProps
                   <FormControl>
                     <Input placeholder="Juan Pérez" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="tipoCliente"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Cliente</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un tipo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Personal">Personal</SelectItem>
+                      <SelectItem value="Negocio">Negocio</SelectItem>
+                      <SelectItem value="Corporativo">Corporativo</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
