@@ -37,7 +37,7 @@ import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
-import SetWoxStatusDialog from './set-wox-status-dialog';
+import SetPgpsStatusDialog from './set-pgps-status-dialog';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
@@ -79,7 +79,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [isWoxStatusDialogOpen, setIsWoxStatusDialogOpen] = React.useState(false);
+  const [isPgpsStatusDialogOpen, setIsPgpsStatusDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<GlobalUnit | null>(null);
 
   const [filter, setFilter] = React.useState('all');
@@ -114,9 +114,9 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     setIsPaymentDialogOpen(true);
   };
 
-  const handleSetWoxStatus = (unit: GlobalUnit) => {
+  const handleSetPgpsStatus = (unit: GlobalUnit) => {
     setSelectedUnit(unit);
-    setIsWoxStatusDialogOpen(true);
+    setIsPgpsStatusDialogOpen(true);
   };
 
   const handleSuccess = () => {
@@ -124,7 +124,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
-    setIsWoxStatusDialogOpen(false);
+    setIsPgpsStatusDialogOpen(false);
     setSelectedUnit(null);
   };
   
@@ -328,10 +328,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {unit.woxDeviceId && (
-                            <DropdownMenuItem onClick={() => handleSetWoxStatus(unit)} className={!unit.woxDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
-                                {!unit.woxDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
-                                {!unit.woxDeviceActive ? 'Activar en P. GPS' : 'Desactivar en P. GPS'}
+                          {unit.pgpsDeviceId && (
+                            <DropdownMenuItem onClick={() => handleSetPgpsStatus(unit)} className={!unit.pgpsDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
+                                {!unit.pgpsDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
+                                {!unit.pgpsDeviceActive ? 'Activar en P. GPS' : 'Desactivar en P. GPS'}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
@@ -398,9 +398,9 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
           </DialogContent>
       </Dialog>
       
-      <SetWoxStatusDialog
-          isOpen={isWoxStatusDialogOpen}
-          onOpenChange={setIsWoxStatusDialogOpen}
+      <SetPgpsStatusDialog
+          isOpen={isPgpsStatusDialogOpen}
+          onOpenChange={setIsPgpsStatusDialogOpen}
           unit={selectedUnit}
           onSuccess={handleSuccess}
       />

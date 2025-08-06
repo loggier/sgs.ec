@@ -19,7 +19,7 @@ import {
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientDisplay } from './schema';
 import type { User } from './user-schema';
-import { getWoxClients } from './wox-actions';
+import { getPgpsClients } from './pgps-actions';
 
 
 // Helper function to convert Firestore Timestamps to a document
@@ -145,7 +145,7 @@ export async function saveClient(
   
     try {
         const dataToSave: { [key: string]: any } = { ...clientData };
-        let woxLinkMessage = '';
+        let pgpsLinkMessage = '';
 
         const apiEmail = clientData.usuario ? clientData.usuario.trim().toLowerCase() : '';
         
@@ -156,21 +156,21 @@ export async function saveClient(
                 return { success: false, message: 'El Usuario (API) ya está en uso por otro cliente.' };
             }
             
-            const { clients: woxClients, error: woxError } = await getWoxClients();
-            if (woxError) {
-              return { success: false, message: `No se pudo guardar: ${woxError}`};
+            const { clients: pgpsClients, error: pgpsError } = await getPgpsClients();
+            if (pgpsError) {
+              return { success: false, message: `No se pudo guardar: ${pgpsError}`};
             }
             
-            const matchedWoxClient = woxClients.find(wc => wc.correo?.trim().toLowerCase() === apiEmail);
-            if (matchedWoxClient) {
-              dataToSave.woxId = matchedWoxClient.id!.replace('wox-', '');
-              woxLinkMessage = 'Cliente vinculado a P. GPS exitosamente.';
+            const matchedPgpsClient = pgpsClients.find(wc => wc.correo?.trim().toLowerCase() === apiEmail);
+            if (matchedPgpsClient) {
+              dataToSave.pgpsId = matchedPgpsClient.id!.replace('pgps-', '');
+              pgpsLinkMessage = 'Cliente vinculado a P. GPS exitosamente.';
             } else {
-              dataToSave.woxId = null;
-              woxLinkMessage = 'No se encontró un cliente coincidente en P. GPS para vincular.';
+              dataToSave.pgpsId = null;
+              pgpsLinkMessage = 'No se encontró un cliente coincidente en P. GPS para vincular.';
             }
         } else {
-            dataToSave.woxId = null;
+            dataToSave.pgpsId = null;
         }
 
         Object.keys(dataToSave).forEach(key => {
@@ -208,7 +208,7 @@ export async function saveClient(
       const baseMessage = `Cliente ${clientId ? 'actualizado' : 'creado'} con éxito.`;
       return {
         success: true,
-        message: `${baseMessage} ${woxLinkMessage}`,
+        message: `${baseMessage} ${pgpsLinkMessage}`,
         client: savedClient,
       };
     } catch (error) {

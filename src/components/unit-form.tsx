@@ -16,7 +16,7 @@ import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
-import { getWoxDeviceDetails, type WoxDevice } from '@/lib/wox-actions';
+import { getPgpsDeviceDetails, type PgpsDevice } from '@/lib/pgps-actions';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -64,17 +64,17 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
   'con_contrato': 'Con Contrato',
 };
 
-function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
-    const [deviceInfo, setDeviceInfo] = React.useState<WoxDevice | null>(null);
+function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
+    const [deviceInfo, setDeviceInfo] = React.useState<PgpsDevice | null>(null);
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
-        if (!woxDeviceId) return;
+        if (!pgpsDeviceId) return;
         setIsLoading(true);
-        getWoxDeviceDetails(woxDeviceId)
+        getPgpsDeviceDetails(pgpsDeviceId)
             .then(({ device }) => setDeviceInfo(device))
             .finally(() => setIsLoading(false));
-    }, [woxDeviceId]);
+    }, [pgpsDeviceId]);
 
     const formatTimeAgo = (timestamp?: number | null): string => {
         if (!timestamp) return 'Nunca';
@@ -97,7 +97,7 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
         }
     }
     
-    const getDeviceStatus = (device?: WoxDevice | null) => {
+    const getDeviceStatus = (device?: PgpsDevice | null) => {
         if (!device) return { text: 'N/A', Icon: WifiOff, color: 'text-gray-400' };
         if (device.active) return { text: 'Activo', Icon: Wifi, color: 'text-green-500' };
         return { text: 'Suspendido', Icon: WifiOff, color: 'text-red-500' };
@@ -117,7 +117,7 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
             <CardHeader className="pb-4">
                 <CardTitle className="text-lg flex items-center gap-2">
                     <Link2 className="h-5 w-5 text-primary"/>
-                    Información de P. GPS (ID: {woxDeviceId})
+                    Información de P. GPS (ID: {pgpsDeviceId})
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -159,7 +159,7 @@ function WoxInfoDisplay({ woxDeviceId }: { woxDeviceId: string }) {
     );
 }
 
-function UnitFormFields({ showClientSelector, isEditing, woxDeviceId }: { showClientSelector: boolean, isEditing: boolean, woxDeviceId?: string }) {
+function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showClientSelector: boolean, isEditing: boolean, pgpsDeviceId?: string }) {
   const { control, setValue, getValues } = useFormContext<UnitFormInput>();
   
   const [
@@ -229,7 +229,7 @@ function UnitFormFields({ showClientSelector, isEditing, woxDeviceId }: { showCl
   
   return (
     <div className="space-y-4 py-4">
-      {woxDeviceId && <WoxInfoDisplay woxDeviceId={woxDeviceId} />}
+      {pgpsDeviceId && <PgpsInfoDisplay pgpsDeviceId={pgpsDeviceId} />}
 
       {showClientSelector && (
         <FormField
@@ -641,7 +641,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} woxDeviceId={unit?.woxDeviceId} />
+          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} pgpsDeviceId={unit?.pgpsDeviceId} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>

@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 
-import { PgpsSettingsSchema, type PgpsSettingsFormInput } from '@/lib/settings-schema';
+import { WoxSettingsSchema, type WoxSettingsFormInput } from '@/lib/settings-schema';
 import { getPgpsSettings, savePgpsSettings } from '@/lib/settings-actions';
 
 import { Button } from '@/components/ui/button';
@@ -32,8 +32,8 @@ export default function PgpsSettingsForm() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [permissionError, setPermissionError] = React.useState<string | null>(null);
 
-  const form = useForm<PgpsSettingsFormInput>({
-    resolver: zodResolver(PgpsSettingsSchema),
+  const form = useForm<WoxSettingsFormInput>({
+    resolver: zodResolver(WoxSettingsSchema),
     defaultValues: {
       url: '',
       user: '',
@@ -74,7 +74,7 @@ export default function PgpsSettingsForm() {
     }
   }, [form, toast, user]);
 
-  async function onSubmit(values: PgpsSettingsFormInput) {
+  async function onSubmit(values: WoxSettingsFormInput) {
     if (user?.role !== 'master') {
       toast({
           title: 'Error de permisos',

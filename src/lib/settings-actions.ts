@@ -10,9 +10,9 @@ const SETTINGS_DOC_ID = 'integrations';
 const TEMPLATES_COLLECTION = 'message_templates';
 
 
-// --- WOX Settings ---
+// --- P. GPS Settings ---
 
-export async function saveWoxSettings(
+export async function savePgpsSettings(
   data: WoxSettings
 ): Promise<{ success: boolean; message: string }> {
   try {
@@ -32,7 +32,7 @@ export async function saveWoxSettings(
   }
 }
 
-export async function getWoxSettings(): Promise<WoxSettings | null> {
+export async function getPgpsSettings(): Promise<WoxSettings | null> {
   try {
     const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
     const docSnap = await getDoc(settingsDocRef);
