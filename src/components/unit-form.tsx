@@ -135,7 +135,6 @@ function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
                                {status.text}
                            </span>
                        } />
-                       <InfoField label="Activo (P. GPS)" value={deviceInfo.active ? 'Sí' : 'No'} />
                        <InfoField label="Última Conexión" value={formatTimeAgo(deviceInfo.moved_timestamp)} />
                        <InfoField label="Tiempo Estacionado" value={deviceInfo.stop_duration} />
                        <InfoField label="Nombre (P. GPS)" value={deviceInfo.name} />
