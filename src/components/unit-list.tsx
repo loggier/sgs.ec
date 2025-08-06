@@ -39,8 +39,8 @@ import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import SetWoxStatusDialog from './set-wox-status-dialog';
-import BulkSetWoxStatusDialog from './bulk-set-wox-status-dialog';
+import SetPgpsStatusDialog from './set-pgps-status-dialog';
+import BulkSetPgpsStatusDialog from './bulk-set-pgps-status-dialog';
 
 type UnitListProps = {
   initialUnits: DisplayUnit[];
@@ -83,7 +83,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [isWoxStatusDialogOpen, setIsWoxStatusDialogOpen] = React.useState(false);
+  const [isPgpsStatusDialogOpen, setIsPgpsStatusDialogOpen] = React.useState(false);
   const [isBulkStatusDialogOpen, setIsBulkStatusDialogOpen] = React.useState(false);
   const [bulkAction, setBulkAction] = React.useState<'activate' | 'deactivate' | null>(null);
   const [selectedUnit, setSelectedUnit] = React.useState<DisplayUnit | null>(null);
@@ -155,9 +155,9 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsPaymentDialogOpen(true);
   };
 
-  const handleSetWoxStatus = (unit: DisplayUnit) => {
+  const handleSetPgpsStatus = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
-    setIsWoxStatusDialogOpen(true);
+    setIsPgpsStatusDialogOpen(true);
   };
 
   const handleSuccess = () => {
@@ -165,7 +165,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
-    setIsWoxStatusDialogOpen(false);
+    setIsPgpsStatusDialogOpen(false);
     setIsBulkStatusDialogOpen(false);
     setSelectedUnit(null);
     setBulkAction(null);
@@ -303,6 +303,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>Próximo Pago</TableHead>
+                <TableHead>Fecha Próximo Pago</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -333,15 +334,15 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                     <TableCell>
                         <div className="font-medium flex items-center gap-2">
                             {unit.placa}
-                            {unit.woxDeviceId && (
+                            {unit.pgpsDeviceId && (
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Badge variant="outline" className={cn(badgeVariants.info, unit.woxDeviceActive ? 'border-green-400' : 'border-red-400')}>
-                                            <Link2 className={cn("h-3 w-3", unit.woxDeviceActive ? 'text-green-600' : 'text-red-600')}/>
+                                        <Badge variant="outline" className={cn(badgeVariants.info, unit.pgpsDeviceActive ? 'border-green-400' : 'border-red-400')}>
+                                            <Link2 className={cn("h-3 w-3", unit.pgpsDeviceActive ? 'text-green-600' : 'text-red-600')}/>
                                         </Badge>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p>Vinculado a P. GPS (ID: {unit.woxDeviceId}) - {unit.woxDeviceActive ? 'Activo' : 'Inactivo'}</p>
+                                        <p>Vinculado a P. GPS (ID: {unit.pgpsDeviceId}) - {unit.pgpsDeviceActive ? 'Activo' : 'Inactivo'}</p>
                                     </TooltipContent>
                                 </Tooltip>
                             )}
@@ -365,6 +366,9 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
                     </TableCell>
                     <TableCell>
+                        {formatDateSafe(unit.fechaSiguientePago)}
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -379,10 +383,10 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                           {user && ['master', 'manager', 'analista'].includes(user.role) && (
                             <>
                               <DropdownMenuSeparator />
-                              {unit.woxDeviceId && (
-                                <DropdownMenuItem onClick={() => handleSetWoxStatus(unit)} className={!unit.woxDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
-                                    {!unit.woxDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
-                                    {!unit.woxDeviceActive ? 'Activar en P. GPS' : 'Desactivar en P. GPS'}
+                              {unit.pgpsDeviceId && (
+                                <DropdownMenuItem onClick={() => handleSetPgpsStatus(unit)} className={!unit.pgpsDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
+                                    {!unit.pgpsDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
+                                    {!unit.pgpsDeviceActive ? 'Activar en P. GPS' : 'Desactivar en P. GPS'}
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
@@ -400,7 +404,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center">
+                  <TableCell colSpan={11} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -452,14 +456,14 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           </DialogContent>
       </Dialog>
       
-      <SetWoxStatusDialog
-          isOpen={isWoxStatusDialogOpen}
-          onOpenChange={setIsWoxStatusDialogOpen}
+      <SetPgpsStatusDialog
+          isOpen={isPgpsStatusDialogOpen}
+          onOpenChange={setIsPgpsStatusDialogOpen}
           unit={selectedUnit}
           onSuccess={handleSuccess}
       />
 
-      <BulkSetWoxStatusDialog
+      <BulkSetPgpsStatusDialog
         isOpen={isBulkStatusDialogOpen}
         onOpenChange={setIsBulkStatusDialogOpen}
         units={selectedUnitsForBulkAction}
@@ -469,3 +473,4 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     </>
   );
 }
+
