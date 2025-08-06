@@ -188,6 +188,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                     <TableHead>Cliente</TableHead>
                     <TableHead>Financiero</TableHead>
                     <TableHead>Unidades</TableHead>
+                    <TableHead>Tipo de Cliente</TableHead>
                     <TableHead>Estado</TableHead>
                     {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                     <TableHead>
@@ -210,9 +211,6 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                                     <div className="text-sm text-muted-foreground">{client.correo}</div> :
                                     client.telefono && <div className="text-sm text-muted-foreground">{client.telefono}</div>
                                 }
-                                <Badge variant="outline" className={clientTypeBadgeVariants[client.tipoCliente || 'Personal']}>
-                                  {client.tipoCliente || 'Personal'}
-                                </Badge>
                              </div>
                         </TableCell>
                         <TableCell>
@@ -236,6 +234,11 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                             <Car className="h-4 w-4 text-muted-foreground" />
                             <span className="font-medium">{client.unitCount ?? 0}</span>
                            </div>
+                        </TableCell>
+                        <TableCell>
+                           <Badge variant="outline" className={clientTypeBadgeVariants[client.tipoCliente || 'Personal']}>
+                            {client.tipoCliente || 'Personal'}
+                           </Badge>
                         </TableCell>
                         <TableCell>
                            <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
@@ -285,7 +288,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={user?.role === 'master' ? 6 : 5} className="text-center">
+                      <TableCell colSpan={user?.role === 'master' ? 7 : 6} className="text-center">
                         No se encontraron clientes.
                       </TableCell>
                     </TableRow>
