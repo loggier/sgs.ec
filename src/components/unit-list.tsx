@@ -1,8 +1,7 @@
-
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2, Power, PowerOff } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2, Power, PowerOff, ShieldCheck, ShieldOff } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -155,7 +154,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsPaymentDialogOpen(true);
   };
 
-  const handleSetPgpsStatus = (unit: DisplayUnit) => {
+  const handleSetUnitStatus = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
     setIsPgpsStatusDialogOpen(true);
   };
@@ -267,7 +266,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         className="bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
                         onClick={() => handleBulkAction('activate')}
                     >
-                        <Power className="mr-2 h-4 w-4" />
+                        <ShieldCheck className="mr-2 h-4 w-4" />
                         Activar Lote
                     </Button>
                     <Button
@@ -275,8 +274,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         variant="destructive"
                         onClick={() => handleBulkAction('deactivate')}
                     >
-                        <PowerOff className="mr-2 h-4 w-4" />
-                        Desactivar Lote
+                        <ShieldOff className="mr-2 h-4 w-4" />
+                        Suspender Lote
                     </Button>
                 </div>
             </div>
@@ -297,6 +296,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 </TableHead>
                 <TableHead>Placa</TableHead>
                 <TableHead>IMEI</TableHead>
+                <TableHead>Estado</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
                 <TableHead>Fecha de Suspensión</TableHead>
                 <TableHead>Plan</TableHead>
@@ -320,7 +320,8 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                     className={cn(
                         isExpired(unit.fechaVencimiento) && 'bg-red-50 dark:bg-red-900/20',
                         isUnconfigured && 'bg-yellow-50 dark:bg-yellow-900/20',
-                        isSelected && 'bg-blue-50 dark:bg-blue-900/20'
+                        isSelected && 'bg-blue-50 dark:bg-blue-900/20',
+                        unit.estaSuspendido && 'bg-gray-100 dark:bg-gray-800/20 text-muted-foreground'
                     )}
                     data-state={isSelected ? "selected" : undefined}
                   >
@@ -349,6 +350,11 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         </div>
                     </TableCell>
                     <TableCell>{unit.imei}</TableCell>
+                    <TableCell>
+                        <Badge variant={unit.estaSuspendido ? 'destructive' : 'default'}>
+                            {unit.estaSuspendido ? 'Suspendido' : 'Activo'}
+                        </Badge>
+                    </TableCell>
                     <TableCell>{formatDateSafe(unit.fechaInstalacion)}</TableCell>
                     <TableCell className={unit.fechaSuspension ? 'font-semibold text-destructive' : ''}>
                         {formatDateSafe(unit.fechaSuspension)}
@@ -382,13 +388,11 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                           </DropdownMenuItem>
                           {user && ['master', 'manager', 'analista'].includes(user.role) && (
                             <>
+                              <DropdownMenuItem onClick={() => handleSetUnitStatus(unit)} className={!unit.estaSuspendido ? "text-red-600 focus:text-red-600" : "text-green-600 focus:text-green-600"}>
+                                  {!unit.estaSuspendido ? <ShieldOff className="mr-2 h-4 w-4" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                                  {!unit.estaSuspendido ? 'Suspender Servicio' : 'Activar Servicio'}
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              {unit.pgpsDeviceId && (
-                                <DropdownMenuItem onClick={() => handleSetPgpsStatus(unit)} className={!unit.pgpsDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
-                                    {!unit.pgpsDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
-                                    {!unit.pgpsDeviceActive ? 'Activar en P. GPS' : 'Desactivar en P. GPS'}
-                                </DropdownMenuItem>
-                              )}
                               <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
                                 <Edit className="mr-2 h-4 w-4" /> Editar
                               </DropdownMenuItem>
@@ -404,7 +408,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center">
+                  <TableCell colSpan={12} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -473,4 +477,3 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     </>
   );
 }
-

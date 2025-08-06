@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, Power, PowerOff } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2 } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -38,6 +38,8 @@ import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
 import UnitFilterControls from './unit-filter-controls';
 import SetPgpsStatusDialog from './set-pgps-status-dialog';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
@@ -53,6 +55,10 @@ const planDisplayNames: Record<Unit['tipoPlan'], string> = {
   'estandar-cc': 'Estándar CC',
   'avanzado-cc': 'Avanzado CC',
   'total-cc': 'Total CC',
+};
+
+const badgeVariants = {
+    info: 'bg-blue-100 text-blue-800 border-blue-200',
 };
 
 function formatCurrency(amount?: number | null) {
@@ -79,7 +85,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [isPgpsStatusDialogOpen, setIsPgpsStatusDialogOpen] = React.useState(false);
+  const [isUnitStatusDialogOpen, setIsUnitStatusDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<GlobalUnit | null>(null);
 
   const [filter, setFilter] = React.useState('all');
@@ -114,9 +120,9 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     setIsPaymentDialogOpen(true);
   };
 
-  const handleSetPgpsStatus = (unit: GlobalUnit) => {
+  const handleSetUnitStatus = (unit: GlobalUnit) => {
     setSelectedUnit(unit);
-    setIsPgpsStatusDialogOpen(true);
+    setIsUnitStatusDialogOpen(true);
   };
 
   const handleSuccess = () => {
@@ -124,7 +130,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
-    setIsPgpsStatusDialogOpen(false);
+    setIsUnitStatusDialogOpen(false);
     setSelectedUnit(null);
   };
   
@@ -264,6 +270,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
         </div>
       </CardHeader>
       <CardContent>
+        <TooltipProvider>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -272,6 +279,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>Cliente</TableHead>
                 {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
+                <TableHead>Estado</TableHead>
                 <TableHead>Fecha de Instalación</TableHead>
                 <TableHead>Fecha de Suspensión</TableHead>
                 <TableHead>Plan</TableHead>
@@ -287,8 +295,24 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
             <TableBody>
               {filteredUnits.length > 0 ? (
                 filteredUnits.map(unit => (
-                  <TableRow key={`${unit.clientId}-${unit.id}`} className={isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : ''}>
-                    <TableCell className="font-medium">{unit.placa}</TableCell>
+                  <TableRow key={`${unit.clientId}-${unit.id}`} className={cn(isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : '', unit.estaSuspendido && 'bg-gray-100 dark:bg-gray-800/20 text-muted-foreground')}>
+                    <TableCell>
+                      <div className="font-medium flex items-center gap-2">
+                          {unit.placa}
+                          {unit.pgpsDeviceId && (
+                              <Tooltip>
+                                  <TooltipTrigger asChild>
+                                      <Badge variant="outline" className={cn(badgeVariants.info, unit.pgpsDeviceActive ? 'border-green-400' : 'border-red-400')}>
+                                          <Link2 className={cn("h-3 w-3", unit.pgpsDeviceActive ? 'text-green-600' : 'text-red-600')}/>
+                                      </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                      <p>Vinculado a P. GPS (ID: {unit.pgpsDeviceId}) - {unit.pgpsDeviceActive ? 'Activo' : 'Inactivo'}</p>
+                                  </TooltipContent>
+                              </Tooltip>
+                          )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Link href={`/clients/${unit.clientId}/units`} className="hover:underline text-primary">
                         {unit.clientName}
@@ -296,6 +320,11 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                     </TableCell>
                     {user?.role === 'master' && <TableCell>{unit.ownerName}</TableCell>}
                     <TableCell>{unit.imei}</TableCell>
+                    <TableCell>
+                        <Badge variant={unit.estaSuspendido ? 'destructive' : 'default'}>
+                            {unit.estaSuspendido ? 'Suspendido' : 'Activo'}
+                        </Badge>
+                    </TableCell>
                     <TableCell>{formatDateSafe(unit.fechaInstalacion)}</TableCell>
                     <TableCell className={unit.fechaSuspension ? 'font-semibold text-destructive' : ''}>
                         {formatDateSafe(unit.fechaSuspension)}
@@ -327,13 +356,11 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                            <DropdownMenuItem onClick={() => handleRegisterPayment(unit)}>
                             <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSetUnitStatus(unit)} className={!unit.estaSuspendido ? "text-red-600 focus:text-red-600" : "text-green-600 focus:text-green-600"}>
+                              {!unit.estaSuspendido ? <ShieldOff className="mr-2 h-4 w-4" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                              {!unit.estaSuspendido ? 'Suspender Servicio' : 'Activar Servicio'}
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          {unit.pgpsDeviceId && (
-                            <DropdownMenuItem onClick={() => handleSetPgpsStatus(unit)} className={!unit.pgpsDeviceActive ? "text-green-600 focus:text-green-600" : "text-red-600 focus:text-red-600"}>
-                                {!unit.pgpsDeviceActive ? <Power className="mr-2 h-4 w-4" /> : <PowerOff className="mr-2 h-4 w-4" />}
-                                {!unit.pgpsDeviceActive ? 'Activar en P. GPS' : 'Desactivar en P. GPS'}
-                            </DropdownMenuItem>
-                          )}
                           <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
@@ -347,7 +374,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 12 : 11} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 13 : 12} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -355,6 +382,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
             </TableBody>
           </Table>
         </div>
+        </TooltipProvider>
       </CardContent>
       </Card>
       
@@ -399,8 +427,8 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
       </Dialog>
       
       <SetPgpsStatusDialog
-          isOpen={isPgpsStatusDialogOpen}
-          onOpenChange={setIsPgpsStatusDialogOpen}
+          isOpen={isUnitStatusDialogOpen}
+          onOpenChange={setIsUnitStatusDialogOpen}
           unit={selectedUnit}
           onSuccess={handleSuccess}
       />

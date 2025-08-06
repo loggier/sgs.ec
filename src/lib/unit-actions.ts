@@ -123,6 +123,7 @@ export async function saveUnit(
       tipoContrato,
       mesesContrato,
       costoTotalContrato,
+      estaSuspendido: data.estaSuspendido ?? false, // Default to active
     };
 
     // Auto-link with P. GPS device based on IMEI
@@ -346,6 +347,7 @@ export async function importPgpsDevicesAsUnits(
             const now = new Date();
             const newUnitData: Omit<Unit, 'id' | 'clientId'> = {
                 pgpsDeviceId: String(device.id),
+                estaSuspendido: false,
                 imei: device.imei,
                 placa: device.name, // Use P. GPS device name as default plate
                 modelo: 'Importado desde P. GPS',
@@ -379,67 +381,83 @@ export async function importPgpsDevicesAsUnits(
     }
 }
 
-export async function updateUnitPgpsStatus(
+export async function updateUnitStatus(
   unitId: string,
   clientId: string,
-  pgpsDeviceId: string,
-  active: boolean
+  suspend: boolean
 ): Promise<{ success: boolean; message: string }> {
   try {
-    // 1. Call P. GPS API to change status
-    const pgpsResult = await setPgpsDeviceStatus(pgpsDeviceId, active);
-    if (!pgpsResult.success) {
-      return pgpsResult; // Propagate error message from P. GPS action
+    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+    const unitSnapshot = await getDoc(unitDocRef);
+    if (!unitSnapshot.exists()) {
+        return { success: false, message: 'La unidad no fue encontrada.' };
+    }
+    const unitData = unitSnapshot.data() as Unit;
+
+    // If unit is linked to P. GPS, update status there first
+    if (unitData.pgpsDeviceId) {
+        const pgpsResult = await setPgpsDeviceStatus(unitData.pgpsDeviceId, !suspend);
+        if (!pgpsResult.success) {
+            return pgpsResult; // Propagate error message from P. GPS action
+        }
     }
 
-    // 2. Update the local unit document in Firestore
-    const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
-    const updateData: { fechaSuspension: Date | null } = {
-      fechaSuspension: active ? null : new Date(),
+    // Update the local unit document in Firestore
+    const updateData: Partial<Unit> = {
+      estaSuspendido: suspend,
+      fechaSuspension: suspend ? new Date() : null,
     };
     await updateDoc(unitDocRef, updateData);
 
-    // 3. Send notification
-    const eventType = active ? 'service_reactivated' : 'service_suspended';
+    // Send notification
+    const eventType = suspend ? 'service_suspended' : 'service_reactivated';
     await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
 
-
-    // 4. Revalidate paths to refresh data on the client
+    // Revalidate paths to refresh data on the client
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
 
-    return { success: true, message: 'Estado del dispositivo actualizado con éxito.' };
+    const actionText = suspend ? 'suspendió' : 'activó';
+    return { success: true, message: `La unidad se ${actionText} con éxito.` };
   } catch (error) {
-    console.error("Error updating unit P. GPS status:", error);
+    console.error("Error updating unit status:", error);
     const message = error instanceof Error ? error.message : 'Error desconocido';
     return { success: false, message };
   }
 }
 
 export async function bulkUpdateUnitPgpsStatus(
-    units: { unitId: string; clientId: string; pgpsDeviceId: string }[],
-    active: boolean
+    units: { unitId: string; clientId: string; pgpsDeviceId?: string }[],
+    suspend: boolean
 ): Promise<{ success: boolean; message: string; failures: number }> {
     let successCount = 0;
     let failureCount = 0;
     const batch = writeBatch(db);
-    const eventType = active ? 'service_reactivated' : 'service_suspended';
+    const eventType = suspend ? 'service_suspended' : 'service_reactivated';
 
     for (const { unitId, clientId, pgpsDeviceId } of units) {
         try {
-            const pgpsResult = await setPgpsDeviceStatus(pgpsDeviceId, active);
-            if (pgpsResult.success) {
-                const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
-                const updateData = { fechaSuspension: active ? null : new Date() };
-                batch.update(unitDocRef, updateData);
-                
-                // Send notification for each successful update
-                await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
-
-                successCount++;
-            } else {
-                failureCount++;
+            // Update P. GPS only if the device is linked
+            if (pgpsDeviceId) {
+                const pgpsResult = await setPgpsDeviceStatus(pgpsDeviceId, !suspend);
+                if (!pgpsResult.success) {
+                    failureCount++;
+                    continue; // Skip to next unit if P. GPS update fails
+                }
             }
+            
+            // Always update local status
+            const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+            const updateData = { 
+                estaSuspendido: suspend,
+                fechaSuspension: suspend ? new Date() : null 
+            };
+            batch.update(unitDocRef, updateData);
+            
+            // Send notification for each successful update
+            await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
+
+            successCount++;
         } catch (error) {
             console.error(`Error processing unit ${unitId} in bulk update:`, error);
             failureCount++;
@@ -462,8 +480,9 @@ export async function bulkUpdateUnitPgpsStatus(
     }
 
     let message = '';
+    const actionText = suspend ? 'suspendida(s)' : 'activada(s)';
     if (successCount > 0) {
-        message += `${successCount} unidad(es) actualizada(s) con éxito. `;
+        message += `${successCount} unidad(es) ${actionText} con éxito. `;
     }
     if (failureCount > 0) {
         message += `${failureCount} unidad(es) no se pudieron actualizar.`;

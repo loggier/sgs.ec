@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { updateUnitPgpsStatus } from '@/lib/unit-actions';
+import { updateUnitStatus } from '@/lib/unit-actions';
 import type { Unit } from '@/lib/unit-schema';
 import {
   AlertDialog,
@@ -36,15 +36,14 @@ export default function SetPgpsStatusDialog({
 
   if (!unit) return null;
 
-  const targetStatus = !unit.pgpsDeviceActive;
-  const actionText = targetStatus ? 'activar' : 'desactivar';
+  const targetStatusIsSuspend = !unit.estaSuspendido;
+  const actionText = targetStatusIsSuspend ? 'suspender' : 'activar';
+  const variant = targetStatusIsSuspend ? 'destructive' : 'default';
 
   const handleSubmit = async () => {
-    if (!unit.pgpsDeviceId) return;
-
     setIsSubmitting(true);
     try {
-      const result = await updateUnitPgpsStatus(unit.id, unit.clientId, unit.pgpsDeviceId, targetStatus);
+      const result = await updateUnitStatus(unit.id, unit.clientId, targetStatusIsSuspend);
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -61,7 +60,7 @@ export default function SetPgpsStatusDialog({
     } catch (error) {
        toast({
         title: 'Error Inesperado',
-        description: `Ocurrió un error al intentar ${actionText} el dispositivo.`,
+        description: `Ocurrió un error al intentar ${actionText} la unidad.`,
         variant: 'destructive',
       });
     } finally {
@@ -74,18 +73,19 @@ export default function SetPgpsStatusDialog({
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Estás seguro que deseas {actionText} el dispositivo?</AlertDialogTitle>
+          <AlertDialogTitle>¿Estás seguro que deseas {actionText} esta unidad?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta acción cambiará el estado del dispositivo con placa{' '}
-            <span className="font-semibold">{unit.placa}</span> (IMEI: {unit.imei}) en la plataforma P. GPS y en el sistema local.
-            {actionText === 'desactivar' && ' Se registrará la fecha de suspensión.'}
+            Esta acción cambiará el estado de la unidad con placa{' '}
+            <span className="font-semibold">{unit.placa}</span>.
+            {unit.pgpsDeviceId && ` También se ${actionText}á en la plataforma P. GPS.`}
+            {actionText === 'suspender' && ' Se registrará la fecha de suspensión.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
           <AlertDialogAction asChild>
             <Button
-                variant={targetStatus ? "default" : "destructive"}
+                variant={variant}
                 onClick={handleSubmit}
                 disabled={isSubmitting}
             >

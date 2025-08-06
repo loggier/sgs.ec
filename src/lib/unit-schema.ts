@@ -18,6 +18,7 @@ export const UnitSchema = z.object({
   clientId: z.string(),
   pgpsDeviceId: z.string().optional(), // ID from P. GPS API to link devices
   pgpsDeviceActive: z.boolean().optional(), // Status from P. GPS API
+  estaSuspendido: z.boolean().default(false).optional(),
   imei: z.string().min(1, 'IMEI es requerido.'),
   placa: z.string().min(1, 'Placa es requerida.'),
   modelo: z.string().optional(),
