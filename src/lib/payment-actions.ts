@@ -21,6 +21,7 @@ import type { User } from './user-schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 import { getCurrentUser } from './user-actions';
+import { sendTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any): any => {
     const data = { ...docData };
@@ -94,6 +95,11 @@ export async function registerPayment(
             processedCount++;
         }
     });
+
+    // Send notifications after transaction is successful
+    for (const unitId of unitIds) {
+        await sendTemplatedWhatsAppMessage('payment_received', clientId, unitId);
+    }
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -102,7 +108,7 @@ export async function registerPayment(
 
     return { 
         success: true, 
-        message: `${processedCount} pago(s) registrado(s) con éxito.`, 
+        message: `${processedCount} pago(s) registrado(s) con éxito. Se enviaron las notificaciones.`, 
         units: updatedUnits 
     };
 
