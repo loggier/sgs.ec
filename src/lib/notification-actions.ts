@@ -128,8 +128,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
-            // The date from getAllUnits is already a JS Date object. No need for new Date().
-            const nextPaymentDate = startOfDay(unit.fechaSiguientePago);
+            const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
             let eventType: TemplateEventType | null = null;
             
             if (isSameDay(nextPaymentDate, today)) {

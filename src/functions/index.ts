@@ -52,11 +52,11 @@ export const dailyNotificationCheck = functions
 
                 // Determinar si se debe enviar una notificación
                 if (isSameDay(nextPaymentDate, today)) {
-                    await sendTemplatedWhatsAppMessage('payment_due_today', unit.clientId, doc.id);
+                    await sendTemplatedWhatsAppMessage('payment_due_today', doc.ref.parent.parent!.id, doc.id);
                     functions.logger.info(`Enviando aviso de vencimiento hoy para unidad ${doc.id}`);
                     processedCount++;
                 } else if (isSameDay(nextPaymentDate, threeDaysOverdueDate)) {
-                    await sendTemplatedWhatsAppMessage('payment_overdue', unit.clientId, doc.id);
+                    await sendTemplatedWhatsAppMessage('payment_overdue', doc.ref.parent.parent!.id, doc.id);
                     functions.logger.info(`Enviando aviso de pago vencido (3 días) para unidad ${doc.id}`);
                     processedCount++;
                 }
