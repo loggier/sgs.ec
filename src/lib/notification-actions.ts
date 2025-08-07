@@ -22,13 +22,40 @@ import { startOfDay, isSameDay, subDays, add, parseISO } from 'date-fns';
  */
 function formatMessage(template: string, client: Client, unit: Unit, owner: User | null): string {
     let message = template;
-    const today = new Date();
+    
+    // Calculate the amount due
+    let amountDue = 0;
+    if (unit.tipoContrato === 'con_contrato' && unit.costoTotalContrato && unit.mesesContrato) {
+        amountDue = unit.costoTotalContrato / unit.mesesContrato;
+    } else if (unit.costoMensual) {
+        amountDue = unit.costoMensual;
+    }
+    const formattedAmount = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amountDue);
+
+    // Format the date correctly
+    let formattedDate = 'N/A';
+    if (unit.fechaSiguientePago) {
+        try {
+            // The date is an ISO string, so parse it and format it
+            const date = new Date(unit.fechaSiguientePago);
+            if (!isNaN(date.getTime())) {
+                formattedDate = date.toLocaleDateString('es-EC', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                });
+            }
+        } catch (e) {
+            console.error('Could not format date:', unit.fechaSiguientePago);
+        }
+    }
+
 
     const replacements = {
         '{nombre_cliente}': client.nomSujeto,
         '{placa_unidad}': unit.placa,
-        '{fecha_vencimiento}': unit.fechaSiguientePago ? new Date(unit.fechaSiguientePago).toLocaleDateString('es-EC') : 'N/A',
-        '{monto_vencido}': '0.00', // Placeholder, needs real calculation logic
+        '{fecha_vencimiento}': formattedDate,
+        '{monto_vencido}': formattedAmount,
         '{nombre_empresa}': owner?.empresa || 'Su Proveedor de Servicios GPS',
         '{telefono_empresa}': owner?.telefono || '',
     };
@@ -77,6 +104,11 @@ export async function sendTemplatedWhatsAppMessage(
 
         const clientData = clientDoc.data() as Client;
         const unitData = { id: unitDoc.id, clientId, ...unitDoc.data() } as Unit;
+        
+        // When data comes from Firestore directly, dates might be Timestamps. Convert them.
+        if (unitData.fechaSiguientePago instanceof Timestamp) {
+            unitData.fechaSiguientePago = unitData.fechaSiguientePago.toDate().toISOString();
+        }
 
         if (!clientData.telefono) {
             return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
@@ -118,9 +150,9 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
 
         // Use a consistent timezone for comparison, e.g., America/Guayaquil (UTC-5)
         const timeZone = 'America/Guayaquil';
-        const now = new Date();
-        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
-        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
+        const nowInGuayaquil = new Date(new Date().toLocaleString('en-US', { timeZone }));
+        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(nowInGuayaquil);
+        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(subDays(nowInGuayaquil, 3));
         
         let sentCount = 0;
         let errorCount = 0;
@@ -132,8 +164,10 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
+            // Convert the unit's payment date to a comparable string in the same timezone
             const nextPaymentDate = new Date(unit.fechaSiguientePago);
-            const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
+            const nextPaymentDateInGuayaquil = new Date(nextPaymentDate.toLocaleString('en-US', { timeZone }));
+            const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(nextPaymentDateInGuayaquil);
             
             let eventType: TemplateEventType | null = null;
             

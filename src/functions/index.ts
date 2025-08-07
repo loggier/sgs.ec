@@ -31,9 +31,10 @@ export const dailyNotificationCheck = functions
         functions.logger.info("Iniciando revisión diaria de notificaciones.", { structuredData: true });
 
         const timeZone = "America/Guayaquil";
-        const now = new Date();
-        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
-        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
+        const nowInGuayaquil = new Date(new Date().toLocaleString('en-US', { timeZone }));
+        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(nowInGuayaquil);
+        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(subDays(nowInGuayaquil, 3));
+
 
         try {
             const unitsSnapshot = await db.collectionGroup("units").get();
@@ -49,10 +50,10 @@ export const dailyNotificationCheck = functions
                 const unit = doc.data() as { fechaSiguientePago?: Timestamp, clientId: string, id: string };
                 if (!unit.fechaSiguientePago || !unit.clientId) continue;
 
-                // Convert Firestore Timestamp to JS Date
+                // Convert Firestore Timestamp to JS Date and then to a comparable string in the correct timezone
                 const nextPaymentDate = unit.fechaSiguientePago.toDate();
-                const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
-
+                const nextPaymentDateInGuayaquil = new Date(nextPaymentDate.toLocaleString('en-US', { timeZone }));
+                const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(nextPaymentDateInGuayaquil);
 
                 // Determinar si se debe enviar una notificación
                 if (nextPaymentDateStr === todayStr) {
