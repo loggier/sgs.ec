@@ -303,7 +303,7 @@ export async function bulkDeleteUnits(
 }
 
 
-export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
+export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName: string; ownerName?: string; fechaSiguientePago: Timestamp | null; })[]> {
     if (!currentUser) return [];
 
     try {
@@ -314,12 +314,10 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
             ownerIdToFilter = currentUser.creatorId;
         }
 
-        // Filter clients based on user role
         const userClients = clientsSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() } as ClientDisplay))
             .filter(client => currentUser.role === 'master' || client.ownerId === ownerIdToFilter);
 
-        const clientMap = new Map(userClients.map(c => [c.id, c]));
         const usersSnapshot = await getDocs(collection(db, 'users'));
         const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
@@ -328,16 +326,20 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
             const owner = usersMap.get(client.ownerId);
 
             const clientUnitsPromises = unitsSnapshot.docs.map(async (unitDoc) => {
-                const data = convertTimestamps(unitDoc.data());
-                let unit: Unit & { clientName: string; ownerId: string; ownerName?: string } = {
+                const data = unitDoc.data();
+                
+                // Keep dates as Timestamps for backend consistency
+                const unit: any = {
                     id: unitDoc.id,
                     clientId: client.id,
                     clientName: client.nomSujeto,
                     ownerId: client.ownerId,
                     ownerName: owner?.nombre || 'Propietario Desconocido',
-                    ...data
+                    ...data,
+                    // Ensure the date is a Timestamp object, not converted
+                    fechaSiguientePago: data.fechaSiguientePago instanceof Timestamp ? data.fechaSiguientePago : null,
                 };
-
+                
                 // Enrich with P. GPS device status if linked
                 if (unit.pgpsDeviceId) {
                     const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
@@ -353,7 +355,7 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
         const allUnitsNested = await Promise.all(allUnitsPromises);
         const allUnits = allUnitsNested.flat();
 
-        return allUnits;
+        return allUnits as (Unit & { clientName: string; ownerName?: string; fechaSiguientePago: Timestamp | null; })[];
     } catch (error) {
         console.error("Error getting all units:", error);
         return [];

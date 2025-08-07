@@ -3,14 +3,14 @@
 
 import { getMessageTemplates, getQyvooSettings } from './settings-actions';
 import { sendQyvooMessage } from './qyvoo-actions';
-import { getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Client } from './schema';
 import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { addDays, startOfDay, isSameDay, isBefore, subDays } from 'date-fns';
+import { startOfDay, isSameDay, subDays } from 'date-fns';
 
 /**
  * Replaces placeholders in a template string with actual data.
@@ -128,7 +128,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
-            const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+            const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
             let eventType: TemplateEventType | null = null;
             
             if (isSameDay(nextPaymentDate, today)) {

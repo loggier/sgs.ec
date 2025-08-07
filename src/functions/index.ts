@@ -6,7 +6,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { addDays, startOfDay, isSameDay, subDays } from "date-fns";
+import { startOfDay, isSameDay, subDays } from "date-fns";
 import { sendTemplatedWhatsAppMessage } from "../lib/notification-actions";
 
 // Asegúrate de que Firebase Admin SDK esté inicializado.
