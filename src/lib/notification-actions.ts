@@ -128,6 +128,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
+            // Ensure safe conversion to Date object before comparison
             const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
             let eventType: TemplateEventType | null = null;
             

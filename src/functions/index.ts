@@ -47,6 +47,7 @@ export const dailyNotificationCheck = functions
                 const unit = doc.data() as { fechaSiguientePago?: Timestamp, clientId: string, id: string };
                 if (!unit.fechaSiguientePago || !unit.clientId) continue;
 
+                // Ensure conversion from Firestore Timestamp to JS Date
                 const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
 
                 // Determinar si se debe enviar una notificación
