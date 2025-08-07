@@ -6,7 +6,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { startOfDay, isSameDay, subDays } from "date-fns";
+import { subDays } from "date-fns";
 import { sendTemplatedWhatsAppMessage } from "../lib/notification-actions";
 
 // Asegúrate de que Firebase Admin SDK esté inicializado.
@@ -30,8 +30,10 @@ export const dailyNotificationCheck = functions
     .onRun(async (context) => {
         functions.logger.info("Iniciando revisión diaria de notificaciones.", { structuredData: true });
 
-        const today = startOfDay(new Date());
-        const threeDaysOverdueDate = subDays(today, 3);
+        const timeZone = "America/Guayaquil";
+        const now = new Date();
+        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
+        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
 
         try {
             const unitsSnapshot = await db.collectionGroup("units").get();
@@ -47,15 +49,17 @@ export const dailyNotificationCheck = functions
                 const unit = doc.data() as { fechaSiguientePago?: Timestamp, clientId: string, id: string };
                 if (!unit.fechaSiguientePago || !unit.clientId) continue;
 
-                // Directly convert from Firestore Timestamp to JS Date and apply startOfDay
-                const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
+                // Convert Firestore Timestamp to JS Date
+                const nextPaymentDate = unit.fechaSiguientePago.toDate();
+                const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
+
 
                 // Determinar si se debe enviar una notificación
-                if (isSameDay(nextPaymentDate, today)) {
+                if (nextPaymentDateStr === todayStr) {
                     await sendTemplatedWhatsAppMessage('payment_due_today', doc.ref.parent.parent!.id, doc.id);
                     functions.logger.info(`Enviando aviso de vencimiento hoy para unidad ${doc.id}`);
                     processedCount++;
-                } else if (isSameDay(nextPaymentDate, threeDaysOverdueDate)) {
+                } else if (nextPaymentDateStr === threeDaysAgoStr) {
                     await sendTemplatedWhatsAppMessage('payment_overdue', doc.ref.parent.parent!.id, doc.id);
                     functions.logger.info(`Enviando aviso de pago vencido (3 días) para unidad ${doc.id}`);
                     processedCount++;

@@ -10,7 +10,7 @@ import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { startOfDay, isSameDay, subDays } from 'date-fns';
+import { startOfDay, isSameDay, subDays, add, parseISO } from 'date-fns';
 
 /**
  * Replaces placeholders in a template string with actual data.
@@ -116,8 +116,12 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             return { success: true, message: "No se encontraron unidades para verificar." };
         }
 
-        const today = startOfDay(new Date());
-        const threeDaysOverdueDate = subDays(today, 3);
+        // Use a consistent timezone for comparison, e.g., America/Guayaquil (UTC-5)
+        const timeZone = 'America/Guayaquil';
+        const now = new Date();
+        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
+        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
+        
         let sentCount = 0;
         let errorCount = 0;
         let skippedCount = 0;
@@ -128,12 +132,14 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
-            const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+            const nextPaymentDate = new Date(unit.fechaSiguientePago);
+            const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
+            
             let eventType: TemplateEventType | null = null;
             
-            if (isSameDay(nextPaymentDate, today)) {
+            if (nextPaymentDateStr === todayStr) {
                 eventType = 'payment_due_today';
-            } else if (isSameDay(nextPaymentDate, threeDaysOverdueDate)) {
+            } else if (nextPaymentDateStr === threeDaysAgoStr) {
                 eventType = 'payment_overdue';
             }
             
