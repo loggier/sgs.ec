@@ -255,6 +255,54 @@ export async function deleteUnit(unitId: string, clientId: string, user: User | 
   }
 }
 
+export async function bulkDeleteUnits(
+  units: { unitId: string; clientId: string }[],
+  user: User | null
+): Promise<{ success: boolean; message: string }> {
+  if (!user || !['master', 'manager'].includes(user.role)) {
+    return { success: false, message: 'No tiene permiso para eliminar unidades.' };
+  }
+
+  try {
+    const batch = writeBatch(db);
+    let successCount = 0;
+
+    for (const { unitId, clientId } of units) {
+      const clientDocRef = doc(db, 'clients', clientId);
+      const clientDoc = await getDoc(clientDocRef);
+      if (clientDoc.exists()) {
+        const clientOwnerId = clientDoc.data().ownerId;
+        const canDelete =
+          user.role === 'master' ||
+          clientOwnerId === user.id ||
+          (user.role === 'analista' && clientOwnerId === user.creatorId);
+
+        if (canDelete) {
+          const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+          batch.delete(unitDocRef);
+          successCount++;
+        }
+      }
+    }
+
+    if (successCount === 0) {
+      return { success: false, message: 'No se pudo eliminar ninguna de las unidades seleccionadas (verifique permisos).' };
+    }
+
+    await batch.commit();
+    revalidatePath('/units');
+    if (units.length > 0) {
+        revalidatePath(`/clients/${units[0].clientId}/units`);
+    }
+
+    return { success: true, message: `${successCount} unidad(es) eliminada(s) con éxito.` };
+  } catch (error) {
+    console.error("Error during bulk delete:", error);
+    return { success: false, message: 'Ocurrió un error al eliminar las unidades.' };
+  }
+}
+
+
 export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
     if (!currentUser) return [];
 

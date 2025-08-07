@@ -41,6 +41,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import SetPgpsStatusDialog from './set-pgps-status-dialog';
 import BulkSetPgpsStatusDialog from './bulk-set-pgps-status-dialog';
+import BulkDeleteUnitDialog from './bulk-delete-unit-dialog';
 
 type UnitListProps = {
   initialUnits: DisplayUnit[];
@@ -82,6 +83,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [isPgpsStatusDialogOpen, setIsPgpsStatusDialogOpen] = React.useState(false);
   const [isBulkStatusDialogOpen, setIsBulkStatusDialogOpen] = React.useState(false);
@@ -165,6 +167,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
+    setIsBulkDeleteDialogOpen(false);
     setIsPgpsStatusDialogOpen(false);
     setIsBulkStatusDialogOpen(false);
     setSelectedUnit(null);
@@ -255,7 +258,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
             )}
           </div>
         </div>
-        {selectedUnitIds.length > 0 && (
+        {selectedUnitIds.length > 0 && user && ['master', 'manager'].includes(user.role) && (
             <div className="mt-4 flex items-center justify-between gap-4 p-3 bg-secondary rounded-lg">
                 <span className="text-sm font-medium text-secondary-foreground">
                     {selectedUnitIds.length} unidad(es) seleccionada(s)
@@ -273,10 +276,19 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                     <Button
                         size="sm"
                         variant="destructive"
+                        className="bg-yellow-500 hover:bg-yellow-600"
                         onClick={() => handleBulkAction('deactivate')}
                     >
                         <ShieldOff className="mr-2 h-4 w-4" />
                         Suspender Lote
+                    </Button>
+                     <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setIsBulkDeleteDialogOpen(true)}
+                    >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Eliminar Lote
                     </Button>
                 </div>
             </div>
@@ -441,6 +453,13 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
         unit={selectedUnit}
         clientId={clientId}
         onDelete={handleSuccess}
+      />
+
+       <BulkDeleteUnitDialog
+        isOpen={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        units={selectedUnitsForBulkAction}
+        onSuccess={handleSuccess}
       />
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
