@@ -117,7 +117,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
         }
 
         const today = startOfDay(new Date());
-        const threeDaysOverdueDate = subDays(today, 3); // Fecha de hace 3 días
+        const threeDaysOverdueDate = subDays(today, 3);
         let sentCount = 0;
         let errorCount = 0;
         let skippedCount = 0;
@@ -128,8 +128,8 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
-            // Ensure safe conversion to Date object before comparison
-            const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+            // The date from getAllUnits is already a JS Date object. No need for new Date().
+            const nextPaymentDate = startOfDay(unit.fechaSiguientePago);
             let eventType: TemplateEventType | null = null;
             
             if (isSameDay(nextPaymentDate, today)) {
@@ -151,6 +151,13 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             }
         }
         
+        if (sentCount === 0 && errorCount === 0) {
+             return {
+                success: true,
+                message: "Proceso finalizado. Ninguna unidad cumplió con los criterios para enviar notificaciones hoy."
+            };
+        }
+
         return {
             success: true,
             message: `Proceso finalizado. ${sentCount} notificaciones enviadas, ${errorCount} errores, ${skippedCount} unidades omitidas (no cumplen criterios).`

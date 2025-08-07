@@ -31,7 +31,7 @@ export const dailyNotificationCheck = functions
         functions.logger.info("Iniciando revisión diaria de notificaciones.", { structuredData: true });
 
         const today = startOfDay(new Date());
-        const threeDaysOverdueDate = subDays(today, 3); // Fecha de hace 3 días
+        const threeDaysOverdueDate = subDays(today, 3);
 
         try {
             const unitsSnapshot = await db.collectionGroup("units").get();
@@ -47,7 +47,7 @@ export const dailyNotificationCheck = functions
                 const unit = doc.data() as { fechaSiguientePago?: Timestamp, clientId: string, id: string };
                 if (!unit.fechaSiguientePago || !unit.clientId) continue;
 
-                // Ensure conversion from Firestore Timestamp to JS Date
+                // Directly convert from Firestore Timestamp to JS Date and apply startOfDay
                 const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
 
                 // Determinar si se debe enviar una notificación
