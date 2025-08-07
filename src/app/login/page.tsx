@@ -34,7 +34,7 @@ export default function LoginPage() {
                     <Banknote className="h-8 w-8 text-primary-foreground" />
                 </div>
                 <h1 className="text-3xl font-bold text-center">Bienvenido a SGI</h1>
-                <p className="text-muted-foreground text-center">Sistema de Gestión de Clientes</p>
+                <p className="text-muted-foreground text-center">Sistema de Gestión Integrar</p>
             </div>
             <LoginForm />
         </div>

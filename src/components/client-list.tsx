@@ -169,7 +169,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
           <CardHeader>
             <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Gestión de Clientes</CardTitle>
+                  <CardTitle>Gestión Integrar</CardTitle>
                   <CardDescription>Agregue, edite o elimine clientes.</CardDescription>
                 </div>
                 {user && ['master', 'manager', 'analista'].includes(user.role) && (
