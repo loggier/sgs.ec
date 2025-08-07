@@ -66,7 +66,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                   <Banknote className="h-5 w-5 text-primary-foreground" />
               </div>
-              {!isCollapsed && <span>SGC</span>}
+              {!isCollapsed && <span>SGI</span>}
             </Link>
           </SidebarHeader>
           <SidebarContent className="flex-1 p-2">

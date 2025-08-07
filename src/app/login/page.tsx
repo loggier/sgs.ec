@@ -33,7 +33,7 @@ export default function LoginPage() {
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary mb-4">
                     <Banknote className="h-8 w-8 text-primary-foreground" />
                 </div>
-                <h1 className="text-3xl font-bold text-center">Bienvenido a SGC</h1>
+                <h1 className="text-3xl font-bold text-center">Bienvenido a SGI</h1>
                 <p className="text-muted-foreground text-center">Sistema de Gestión de Clientes</p>
             </div>
             <LoginForm />

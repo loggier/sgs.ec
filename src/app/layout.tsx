@@ -4,7 +4,7 @@ import './globals.css';
 import { AppProvider } from '@/components/app-provider';
 
 export const metadata: Metadata = {
-  title: 'SGC',
+  title: 'SGI',
   description: 'Sistema de gestion de cliente.',
   icons: null,
 };
