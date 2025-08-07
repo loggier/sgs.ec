@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getMessageTemplates } from './settings-actions';
+import { getMessageTemplates, getQyvooSettings } from './settings-actions';
 import { sendQyvooMessage } from './qyvoo-actions';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -9,7 +9,8 @@ import type { Client } from './schema';
 import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
-
+import { getAllUnits } from './unit-actions';
+import { addDays, startOfDay, isSameDay, isBefore } from 'date-fns';
 
 /**
  * Replaces placeholders in a template string with actual data.
@@ -81,6 +82,11 @@ export async function sendTemplatedWhatsAppMessage(
             return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
         }
         
+        // This is a check from the original logic and might need to be refined if ownerId is optional on client
+        if (!clientData.ownerId) {
+             return { success: false, message: 'El cliente no tiene un propietario asignado.' };
+        }
+        
         const ownerDocRef = doc(db, 'users', clientData.ownerId);
         const ownerDoc = await getDoc(ownerDocRef);
         const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
@@ -94,5 +100,65 @@ export async function sendTemplatedWhatsAppMessage(
     } catch (error) {
         console.error(`Error sending templated message for event ${eventType}:`, error);
         return { success: false, message: 'Error interno al procesar la notificación.' };
+    }
+}
+
+
+export async function triggerManualNotificationCheck(user: User): Promise<{ success: boolean; message: string }> {
+    try {
+        const qyvooSettings = await getQyvooSettings();
+        if (!qyvooSettings?.apiKey) {
+            return { success: false, message: "La integración de Qyvoo no está configurada. Agregue una API key en la sección de Configuración." };
+        }
+
+        const allUnits = await getAllUnits(user);
+        if (allUnits.length === 0) {
+            return { success: true, message: "No se encontraron unidades para verificar." };
+        }
+
+        const today = startOfDay(new Date());
+        const reminderDate = addDays(today, 3);
+        let sentCount = 0;
+        let errorCount = 0;
+        let skippedCount = 0;
+
+        for (const unit of allUnits) {
+            if (!unit.fechaSiguientePago) {
+                skippedCount++;
+                continue;
+            }
+            
+            const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+            let eventType: TemplateEventType | null = null;
+            
+            if (isSameDay(nextPaymentDate, reminderDate)) {
+                eventType = 'payment_reminder';
+            } else if (isSameDay(nextPaymentDate, today)) {
+                eventType = 'payment_due_today';
+            } else if (isBefore(nextPaymentDate, today)) {
+                eventType = 'payment_overdue';
+            }
+            
+            if (eventType) {
+                const result = await sendTemplatedWhatsAppMessage(eventType, unit.clientId, unit.id);
+                if (result.success) {
+                    sentCount++;
+                } else {
+                    console.error(`Failed to send notification for unit ${unit.id}: ${result.message}`);
+                    errorCount++;
+                }
+            } else {
+                skippedCount++;
+            }
+        }
+        
+        return {
+            success: true,
+            message: `Proceso finalizado. ${sentCount} notificaciones enviadas, ${errorCount} errores, ${skippedCount} unidades omitidas (no cumplen criterios).`
+        };
+
+    } catch (error) {
+        console.error("Error triggering manual notification check:", error);
+        return { success: false, message: "Ocurrió un error inesperado durante la verificación manual." };
     }
 }

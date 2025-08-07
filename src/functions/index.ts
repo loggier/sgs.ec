@@ -6,6 +6,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { addDays, startOfDay, isSameDay } from "date-fns";
+import { sendTemplatedWhatsAppMessage } from "../lib/notification-actions";
 
 // Asegúrate de que Firebase Admin SDK esté inicializado.
 // Esto se hace automáticamente en el entorno de Cloud Functions si no se ha hecho antes.
@@ -49,18 +50,15 @@ export const dailyNotificationCheck = functions
 
                 // Determinar si se debe enviar una notificación
                 if (isSameDay(nextPaymentDate, reminderDate)) {
-                    // TODO: Implementar la llamada a sendTemplatedWhatsAppMessage
-                    // await sendTemplatedWhatsAppMessage('payment_reminder', unit.clientId, doc.id);
+                    await sendTemplatedWhatsAppMessage('payment_reminder', unit.clientId, doc.id);
                     functions.logger.info(`Enviando recordatorio de pago para unidad ${doc.id}`);
                     processedCount++;
                 } else if (isSameDay(nextPaymentDate, today)) {
-                    // TODO: Implementar la llamada a sendTemplatedWhatsAppMessage
-                    // await sendTemplatedWhatsAppMessage('payment_due_today', unit.clientId, doc.id);
+                    await sendTemplatedWhatsAppMessage('payment_due_today', unit.clientId, doc.id);
                     functions.logger.info(`Enviando aviso de vencimiento hoy para unidad ${doc.id}`);
                     processedCount++;
                 } else if (nextPaymentDate < today) {
-                    // TODO: Implementar la llamada a sendTemplatedWhatsAppMessage
-                    // await sendTemplatedWhatsAppMessage('payment_overdue', unit.clientId, doc.id);
+                    await sendTemplatedWhatsAppMessage('payment_overdue', unit.clientId, doc.id);
                     functions.logger.info(`Enviando aviso de pago vencido para unidad ${doc.id}`);
                     processedCount++;
                 }

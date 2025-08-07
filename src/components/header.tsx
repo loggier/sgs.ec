@@ -7,17 +7,19 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useSearch } from '@/context/search-context';
 import { usePathname } from 'next/navigation';
+import * as React from 'react';
 
 type HeaderProps = {
   title: string;
   showBackButton?: boolean;
   backButtonHref?: string;
+  children?: React.ReactNode;
 };
 
 // Páginas que no mostrarán la barra de búsqueda
 const noSearchPages = ['/login'];
 
-export default function Header({ title, showBackButton = false, backButtonHref = '/' }: HeaderProps) {
+export default function Header({ title, showBackButton = false, backButtonHref = '/', children }: HeaderProps) {
   const { searchTerm, setSearchTerm } = useSearch();
   const pathname = usePathname();
 
@@ -36,18 +38,21 @@ export default function Header({ title, showBackButton = false, backButtonHref =
         )}
         <h1 className="text-2xl font-semibold">{title}</h1>
       </div>
-       {showSearch && (
-        <div className="relative w-full md:w-auto md:min-w-[300px]">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-                type="search"
-                placeholder="Buscar en toda la aplicación..."
-                className="w-full rounded-lg bg-background pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-            />
-        </div>
-      )}
+       <div className="flex items-center gap-2 w-full md:w-auto">
+          {children}
+          {showSearch && (
+            <div className="relative flex-1 md:flex-initial md:w-auto md:min-w-[300px]">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Buscar en toda la aplicación..."
+                    className="w-full rounded-lg bg-background pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+          )}
+       </div>
     </header>
   );
 }

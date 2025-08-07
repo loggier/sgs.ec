@@ -5,6 +5,7 @@ import * as React from 'react';
 import { getClients } from '@/lib/actions';
 import { getPgpsClientDetailsById } from '@/lib/pgps-actions';
 import { getAllUnits } from '@/lib/unit-actions';
+import { triggerManualNotificationCheck } from '@/lib/notification-actions';
 import ClientList from '@/components/client-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -14,14 +15,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ClientSummary from '@/components/client-summary';
 import AppContent from '@/components/app-content';
 import type { Timestamp } from 'firebase/firestore';
+import { Button } from '@/components/ui/button';
+import { BellRing, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
 function ClientsPageContent() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   const [units, setUnits] = React.useState<UnitWithClient[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isNotifying, setIsNotifying] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     if (user) {
@@ -122,6 +128,29 @@ function ClientsPageContent() {
       }, {} as Record<string, number>),
     };
   }, [clientsWithDynamicStatus, units]);
+  
+  const handleManualNotifications = async () => {
+      if (!user) return;
+      setIsNotifying(true);
+      toast({
+          title: 'Iniciando proceso...',
+          description: 'Buscando unidades y enviando recordatorios. Esto puede tardar un momento.',
+      });
+      const result = await triggerManualNotificationCheck(user);
+      if (result.success) {
+          toast({
+              title: 'Proceso completado',
+              description: result.message,
+          });
+      } else {
+           toast({
+              title: 'Error en el proceso',
+              description: result.message,
+              variant: 'destructive',
+          });
+      }
+      setIsNotifying(false);
+  };
 
   if (isLoading) {
       return (
@@ -139,7 +168,18 @@ function ClientsPageContent() {
 
   return (
     <>
-      <Header title="Clientes" />
+      <Header title="Clientes">
+         {user && ['master', 'manager'].includes(user.role) && (
+            <Button onClick={handleManualNotifications} disabled={isNotifying}>
+                {isNotifying ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <BellRing className="mr-2 h-4 w-4" />
+                )}
+                {isNotifying ? 'Enviando...' : 'Enviar Recordatorios de Pago'}
+            </Button>
+          )}
+      </Header>
       <div className="space-y-6">
         <ClientSummary {...summaryData} />
         <ClientList initialClients={clientsWithDynamicStatus} onDataChange={fetchData} />
