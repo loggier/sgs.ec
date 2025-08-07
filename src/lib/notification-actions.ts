@@ -128,7 +128,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 continue;
             }
             
-            const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
+            const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
             let eventType: TemplateEventType | null = null;
             
             if (isSameDay(nextPaymentDate, today)) {
