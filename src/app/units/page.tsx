@@ -23,7 +23,7 @@ function GlobalUnitsPageContent() {
       setIsLoading(true);
       getAllUnits(user) // Pass the full user object
         .then(data => {
-          setUnits(data);
+          setUnits(data as GlobalUnit[]);
           setIsLoading(false);
         });
     }

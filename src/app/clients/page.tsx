@@ -14,7 +14,6 @@ import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import ClientSummary from '@/components/client-summary';
 import AppContent from '@/components/app-content';
-import type { Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { BellRing, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -99,9 +98,7 @@ function ClientsPageContent() {
           const nextPaymentDateSource = unit.fechaSiguientePago;
           if (!nextPaymentDateSource) return false;
           
-          const nextPaymentDate = (nextPaymentDateSource as Timestamp).toDate 
-            ? (nextPaymentDateSource as Timestamp).toDate()
-            : new Date(nextPaymentDateSource);
+          const nextPaymentDate = new Date(nextPaymentDateSource);
             
           return nextPaymentDate && nextPaymentDate < new Date();
         })

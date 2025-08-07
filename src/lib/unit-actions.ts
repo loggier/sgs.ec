@@ -28,7 +28,8 @@ const convertTimestamps = (docData: any) => {
   const data = { ...docData };
   for (const key in data) {
     if (data[key] instanceof Timestamp) {
-      data[key] = data[key].toDate();
+      // Convert Timestamp to ISO string for serialization
+      data[key] = data[key].toDate().toISOString();
     }
   }
   return data;
@@ -303,7 +304,7 @@ export async function bulkDeleteUnits(
 }
 
 
-export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName: string; ownerName?: string; fechaSiguientePago: Timestamp | null; })[]> {
+export async function getAllUnits(currentUser: User): Promise<(Unit)[]> {
     if (!currentUser) return [];
 
     try {
@@ -326,9 +327,8 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
             const owner = usersMap.get(client.ownerId);
 
             const clientUnitsPromises = unitsSnapshot.docs.map(async (unitDoc) => {
-                const data = unitDoc.data();
+                const data = convertTimestamps(unitDoc.data());
                 
-                // Keep dates as Timestamps for backend consistency
                 const unit: any = {
                     id: unitDoc.id,
                     clientId: client.id,
@@ -336,8 +336,6 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
                     ownerId: client.ownerId,
                     ownerName: owner?.nombre || 'Propietario Desconocido',
                     ...data,
-                    // Ensure the date is a Timestamp object, not converted
-                    fechaSiguientePago: data.fechaSiguientePago instanceof Timestamp ? data.fechaSiguientePago : null,
                 };
                 
                 // Enrich with P. GPS device status if linked
@@ -355,7 +353,7 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
         const allUnitsNested = await Promise.all(allUnitsPromises);
         const allUnits = allUnitsNested.flat();
 
-        return allUnits as (Unit & { clientName: string; ownerName?: string; fechaSiguientePago: Timestamp | null; })[];
+        return allUnits as Unit[];
     } catch (error) {
         console.error("Error getting all units:", error);
         return [];

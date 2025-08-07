@@ -29,7 +29,8 @@ const convertTimestamps = (docData: any): any => {
     const data = { ...docData };
     for (const key in data) {
         if (data[key] instanceof Timestamp) {
-            data[key] = data[key].toDate();
+            // Convert Timestamp to ISO string for serialization
+            data[key] = data[key].toDate().toISOString();
         }
     }
     return data;
@@ -158,7 +159,7 @@ export async function getAllPayments(
       }
     }
     
-    allPayments.sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
+    allPayments.sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
 
     return allPayments;
   } catch (error) {
@@ -206,7 +207,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
 
             const otherPayments = otherPaymentsSnapshot.docs
                 .map(doc => convertTimestamps(doc.data()) as Payment)
-                .sort((a, b) => b.fechaPago.getTime() - a.fechaPago.getTime());
+                .sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
 
             unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
 

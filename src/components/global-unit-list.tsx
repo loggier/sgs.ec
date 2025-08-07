@@ -42,7 +42,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { Timestamp } from 'firebase/firestore';
 
-type GlobalUnit = Unit & { clientName: string; ownerName?: string; fechaSiguientePago: Timestamp | null };
+type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
 type GlobalUnitListProps = {
   initialUnits: GlobalUnit[];
@@ -67,10 +67,10 @@ function formatCurrency(amount?: number | null) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
-function formatDateSafe(date: Date | string | Timestamp | null | undefined): string {
+function formatDateSafe(date: Date | string | null | undefined): string {
     if (!date) return 'N/A';
     try {
-        const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+        const d = new Date(date);
         // Check if date is valid
         if (isNaN(d.getTime())) return 'N/A';
         return format(d, 'P', { locale: es });
@@ -164,7 +164,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   const calculateOverdueAmount = (unit: Unit): number => {
       const today = startOfDay(new Date());
       if (!unit.fechaSiguientePago) return 0;
-      const nextPaymentDate = startOfDay(unit.fechaSiguientePago instanceof Timestamp ? unit.fechaSiguientePago.toDate() : new Date(unit.fechaSiguientePago));
+      const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
       if (isBefore(today, nextPaymentDate)) {
           return 0;
@@ -193,15 +193,15 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     );
   };
 
-  const isExpired = (date: Date | Timestamp) => {
-    return (date instanceof Timestamp ? date.toDate() : new Date(date)) < new Date();
+  const isExpired = (date: string) => {
+    return new Date(date) < new Date();
   }
   
   const filteredUnitsByDate = React.useMemo(() => {
     const today = startOfDay(new Date());
     return units.filter(unit => {
       if (!unit.fechaSiguientePago) return false;
-      const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
+      const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
       let match = false;
       switch (filter) {
@@ -342,7 +342,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                       {getCostForUnit(unit)}
                     </TableCell>
                     <TableCell>
-                      <PaymentStatusBadge paymentDate={unit.fechaSiguientePago?.toDate() ?? null} />
+                      <PaymentStatusBadge paymentDate={new Date(unit.fechaSiguientePago)} />
                     </TableCell>
                     <TableCell>
                       {hasMounted ? formatCurrency(calculateOverdueAmount(unit)) : ''}

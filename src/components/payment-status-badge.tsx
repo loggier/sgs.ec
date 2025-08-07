@@ -7,7 +7,7 @@ import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
 
 type PaymentStatusBadgeProps = {
-  paymentDate: Date | null;
+  paymentDate: Date | string | null;
   className?: string;
 };
 

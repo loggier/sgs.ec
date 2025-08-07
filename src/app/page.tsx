@@ -10,7 +10,6 @@ import type { ClientDisplay } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppContent from '@/components/app-content';
-import type { Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Car, AlertTriangle, CircleDollarSign } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Pie, PieChart, Cell } from 'recharts';
@@ -72,9 +71,7 @@ function DashboardPageContent() {
           const nextPaymentDateSource = unit.fechaSiguientePago;
           if (!nextPaymentDateSource) return false;
           
-          const nextPaymentDate = (nextPaymentDateSource as Timestamp).toDate 
-            ? (nextPaymentDateSource as Timestamp).toDate()
-            : new Date(nextPaymentDateSource);
+          const nextPaymentDate = new Date(nextPaymentDateSource);
             
           return nextPaymentDate && nextPaymentDate < new Date();
         })
