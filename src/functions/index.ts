@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Funciones de nube para tareas programadas y de fondo.
  */
@@ -5,7 +6,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { addDays, startOfDay, isSameDay } from "date-fns";
+import { addDays, startOfDay, isSameDay, subDays } from "date-fns";
 import { sendTemplatedWhatsAppMessage } from "../lib/notification-actions";
 
 // Asegúrate de que Firebase Admin SDK esté inicializado.
@@ -30,7 +31,7 @@ export const dailyNotificationCheck = functions
         functions.logger.info("Iniciando revisión diaria de notificaciones.", { structuredData: true });
 
         const today = startOfDay(new Date());
-        const reminderDate = addDays(today, 3); // Recordatorio 3 días antes
+        const threeDaysOverdueDate = subDays(today, 3); // Fecha de hace 3 días
 
         try {
             const unitsSnapshot = await db.collectionGroup("units").get();
@@ -49,17 +50,13 @@ export const dailyNotificationCheck = functions
                 const nextPaymentDate = startOfDay(unit.fechaSiguientePago.toDate());
 
                 // Determinar si se debe enviar una notificación
-                if (isSameDay(nextPaymentDate, reminderDate)) {
-                    await sendTemplatedWhatsAppMessage('payment_reminder', unit.clientId, doc.id);
-                    functions.logger.info(`Enviando recordatorio de pago para unidad ${doc.id}`);
-                    processedCount++;
-                } else if (isSameDay(nextPaymentDate, today)) {
+                if (isSameDay(nextPaymentDate, today)) {
                     await sendTemplatedWhatsAppMessage('payment_due_today', unit.clientId, doc.id);
                     functions.logger.info(`Enviando aviso de vencimiento hoy para unidad ${doc.id}`);
                     processedCount++;
-                } else if (nextPaymentDate < today) {
+                } else if (isSameDay(nextPaymentDate, threeDaysOverdueDate)) {
                     await sendTemplatedWhatsAppMessage('payment_overdue', unit.clientId, doc.id);
-                    functions.logger.info(`Enviando aviso de pago vencido para unidad ${doc.id}`);
+                    functions.logger.info(`Enviando aviso de pago vencido (3 días) para unidad ${doc.id}`);
                     processedCount++;
                 }
             }

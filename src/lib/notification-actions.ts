@@ -10,7 +10,7 @@ import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { addDays, startOfDay, isSameDay, isBefore } from 'date-fns';
+import { addDays, startOfDay, isSameDay, isBefore, subDays } from 'date-fns';
 
 /**
  * Replaces placeholders in a template string with actual data.
@@ -117,7 +117,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
         }
 
         const today = startOfDay(new Date());
-        const reminderDate = addDays(today, 3);
+        const threeDaysOverdueDate = subDays(today, 3); // Fecha de hace 3 días
         let sentCount = 0;
         let errorCount = 0;
         let skippedCount = 0;
@@ -131,11 +131,9 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
             let eventType: TemplateEventType | null = null;
             
-            if (isSameDay(nextPaymentDate, reminderDate)) {
-                eventType = 'payment_reminder';
-            } else if (isSameDay(nextPaymentDate, today)) {
+            if (isSameDay(nextPaymentDate, today)) {
                 eventType = 'payment_due_today';
-            } else if (isBefore(nextPaymentDate, today)) {
+            } else if (isSameDay(nextPaymentDate, threeDaysOverdueDate)) {
                 eventType = 'payment_overdue';
             }
             
