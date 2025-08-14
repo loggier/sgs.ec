@@ -10,20 +10,21 @@ import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { startOfDay, addDays } from 'date-fns';
+import { startOfDay, addDays, isSameDay } from 'date-fns';
 
 /**
- * Replaces placeholders in a template string with actual data for a group of units.
- * @param template The template string with placeholders like {nombre_cliente}.
+ * Replaces placeholders in a template string with actual data.
+ * Handles both single-unit and multi-unit (grouped) scenarios.
+ * @param template The template string with placeholders.
  * @param client The client object.
  * @param units An array of unit objects.
  * @param owner The user object of the owner/company.
  * @returns The formatted message string.
  */
-function formatGroupedMessage(template: string, client: Client, units: Unit[], owner: User | null): string {
+function formatMessage(template: string, client: Client, units: Unit[], owner: User | null): string {
     let message = template;
 
-    // Helper to format a single date safely
+    // --- Helper functions ---
     const formatDate = (dateInput: any): string => {
         if (!dateInput) return 'N/A';
         try {
@@ -35,33 +36,68 @@ function formatGroupedMessage(template: string, client: Client, units: Unit[], o
         }
     };
     
-    // Create the summary string for all units
-    const unitsSummary = units.map(unit => {
-        const nextPaymentDate = formatDate(unit.fechaSiguientePago);
-        const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago 
-            ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
-            : 'N/A';
-        
-        return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Corte: ${cutoffDate}`;
-    }).join('\n'); // Join with newlines for a list format
+    const formatCurrency = (amount?: number | null) => {
+        if (amount === undefined || amount === null) return '0.00';
+        return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
+    };
 
-    const replacements = {
+    const getMonthlyCost = (unit: Unit): number => {
+        if (unit.tipoContrato === 'con_contrato') {
+            return (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
+        }
+        return unit.costoMensual ?? 0;
+    };
+    
+    // --- General Replacements ---
+    const generalReplacements = {
         '{nombre_cliente}': client.nomSujeto,
         '{nombre_empresa}': owner?.empresa || 'Su Proveedor de Servicios GPS',
         '{telefono_empresa}': owner?.telefono || '',
-        '{resumen_unidades}': unitsSummary, // New placeholder for the grouped summary
     };
-
-    for (const [key, value] of Object.entries(replacements)) {
+    for (const [key, value] of Object.entries(generalReplacements)) {
         message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
     }
-    
-    // The individual placeholders are now deprecated for grouped messages, but we clear them just in case
-    const singleUnitPlaceholders = ['{placa_unidad}', '{fecha_vencimiento}', '{monto_vencido}'];
-    singleUnitPlaceholders.forEach(placeholder => {
-        message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
-    });
 
+    // --- Conditional Replacements (Single vs. Multiple Units) ---
+    if (units.length === 1) {
+        // Single unit: Fill individual placeholders
+        const unit = units[0];
+        const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
+            ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
+            : 'N/A';
+        
+        const singleUnitReplacements = {
+            '{placa}': unit.placa,
+            '{imei}': unit.imei,
+            '{modelo_unidad}': unit.modelo || 'N/A',
+            '{fecha_vencimiento}': formatDate(unit.fechaSiguientePago),
+            '{fecha_corte}': cutoffDate,
+            '{monto_a_pagar}': formatCurrency(getMonthlyCost(unit)),
+            '{resumen_unidades}': '', // Clear summary placeholder
+        };
+
+        for (const [key, value] of Object.entries(singleUnitReplacements)) {
+            message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
+        }
+
+    } else {
+        // Multiple units: Build summary table and clear individual placeholders
+        const unitsSummary = units.map(unit => {
+            const nextPaymentDate = formatDate(unit.fechaSiguientePago);
+            const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago 
+                ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
+                : 'N/A';
+            return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Corte: ${cutoffDate}`;
+        }).join('\n');
+
+        message = message.replace(/{resumen_unidades}/g, unitsSummary);
+        
+        // Clear individual placeholders
+        const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
+        singleUnitPlaceholders.forEach(placeholder => {
+            message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
+        });
+    }
 
     return message;
 }
@@ -118,7 +154,7 @@ export async function sendGroupedTemplatedWhatsAppMessage(
             return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
         }
 
-        const messageToSend = formatGroupedMessage(template.content, clientData, units, ownerData);
+        const messageToSend = formatMessage(template.content, clientData, units, ownerData);
 
         return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings);
 
@@ -156,10 +192,11 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
                 if (!unitsToNotify[unit.clientId]) {
                     unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
                 }
-
-                if (startOfDay(nextPaymentDate).getTime() === startOfDay(today).getTime()) {
+                
+                // Use isSameDay for robust date comparison, ignoring time
+                if (isSameDay(nextPaymentDate, today)) {
                     unitsToNotify[unit.clientId].dueToday.push(unit);
-                } else if (startOfDay(nextPaymentDate).getTime() === startOfDay(threeDaysAgo).getTime()) {
+                } else if (isSameDay(nextPaymentDate, threeDaysAgo)) {
                     unitsToNotify[unit.clientId].overdue.push(unit);
                 }
             }

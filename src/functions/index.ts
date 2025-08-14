@@ -6,7 +6,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { addDays, subDays } from "date-fns";
+import { subDays, startOfDay, isSameDay } from "date-fns";
 import { sendGroupedTemplatedWhatsAppMessage } from "../lib/notification-actions";
 import type { Unit } from '../lib/unit-schema';
 
@@ -23,7 +23,7 @@ const convertTimestamps = (docData: any): any => {
     const data: { [key: string]: any } = {};
     for (const key in docData) {
         if (docData[key] instanceof Timestamp) {
-            data[key] = docData[key].toDate(); // Convert to JS Date
+            data[key] = docData[key].toDate().toISOString(); // Convert to ISO String
         } else {
             data[key] = docData[key];
         }
@@ -45,10 +45,9 @@ export const dailyNotificationCheck = functions
     .onRun(async (context) => {
         functions.logger.info("Iniciando revisión diaria de notificaciones.", { structuredData: true });
 
-        const timeZone = "America/Guayaquil";
-        const now = new Date(new Date().toLocaleString('en-US', { timeZone }));
-        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
-        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
+        const now = new Date();
+        const today = startOfDay(now);
+        const threeDaysAgo = startOfDay(subDays(now, 3));
         
         // Group units by client and event type
         const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[] } } = {};
@@ -68,16 +67,15 @@ export const dailyNotificationCheck = functions
 
                 if (!unit.fechaSiguientePago) continue;
                 
-                const nextPaymentDate = new Date(unit.fechaSiguientePago);
-                const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
+                const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
                 if (!unitsToNotify[unit.clientId]) {
                     unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
                 }
 
-                if (nextPaymentDateStr === todayStr) {
+                if (isSameDay(nextPaymentDate, today)) {
                     unitsToNotify[unit.clientId].dueToday.push(unit);
-                } else if (nextPaymentDateStr === threeDaysAgoStr) {
+                } else if (isSameDay(nextPaymentDate, threeDaysAgo)) {
                     unitsToNotify[unit.clientId].overdue.push(unit);
                 }
             }

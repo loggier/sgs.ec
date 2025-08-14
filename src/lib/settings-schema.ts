@@ -53,8 +53,19 @@ export const templateEventLabels: Record<TemplateEventType, string> = {
 };
 
 export const templateVariables = [
+    // Variables generales
     { variable: '{nombre_cliente}', description: 'Nombre completo del cliente.' },
-    { variable: '{resumen_unidades}', description: 'Tabla con el resumen de las unidades a notificar.'},
     { variable: '{nombre_empresa}', description: 'Nombre de su empresa (configurado en Perfil).' },
     { variable: '{telefono_empresa}', description: 'Teléfono de su empresa (configurado en Perfil).' },
+    
+    // Variable para resumen de múltiples unidades
+    { variable: '{resumen_unidades}', description: 'Tabla con el resumen de múltiples unidades.'},
+
+    // Variables para una sola unidad
+    { variable: '{placa}', description: 'Placa de la unidad.' },
+    { variable: '{imei}', description: 'IMEI de la unidad.' },
+    { variable: '{modelo_unidad}', description: 'Modelo de la unidad.' },
+    { variable: '{fecha_vencimiento}', description: 'Fecha del próximo pago de la unidad.' },
+    { variable: '{fecha_corte}', description: 'Fecha de corte (suspensión) de la unidad.' },
+    { variable: '{monto_a_pagar}', description: 'Costo mensual o cuota del contrato de la unidad.' },
 ];
