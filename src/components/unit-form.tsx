@@ -597,7 +597,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
           render={({ field }) => (
             <FormItem>
               <FormLabel>Días para el corte</FormLabel>
-              <Select onValueChange={(value) => field.onChange(Number(value))} value={String(field.value ?? 0)}>
+              <Select onValueChange={(value) => field.onChange(Number(value))} value={String(field.value)}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione los días para el corte" />
