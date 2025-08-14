@@ -44,6 +44,7 @@ export const UnitSchema = z.object({
   fechaVencimiento: dateOrTimestamp.refine(val => val !== null, 'Fecha de vencimiento del contrato es requerida.'),
   ultimoPago: nullableDateOrTimestamp,
   fechaSiguientePago: dateOrTimestamp.refine(val => val !== null, 'Fecha de siguiente pago es requerida.'),
+  diasCorte: z.coerce.number().int().min(0).optional(),
   observacion: z.string().optional(),
 });
 

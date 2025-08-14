@@ -2,8 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2 } from 'lucide-react';
-import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore } from 'date-fns';
+import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2, CalendarClock } from 'lucide-react';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import Link from 'next/link';
@@ -193,8 +193,14 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     );
   };
 
-  const isExpired = (date: string) => {
+  const isExpired = (date: Date | string) => {
     return new Date(date) < new Date();
+  }
+
+  const getCutoffDate = (unit: Unit) => {
+    if (!unit.fechaSiguientePago) return null;
+    const diasCorte = unit.diasCorte ?? 0;
+    return addDays(new Date(unit.fechaSiguientePago), diasCorte);
   }
   
   const filteredUnitsByDate = React.useMemo(() => {
@@ -282,8 +288,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Fecha de Instalación</TableHead>
-                <TableHead>Fecha de Suspensión</TableHead>
+                <TableHead>Fecha de Corte</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
@@ -296,7 +301,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
             </TableHeader>
             <TableBody>
               {filteredUnits.length > 0 ? (
-                filteredUnits.map(unit => (
+                filteredUnits.map(unit => {
+                  const cutoffDate = getCutoffDate(unit);
+                  const isCutoffDateExpired = cutoffDate ? isExpired(cutoffDate) : false;
+                  return (
                   <TableRow key={`${unit.clientId}-${unit.id}`} className={cn(isExpired(unit.fechaVencimiento) ? 'bg-red-50 dark:bg-red-900/20' : '', unit.estaSuspendido && 'bg-gray-100 dark:bg-gray-800/20 text-muted-foreground')}>
                     <TableCell>
                       <div className="font-medium flex items-center gap-2">
@@ -328,9 +336,11 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                             {unit.estaSuspendido ? 'Suspendido' : 'Activo'}
                         </Badge>
                     </TableCell>
-                    <TableCell>{formatDateSafe(unit.fechaInstalacion)}</TableCell>
-                    <TableCell className={unit.fechaSuspension ? 'font-semibold text-destructive' : ''}>
-                        {formatDateSafe(unit.fechaSuspension)}
+                    <TableCell>
+                        <div className={cn("flex items-center gap-1", isCutoffDateExpired && "text-destructive font-semibold")}>
+                            <CalendarClock className="h-4 w-4"/>
+                            <span>{formatDateSafe(cutoffDate)}</span>
+                        </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
@@ -374,10 +384,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 14 : 13} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 13 : 12} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

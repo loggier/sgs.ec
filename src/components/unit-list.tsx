@@ -2,8 +2,8 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2, Power, PowerOff, ShieldCheck, ShieldOff } from 'lucide-react';
-import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval } from 'date-fns';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2, Power, PowerOff, ShieldCheck, ShieldOff, CalendarClock } from 'lucide-react';
+import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 
@@ -60,6 +60,7 @@ const planDisplayNames: Record<Unit['tipoPlan'], string> = {
 
 const badgeVariants = {
     info: 'bg-blue-100 text-blue-800 border-blue-200',
+    danger: 'bg-red-100 text-red-800 border-red-200',
 };
 
 function formatCurrency(amount?: number | null) {
@@ -229,9 +230,15 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     );
   };
 
-  const isExpired = (date: Date) => {
+  const isExpired = (date: Date | string) => {
     return new Date(date) < new Date();
   };
+  
+  const getCutoffDate = (unit: Unit) => {
+    if (!unit.fechaSiguientePago) return null;
+    const diasCorte = unit.diasCorte ?? 0;
+    return addDays(new Date(unit.fechaSiguientePago), diasCorte);
+  }
 
   const selectedUnitsForBulkAction = React.useMemo(() => {
       return units.filter(u => selectedUnitIds.includes(u.id));
@@ -308,16 +315,13 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                     />
                 </TableHead>
                 <TableHead>Placa</TableHead>
-                <TableHead>Categoría</TableHead>
                 <TableHead>IMEI</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Fecha de Instalación</TableHead>
-                <TableHead>Fecha de Suspensión</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Tipo de Plan</TableHead>
-                <TableHead>Costo</TableHead>
                 <TableHead>Próximo Pago</TableHead>
                 <TableHead>Fecha Próximo Pago</TableHead>
+                <TableHead>Fecha de Corte</TableHead>
+                <TableHead>Plan / Contrato</TableHead>
+                <TableHead>Costo</TableHead>
                 <TableHead>
                   <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -328,6 +332,9 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 filteredUnits.map(unit => {
                   const isUnconfigured = needsConfiguration(unit);
                   const isSelected = selectedUnitIds.includes(unit.id);
+                  const cutoffDate = getCutoffDate(unit);
+                  const isCutoffDateExpired = cutoffDate ? isExpired(cutoffDate) : false;
+
                   return (
                   <TableRow 
                     key={unit.id} 
@@ -362,32 +369,32 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                                 </Tooltip>
                             )}
                         </div>
+                         <div className="text-sm text-muted-foreground">{unit.categoriaVehiculo || 'N/A'}</div>
                     </TableCell>
-                    <TableCell>{unit.categoriaVehiculo || 'N/A'}</TableCell>
                     <TableCell>{unit.imei}</TableCell>
                     <TableCell>
                         <Badge variant={unit.estaSuspendido ? 'destructive' : 'default'}>
                             {unit.estaSuspendido ? 'Suspendido' : 'Activo'}
                         </Badge>
                     </TableCell>
-                    <TableCell>{formatDateSafe(unit.fechaInstalacion)}</TableCell>
-                    <TableCell className={unit.fechaSuspension ? 'font-semibold text-destructive' : ''}>
-                        {formatDateSafe(unit.fechaSuspension)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
-                    </TableCell>
-                    <TableCell>
-                       {getContractDisplay(unit)}
-                    </TableCell>
-                    <TableCell>
-                      {getCostForUnit(unit)}
-                    </TableCell>
                     <TableCell>
                         <PaymentStatusBadge paymentDate={unit.fechaSiguientePago} />
                     </TableCell>
                     <TableCell>
                         {formatDateSafe(unit.fechaSiguientePago)}
+                    </TableCell>
+                    <TableCell>
+                        <div className={cn("flex items-center gap-1", isCutoffDateExpired && "text-destructive font-semibold")}>
+                            <CalendarClock className="h-4 w-4"/>
+                            <span>{formatDateSafe(cutoffDate)}</span>
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                       <div className="font-medium capitalize">{planDisplayNames[unit.tipoPlan]}</div>
+                       <div className="text-sm text-muted-foreground">{getContractDisplay(unit)}</div>
+                    </TableCell>
+                    <TableCell>
+                      {getCostForUnit(unit)}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -421,7 +428,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={13} className="text-center">
+                  <TableCell colSpan={10} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

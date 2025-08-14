@@ -5,7 +5,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
-import { format, addMonths, formatDistanceToNow, parseISO } from 'date-fns';
+import { format, addMonths, formatDistanceToNow, parseISO, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2, AlertTriangle, Link2 } from 'lucide-react';
 
@@ -166,10 +166,12 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
   const [
     tipoContrato,
     fechaInicioContrato,
-    mesesContrato
+    mesesContrato,
+    fechaSiguientePago,
+    diasCorte
   ] = useWatch({
     control,
-    name: ['tipoContrato', 'fechaInicioContrato', 'mesesContrato'],
+    name: ['tipoContrato', 'fechaInicioContrato', 'mesesContrato', 'fechaSiguientePago', 'diasCorte'],
   });
 
   const { user } = useAuth();
@@ -187,6 +189,18 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
     value: c.id!,
     label: `${c.nomSujeto} (${c.codIdSujeto})`,
   }));
+
+  const diasCorteOptions = [
+    { value: 0, label: 'Mismo día de vencimiento' },
+    ...Array.from({ length: 6 }, (_, i) => ({ value: i + 2, label: `${i + 2} días después del vencimiento` })),
+  ];
+
+  const proximaFechaCorte = React.useMemo(() => {
+    if (fechaSiguientePago instanceof Date && diasCorte !== undefined && diasCorte >= 0) {
+      return addDays(fechaSiguientePago, diasCorte);
+    }
+    return null;
+  }, [fechaSiguientePago, diasCorte]);
 
   React.useEffect(() => {
     if (isEditing) return; 
@@ -560,6 +574,41 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
             />
         </div>
       )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField
+          control={control}
+          name="diasCorte"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Días para el corte</FormLabel>
+              <Select onValueChange={(value) => field.onChange(Number(value))} value={String(field.value ?? 0)}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione los días para el corte" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {diasCorteOptions.map(option => (
+                      <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormItem>
+            <FormLabel>Próxima Fecha de Corte (Suspensión)</FormLabel>
+            <FormControl>
+                 <Input
+                    readOnly
+                    value={proximaFechaCorte ? format(proximaFechaCorte, 'PPP', { locale: es }) : 'Calculando...'}
+                    className="bg-muted cursor-default"
+                />
+            </FormControl>
+        </FormItem>
+      </div>
 
         <FormField
         control={control}
@@ -602,6 +651,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           fechaVencimiento: unit.fechaVencimiento ? new Date(unit.fechaVencimiento) : new Date(),
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: unit.fechaSiguientePago ? new Date(unit.fechaSiguientePago) : new Date(),
+          diasCorte: unit.diasCorte ?? 0,
         }
       : {
           clientId: clientId ?? '',
@@ -619,6 +669,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           fechaVencimiento: addMonths(new Date(), 1), 
           ultimoPago: null,
           fechaSiguientePago: addMonths(new Date(), 1),
+          diasCorte: 0,
           observacion: '',
         },
   });
