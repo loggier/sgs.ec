@@ -161,18 +161,13 @@ function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
 }
 
 function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showClientSelector: boolean, isEditing: boolean, pgpsDeviceId?: string }) {
-  const { control, setValue, getValues } = useFormContext<UnitFormInput>();
+  const { control, setValue, getValues, watch } = useFormContext<UnitFormInput>();
   
-  const [
-    tipoContrato,
-    fechaInicioContrato,
-    mesesContrato,
-    fechaSiguientePago,
-    diasCorte
-  ] = useWatch({
-    control,
-    name: ['tipoContrato', 'fechaInicioContrato', 'mesesContrato', 'fechaSiguientePago', 'diasCorte'],
-  });
+  const tipoContrato = watch('tipoContrato');
+  const fechaInicioContrato = watch('fechaInicioContrato');
+  const mesesContrato = watch('mesesContrato');
+  const fechaSiguientePago = watch('fechaSiguientePago');
+  const diasCorte = watch('diasCorte');
 
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
@@ -194,13 +189,14 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
     { value: 0, label: 'Mismo día de vencimiento' },
     ...Array.from({ length: 6 }, (_, i) => ({ value: i + 2, label: `${i + 2} días después del vencimiento` })),
   ];
-
-  const proximaFechaCorte = React.useMemo(() => {
-    if (fechaSiguientePago instanceof Date && diasCorte !== undefined && diasCorte >= 0) {
+  
+  const calculateNextCutoffDate = () => {
+    if (fechaSiguientePago instanceof Date && typeof diasCorte === 'number' && diasCorte >= 0) {
       return addDays(fechaSiguientePago, diasCorte);
     }
     return null;
-  }, [fechaSiguientePago, diasCorte]);
+  };
+  const proximaFechaCorte = calculateNextCutoffDate();
 
   React.useEffect(() => {
     if (isEditing) return; 
@@ -597,7 +593,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
           render={({ field }) => (
             <FormItem>
               <FormLabel>Días para el corte</FormLabel>
-              <Select onValueChange={(value) => field.onChange(Number(value))} value={String(field.value)}>
+              <Select onValueChange={(value) => field.onChange(Number(value))} value={String(field.value ?? 0)}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione los días para el corte" />
@@ -750,3 +746,5 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
+
+    
