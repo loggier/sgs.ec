@@ -289,6 +289,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 <TableHead>IMEI</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Fecha de Corte</TableHead>
+                <TableHead>Fecha Suspensión</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Tipo de Plan</TableHead>
                 <TableHead>Costo</TableHead>
@@ -343,6 +344,9 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                         </div>
                     </TableCell>
                     <TableCell>
+                        {unit.estaSuspendido ? formatDateSafe(unit.fechaSuspension) : 'N/A'}
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="outline" className="capitalize">{planDisplayNames[unit.tipoPlan]}</Badge>
                     </TableCell>
                     <TableCell>
@@ -387,7 +391,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 13 : 12} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 14 : 13} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>

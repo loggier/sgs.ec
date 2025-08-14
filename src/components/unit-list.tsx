@@ -320,6 +320,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 <TableHead>Próximo Pago</TableHead>
                 <TableHead>Fecha Próximo Pago</TableHead>
                 <TableHead>Fecha de Corte</TableHead>
+                <TableHead>Fecha Suspensión</TableHead>
                 <TableHead>Plan / Contrato</TableHead>
                 <TableHead>Costo</TableHead>
                 <TableHead>
@@ -390,6 +391,9 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         </div>
                     </TableCell>
                     <TableCell>
+                        {unit.estaSuspendido ? formatDateSafe(unit.fechaSuspension) : 'N/A'}
+                    </TableCell>
+                    <TableCell>
                        <div className="font-medium capitalize">{planDisplayNames[unit.tipoPlan]}</div>
                        <div className="text-sm text-muted-foreground">{getContractDisplay(unit)}</div>
                     </TableCell>
@@ -428,7 +432,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center">
+                  <TableCell colSpan={11} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
