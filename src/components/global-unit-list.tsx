@@ -288,6 +288,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 {user?.role === 'master' && <TableHead>Propietario</TableHead>}
                 <TableHead>IMEI</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Fecha Siguiente Pago</TableHead>
                 <TableHead>Fecha de Corte</TableHead>
                 <TableHead>Fecha Suspensión</TableHead>
                 <TableHead>Plan</TableHead>
@@ -337,6 +338,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                             {unit.estaSuspendido ? 'Suspendido' : 'Activo'}
                         </Badge>
                     </TableCell>
+                    <TableCell>{formatDateSafe(unit.fechaSiguientePago)}</TableCell>
                     <TableCell>
                         <div className={cn("flex items-center gap-1", isCutoffDateExpired && "text-destructive font-semibold")}>
                             <CalendarClock className="h-4 w-4"/>
@@ -391,7 +393,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                 )})
               ) : (
                 <TableRow>
-                  <TableCell colSpan={user?.role === 'master' ? 14 : 13} className="text-center">
+                  <TableCell colSpan={user?.role === 'master' ? 15 : 14} className="text-center">
                     No hay unidades que coincidan con los filtros seleccionados.
                   </TableCell>
                 </TableRow>
