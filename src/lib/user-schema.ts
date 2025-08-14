@@ -20,6 +20,8 @@ export const UserSchema = z.object({
   empresa: z.string().optional(),
   nota: z.string().optional(),
   creatorId: z.string().optional(), // ID of the manager who created this user (if role is 'analista')
+  qyvooApiKey: z.string().optional(),
+  qyvooUserId: z.string().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 

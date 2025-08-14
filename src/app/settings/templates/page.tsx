@@ -3,13 +3,13 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Edit, Trash2, Loader2, AlertTriangle, MoreVertical } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, AlertTriangle, MoreVertical, Globe } from 'lucide-react';
 import AppContent from '@/components/app-content';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -29,7 +29,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import MessageTemplateForm from '@/components/message-template-form';
 
 import {
-  getMessageTemplates,
+  getMessageTemplatesForUser,
   deleteMessageTemplate,
 } from '@/lib/settings-actions';
 import {
@@ -62,14 +62,15 @@ function MessageTemplatesPageContent() {
   const [selectedTemplate, setSelectedTemplate] = React.useState<MessageTemplate | null>(null);
 
   const fetchTemplates = React.useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
-    const data = await getMessageTemplates();
+    const data = await getMessageTemplatesForUser(user.id);
     setTemplates(data);
     setIsLoading(false);
-  }, []);
+  }, [user]);
 
   React.useEffect(() => {
-    if (!authLoading && user?.role !== 'master') {
+    if (!authLoading && user?.role !== 'master' && user?.role !== 'manager') {
       router.push('/');
     } else if (user) {
       fetchTemplates();
@@ -92,10 +93,10 @@ function MessageTemplatesPageContent() {
   };
 
   const confirmDelete = async () => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate || !user) return;
 
     setIsDeleting(true);
-    const result = await deleteMessageTemplate(selectedTemplate.id!);
+    const result = await deleteMessageTemplate(selectedTemplate.id!, user);
     if (result.success) {
       toast({ title: 'Éxito', description: result.message });
       fetchTemplates();
@@ -115,13 +116,13 @@ function MessageTemplatesPageContent() {
     );
   }
 
-  if (user?.role !== 'master') {
+  if (user?.role !== 'master' && user?.role !== 'manager') {
     return (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Acceso Denegado</AlertTitle>
           <AlertDescription>
-            Solo los usuarios con rol de "Master" pueden acceder a esta sección.
+            Solo los usuarios con rol "Master" o "Manager" pueden acceder a esta sección.
           </AlertDescription>
         </Alert>
     );
@@ -135,7 +136,7 @@ function MessageTemplatesPageContent() {
             <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Gestor de Plantillas</CardTitle>
-                  <CardDescription>Cree y edite las plantillas para las notificaciones de WhatsApp.</CardDescription>
+                  <CardDescription>Cree y edite sus plantillas para notificaciones. Las plantillas globales se usarán si no existe una personal.</CardDescription>
                 </div>
                   <Button onClick={handleAdd} size="sm">
                       <PlusCircle className="mr-2 h-4 w-4" />
@@ -160,7 +161,14 @@ function MessageTemplatesPageContent() {
                   {templates.length > 0 ? (
                     templates.map(template => (
                       <TableRow key={template.id}>
-                        <TableCell className="font-medium">{template.name}</TableCell>
+                        <TableCell className="font-medium flex items-center gap-2">
+                            {template.name}
+                            {template.isGlobal && (
+                                <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                                    <Globe className="mr-1 h-3 w-3"/> Global
+                                </Badge>
+                            )}
+                        </TableCell>
                         <TableCell>
                           <Badge variant="secondary">{templateEventLabels[template.eventType]}</Badge>
                         </TableCell>
@@ -168,6 +176,7 @@ function MessageTemplatesPageContent() {
                             <p className="line-clamp-2 max-w-sm text-muted-foreground">{template.content}</p>
                         </TableCell>
                         <TableCell>
+                         {!template.isGlobal && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -184,6 +193,7 @@ function MessageTemplatesPageContent() {
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                         )}
                         </TableCell>
                       </TableRow>
                     ))

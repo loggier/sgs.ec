@@ -1,10 +1,11 @@
 
 'use server';
 
-import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { revalidatePath } from 'next/cache';
 import { WoxSettingsSchema, type WoxSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput } from './settings-schema';
+import type { User } from './user-schema';
 
 const SETTINGS_DOC_ID = 'integrations';
 const TEMPLATES_COLLECTION = 'message_templates';
@@ -54,18 +55,30 @@ export async function getPgpsSettings(): Promise<WoxSettings | null> {
 // --- Qyvoo Settings ---
 
 export async function saveQyvooSettings(
+  userId: string,
   data: QyvooSettings
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; user?: User; }> {
   try {
     const validation = QyvooSettingsSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, message: 'Datos no válidos.' };
     }
 
-    const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
-    await setDoc(settingsDocRef, { qyvoo: validation.data }, { merge: true });
+    const userDocRef = doc(db, 'users', userId);
+    const userDataToUpdate = {
+        qyvooApiKey: validation.data.apiKey,
+        qyvooUserId: validation.data.userId,
+    };
+    await updateDoc(userDocRef, userDataToUpdate);
+    
+    const updatedUserDoc = await getDoc(userDocRef);
+    if (!updatedUserDoc.exists()) {
+        throw new Error("El usuario no fue encontrado después de la actualización.");
+    }
+    
+    const { password, ...user } = { id: updatedUserDoc.id, ...updatedUserDoc.data() } as User;
 
-    return { success: true, message: 'Configuración de Qyvoo guardada con éxito.' };
+    return { success: true, message: 'Configuración de Qyvoo guardada con éxito en su perfil.', user: user };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
     console.error("Error saving Qyvoo settings:", message);
@@ -73,46 +86,66 @@ export async function saveQyvooSettings(
   }
 }
 
-export async function getQyvooSettings(): Promise<QyvooSettings | null> {
-  try {
-    const settingsDocRef = doc(db, 'settings', SETTINGS_DOC_ID);
-    const docSnap = await getDoc(settingsDocRef);
+export async function getQyvooSettingsForUser(userId: string): Promise<QyvooSettings | null> {
+    try {
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
 
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return data.qyvoo ? (data.qyvoo as QyvooSettings) : null;
+        if (!userDoc.exists()) {
+            return null;
+        }
+        const userData = userDoc.data() as User;
+        
+        // If the user is an analyst, get settings from their manager/creator
+        if (userData.role === 'analista' && userData.creatorId) {
+            return getQyvooSettingsForUser(userData.creatorId);
+        }
+        
+        // For master/manager, get their own settings
+        if (userData.qyvooApiKey && userData.qyvooUserId) {
+            return {
+                apiKey: userData.qyvooApiKey,
+                userId: userData.qyvooUserId
+            };
+        }
+
+        return null;
+    } catch(error) {
+        console.error("Error getting Qyvoo settings for user:", error);
+        return null;
     }
-    return null;
-  } catch (error) {
-    console.error("Error getting Qyvoo settings:", error);
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("Un error desconocido ocurrió al obtener la configuración de Qyvoo.");
-  }
 }
+
 
 // --- Message Template Actions ---
 
 export async function saveMessageTemplate(
   data: MessageTemplateFormInput,
+  user: User,
   templateId?: string
 ): Promise<{ success: boolean; message: string; template?: MessageTemplate }> {
-    const validation = MessageTemplateSchema.omit({id: true}).safeParse(data);
+    if (!['master', 'manager'].includes(user.role)) {
+        return { success: false, message: 'No tiene permiso para guardar plantillas.' };
+    }
+    
+    const validation = MessageTemplateSchema.omit({id: true, isGlobal: true}).safeParse(data);
     if (!validation.success) {
         return { success: false, message: 'Datos de plantilla no válidos.' };
     }
+    
+    const dataToSave = { ...validation.data, ownerId: user.id };
+    
     try {
         if (templateId) {
             const templateDocRef = doc(db, TEMPLATES_COLLECTION, templateId);
-            await setDoc(templateDocRef, validation.data, { merge: true });
+            await setDoc(templateDocRef, dataToSave, { merge: true });
             revalidatePath('/settings/templates');
-            return { success: true, message: 'Plantilla actualizada con éxito.', template: { id: templateId, ...validation.data } };
+            return { success: true, message: 'Plantilla actualizada con éxito.', template: { id: templateId, ...dataToSave } };
         } else {
             const templateCollectionRef = collection(db, TEMPLATES_COLLECTION);
-            const newDocRef = await addDoc(templateCollectionRef, validation.data);
+            const newDocRef = await addDoc(templateCollectionRef, dataToSave);
             revalidatePath('/settings/templates');
-            return { success: true, message: 'Plantilla creada con éxito.', template: { id: newDocRef.id, ...validation.data } };
+            return { success: true, message: 'Plantilla creada con éxito.', template: { id: newDocRef.id, ...dataToSave } };
         }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
@@ -121,10 +154,59 @@ export async function saveMessageTemplate(
     }
 }
 
-export async function getMessageTemplates(): Promise<MessageTemplate[]> {
+export async function getMessageTemplatesForUser(userId: string): Promise<MessageTemplate[]> {
+    try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (!userDoc.exists()) return [];
+        const user = userDoc.data() as User;
+        
+        const ownerId = (user.role === 'analista' && user.creatorId) ? user.creatorId : userId;
+        
+        const personalTemplatesQuery = query(
+            collection(db, TEMPLATES_COLLECTION),
+            where('ownerId', '==', ownerId)
+        );
+        const globalTemplatesQuery = query(
+            collection(db, TEMPLATES_COLLECTION),
+            where('ownerId', '==', null)
+        );
+        
+        const [personalSnapshot, globalSnapshot] = await Promise.all([
+            getDocs(personalTemplatesQuery),
+            getDocs(globalTemplatesQuery),
+        ]);
+        
+        const templatesMap = new Map<TemplateEventType, MessageTemplate>();
+        
+        // Add global templates first (they will be the default)
+        globalSnapshot.docs.forEach(doc => {
+            const template = { id: doc.id, isGlobal: true, ...doc.data() } as MessageTemplate;
+            templatesMap.set(template.eventType, template);
+        });
+
+        // Override with personal templates if they exist for the same eventType
+        personalSnapshot.docs.forEach(doc => {
+            const template = { id: doc.id, ...doc.data() } as MessageTemplate;
+            templatesMap.set(template.eventType, template);
+        });
+        
+        return Array.from(templatesMap.values());
+
+    } catch (error) {
+        console.error("Error getting message templates for user:", error);
+        return [];
+    }
+}
+
+
+export async function getMessageTemplates(ownerId?: string): Promise<MessageTemplate[]> {
     try {
         const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
-        const snapshot = await getDocs(templatesCollectionRef);
+        const q = ownerId 
+            ? query(templatesCollectionRef, where('ownerId', '==', ownerId))
+            : query(templatesCollectionRef, where('ownerId', '==', null)); // Global templates
+            
+        const snapshot = await getDocs(q);
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MessageTemplate));
     } catch (error) {
         console.error("Error getting message templates:", error);
@@ -132,9 +214,19 @@ export async function getMessageTemplates(): Promise<MessageTemplate[]> {
     }
 }
 
-export async function deleteMessageTemplate(templateId: string): Promise<{ success: boolean; message: string }> {
+export async function deleteMessageTemplate(templateId: string, user: User): Promise<{ success: boolean; message: string }> {
+    if (!['master', 'manager'].includes(user.role)) {
+        return { success: false, message: 'No tiene permiso para eliminar plantillas.' };
+    }
+    
     try {
         const templateDocRef = doc(db, TEMPLATES_COLLECTION, templateId);
+        const templateDoc = await getDoc(templateDocRef);
+        
+        if (!templateDoc.exists() || templateDoc.data().ownerId !== user.id) {
+            return { success: false, message: 'No tiene permiso para eliminar esta plantilla o no existe.' };
+        }
+        
         await deleteDoc(templateDocRef);
         revalidatePath('/settings/templates');
         return { success: true, message: 'Plantilla eliminada con éxito.' };

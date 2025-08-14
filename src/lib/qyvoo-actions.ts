@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getQyvooSettings } from './settings-actions';
+import type { QyvooSettings } from './settings-schema';
 
 const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
 
@@ -25,10 +25,10 @@ function formatPhoneNumber(phone: string): string {
 
 export async function sendQyvooMessage(
     phoneNumber: string,
-    message: string
+    message: string,
+    settings: QyvooSettings | null
 ): Promise<{ success: boolean; message: string }> {
     try {
-        const settings = await getQyvooSettings();
         if (!settings?.apiKey) {
             return { success: false, message: 'La integración con Qyvoo no está configurada (Falta API Key).' };
         }

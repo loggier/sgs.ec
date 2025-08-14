@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 
 import { QyvooSettingsSchema, type QyvooSettingsFormInput } from '@/lib/settings-schema';
-import { getQyvooSettings, saveQyvooSettings } from '@/lib/settings-actions';
+import { saveQyvooSettings } from '@/lib/settings-actions';
 
 import { Button } from '@/components/ui/button';
 import { CardContent, CardFooter } from '@/components/ui/card';
@@ -27,10 +27,9 @@ import { AlertTriangle } from 'lucide-react';
 
 export default function QyvooSettingsForm() {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = React.useState(true);
+  const { user, updateUserContext } = useAuth();
+  const [isLoading, setIsLoading] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [permissionError, setPermissionError] = React.useState<string | null>(null);
 
   const form = useForm<QyvooSettingsFormInput>({
     resolver: zodResolver(QyvooSettingsSchema),
@@ -41,55 +40,44 @@ export default function QyvooSettingsForm() {
   });
 
   React.useEffect(() => {
-    async function loadSettings() {
-      if (user?.role !== 'master') {
-        setPermissionError('Acción no permitida. Se requiere rol de Master.');
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        const settings = await getQyvooSettings();
-        if (settings) {
-          form.reset({
-              apiKey: settings.apiKey || '',
-              userId: settings.userId || '',
-          });
-        }
-      } catch (error) {
-        toast({
-          title: 'Error al cargar',
-          description: 'No se pudo cargar la configuración de Qyvoo.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    // Load settings from the logged-in user's data
     if (user) {
-      loadSettings();
+      form.reset({
+        apiKey: user.qyvooApiKey || '',
+        userId: user.qyvooUserId || '',
+      });
     }
-  }, [form, toast, user]);
+  }, [form, user]);
 
   async function onSubmit(values: QyvooSettingsFormInput) {
-    if (user?.role !== 'master') {
+    if (!user || !user.id) {
       toast({
-          title: 'Error de permisos',
-          description: 'No tienes permiso para realizar esta acción.',
-          variant: 'destructive',
-        });
+        title: 'Error de autenticación',
+        description: 'No se puede guardar la configuración sin un usuario.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!['master', 'manager'].includes(user.role)) {
+      toast({
+        title: 'Error de permisos',
+        description: 'Solo los usuarios Master o Manager pueden guardar la configuración de Qyvoo.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await saveQyvooSettings(values);
-      if (result.success) {
+      const result = await saveQyvooSettings(user.id, values);
+      if (result.success && result.user) {
         toast({
           title: 'Éxito',
           description: result.message,
         });
+        // Update user in context to reflect the new settings
+        updateUserContext(result.user);
       } else {
         toast({
           title: 'Error',
@@ -108,16 +96,19 @@ export default function QyvooSettingsForm() {
     }
   }
 
-  if (permissionError) {
-      return (
-          <CardContent>
-              <Alert variant="destructive" className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Acceso Denegado</AlertTitle>
-                  <AlertDescription>{permissionError}</AlertDescription>
-              </Alert>
-          </CardContent>
-      )
+  if (user && !['master', 'manager'].includes(user.role)) {
+    return (
+        <CardContent>
+            <Alert variant="destructive" className="mt-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Función no disponible</AlertTitle>
+                <AlertDescription>
+                    Los usuarios con su rol no gestionan credenciales de Qyvoo.
+                    Las notificaciones se enviarán con la configuración de su Manager.
+                </AlertDescription>
+            </Alert>
+        </CardContent>
+    )
   }
 
   if (isLoading) {
@@ -167,7 +158,7 @@ export default function QyvooSettingsForm() {
         <CardFooter className="border-t px-6 py-4">
             <Button type="submit" disabled={isSubmitting || isLoading}>
               {(isSubmitting || isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Guardando...' : 'Guardar Configuración'}
+              {isSubmitting ? 'Guardando...' : 'Guardar Configuración de Qyvoo'}
             </Button>
         </CardFooter>
       </form>

@@ -1,7 +1,7 @@
 
 'use server';
 
-import { getMessageTemplates, getQyvooSettings } from './settings-actions';
+import { getMessageTemplatesForUser, getQyvooSettingsForUser } from './settings-actions';
 import { sendQyvooMessage } from './qyvoo-actions';
 import { getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
@@ -10,7 +10,7 @@ import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { startOfDay, isSameDay, subDays, add, parseISO, addDays } from 'date-fns';
+import { startOfDay, addDays } from 'date-fns';
 
 /**
  * Replaces placeholders in a template string with actual data for a group of units.
@@ -53,7 +53,7 @@ function formatGroupedMessage(template: string, client: Client, units: Unit[], o
     };
 
     for (const [key, value] of Object.entries(replacements)) {
-        message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
+        message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
     }
     
     // The individual placeholders are now deprecated for grouped messages, but we clear them just in case
@@ -83,25 +83,13 @@ export async function sendGroupedTemplatedWhatsAppMessage(
             return { success: false, message: 'No hay unidades para notificar.' };
         }
 
-        const allTemplates = await getMessageTemplates();
-        const template = allTemplates.find(t => t.eventType === eventType);
-
-        if (!template) {
-            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}'. No se envió mensaje.` };
-        }
-
         const clientDocRef = doc(db, 'clients', clientId);
         const clientDoc = await getDoc(clientDocRef);
 
         if (!clientDoc.exists()) {
             return { success: false, message: 'No se pudo encontrar el cliente.' };
         }
-
         const clientData = clientDoc.data() as Client;
-        
-        if (!clientData.telefono) {
-            return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
-        }
         
         if (!clientData.ownerId) {
              return { success: false, message: 'El cliente no tiene un propietario asignado.' };
@@ -109,11 +97,30 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         
         const ownerDocRef = doc(db, 'users', clientData.ownerId);
         const ownerDoc = await getDoc(ownerDocRef);
-        const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
+        if (!ownerDoc.exists()) {
+            return { success: false, message: 'El propietario del cliente no fue encontrado.' };
+        }
+        const ownerData = ownerDoc.data() as User;
+        
+        const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+        if (!qyvooSettings?.apiKey) {
+            return { success: false, message: `El propietario ${ownerData.nombre} no tiene la integración de Qyvoo configurada.` };
+        }
+
+        const allTemplates = await getMessageTemplatesForUser(clientData.ownerId);
+        const template = allTemplates.find(t => t.eventType === eventType);
+
+        if (!template) {
+            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}' para ${ownerData.nombre}. No se envió mensaje.` };
+        }
+        
+        if (!clientData.telefono) {
+            return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
+        }
 
         const messageToSend = formatGroupedMessage(template.content, clientData, units, ownerData);
 
-        return await sendQyvooMessage(clientData.telefono, messageToSend);
+        return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings);
 
     } catch (error) {
         console.error(`Error sending grouped templated message for event ${eventType}:`, error);
@@ -124,40 +131,42 @@ export async function sendGroupedTemplatedWhatsAppMessage(
 
 export async function triggerManualNotificationCheck(user: User): Promise<{ success: boolean; message: string }> {
     try {
-        const qyvooSettings = await getQyvooSettings();
+        const qyvooSettings = await getQyvooSettingsForUser(user.id);
         if (!qyvooSettings?.apiKey) {
-            return { success: false, message: "La integración de Qyvoo no está configurada. Agregue una API key en la sección de Configuración." };
+            return { success: false, message: "La integración de Qyvoo no está configurada para su usuario. Vaya a Configuración para añadir su API key." };
         }
 
         const allUnits = await getAllUnits(user);
         if (allUnits.length === 0) {
             return { success: true, message: "No se encontraron unidades para verificar." };
         }
-
-        const timeZone = "America/Guayaquil";
-        const now = new Date(new Date().toLocaleString('en-US', { timeZone }));
-        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
-        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
         
-        // Group units by client and event type
-        const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[] } } = {};
+        const today = new Date();
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
-        for (const unit of allUnits) {
-            if (!unit.fechaSiguientePago) continue;
-            
-            const nextPaymentDate = new Date(unit.fechaSiguientePago);
-            const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
-            
-            if (!unitsToNotify[unit.clientId]) {
-                unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
-            }
+        const groupUnits = (units: Unit[]) => {
+            const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[] } } = {};
 
-            if (nextPaymentDateStr === todayStr) {
-                unitsToNotify[unit.clientId].dueToday.push(unit);
-            } else if (nextPaymentDateStr === threeDaysAgoStr) {
-                unitsToNotify[unit.clientId].overdue.push(unit);
+            for (const unit of units) {
+                if (!unit.fechaSiguientePago) continue;
+                
+                const nextPaymentDate = new Date(unit.fechaSiguientePago);
+
+                if (!unitsToNotify[unit.clientId]) {
+                    unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
+                }
+
+                if (startOfDay(nextPaymentDate).getTime() === startOfDay(today).getTime()) {
+                    unitsToNotify[unit.clientId].dueToday.push(unit);
+                } else if (startOfDay(nextPaymentDate).getTime() === startOfDay(threeDaysAgo).getTime()) {
+                    unitsToNotify[unit.clientId].overdue.push(unit);
+                }
             }
-        }
+            return unitsToNotify;
+        };
+        
+        const unitsToNotify = groupUnits(allUnits);
         
         let sentCount = 0;
         let errorCount = 0;
@@ -190,6 +199,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
 
     } catch (error) {
         console.error("Error triggering manual notification check:", error);
-        return { success: false, message: "Ocurrió un error inesperado durante la verificación manual." };
+        const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado durante la verificación manual.";
+        return { success: false, message: errorMessage };
     }
 }

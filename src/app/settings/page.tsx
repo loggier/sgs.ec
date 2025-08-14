@@ -20,7 +20,7 @@ function SettingsPageContent() {
   const router = useRouter();
 
   React.useEffect(() => {
-    if (!isLoading && user?.role !== 'master') {
+    if (!isLoading && user?.role && !['master', 'manager'].includes(user.role)) {
       router.push('/');
     }
   }, [user, isLoading, router]);
@@ -33,7 +33,7 @@ function SettingsPageContent() {
     );
   }
 
-  if (user.role !== 'master') {
+  if (!['master', 'manager'].includes(user.role)) {
     return (
         <>
             <Header title="Acceso Denegado" />
@@ -41,7 +41,7 @@ function SettingsPageContent() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>No tienes permiso</AlertTitle>
                 <AlertDescription>
-                    Solo los usuarios con el rol de "Master" pueden acceder a la configuración.
+                    Solo los usuarios con el rol de "Master" o "Manager" pueden acceder a la configuración.
                 </AlertDescription>
             </Alert>
         </>
@@ -59,20 +59,23 @@ function SettingsPageContent() {
           </TabsList>
           <TabsContent value="integrations">
             <div className="space-y-6">
-                <Card>
+                {user.role === 'master' && (
+                 <Card>
                     <CardHeader>
-                        <CardTitle>Integración P. GPS</CardTitle>
+                        <CardTitle>Integración P. GPS (Global)</CardTitle>
                         <CardDescription>
-                            Configure los detalles para conectar con el servidor de P. GPS.
+                            Configure los detalles para conectar con el servidor de P. GPS. Esta configuración es global para toda la aplicación.
                         </CardDescription>
                     </CardHeader>
                     <PgpsSettingsForm />
                 </Card>
+                )}
                  <Card>
                     <CardHeader>
-                        <CardTitle>Integración Qyvoo</CardTitle>
+                        <CardTitle>Integración Qyvoo (Personal)</CardTitle>
                         <CardDescription>
-                            Configure los detalles para la integración de notificaciones con Qyvoo.
+                            Configure sus credenciales para la integración de notificaciones con Qyvoo.
+                            Estas credenciales se usarán para enviar mensajes a sus clientes.
                         </CardDescription>
                     </CardHeader>
                     <QyvooSettingsForm />
@@ -84,7 +87,7 @@ function SettingsPageContent() {
                 <CardHeader>
                     <CardTitle>Plantillas de Mensajes de WhatsApp</CardTitle>
                     <CardDescription>
-                       Gestione las plantillas para las notificaciones automáticas y manuales enviadas a través de Qyvoo.
+                       Gestione sus plantillas personales para las notificaciones automáticas y manuales enviadas a través de Qyvoo.
                        <Link href="/settings/templates" className="text-primary hover:underline ml-2">
                             Ir al gestor de plantillas
                        </Link>

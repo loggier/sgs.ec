@@ -25,6 +25,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { QyvooMessageSchema, type QyvooMessageFormInput } from '@/lib/qyvoo-schema';
+import { getQyvooSettingsForUser } from '@/lib/settings-actions';
 import { sendQyvooMessage } from '@/lib/qyvoo-actions';
 
 type SendQyvooMessageDialogProps = {
@@ -62,10 +63,15 @@ export default function SendQyvooMessageDialog({
         toast({ title: 'Error', description: 'El cliente no tiene un número de teléfono.', variant: 'destructive'});
         return;
     }
+     if (!client?.ownerId) {
+        toast({ title: 'Error', description: 'El cliente no tiene un propietario asignado.', variant: 'destructive'});
+        return;
+    }
 
     setIsSubmitting(true);
     try {
-      const result = await sendQyvooMessage(client.telefono, values.message);
+      const settings = await getQyvooSettingsForUser(client.ownerId);
+      const result = await sendQyvooMessage(client.telefono, values.message, settings);
       if (result.success) {
         toast({
           title: 'Éxito',

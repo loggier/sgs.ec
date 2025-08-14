@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
+import { useAuth } from '@/context/auth-context';
 
 type MessageTemplateFormProps = {
   template: MessageTemplate | null;
@@ -44,23 +45,30 @@ type MessageTemplateFormProps = {
 
 export default function MessageTemplateForm({ template, onSave, onCancel }: MessageTemplateFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   
   const form = useForm<MessageTemplateFormInput>({
-    resolver: zodResolver(MessageTemplateSchema.omit({id: true})),
+    resolver: zodResolver(MessageTemplateSchema.omit({id: true, isGlobal: true})),
     defaultValues: template
       ? { ...template }
       : {
           name: '',
           eventType: 'payment_reminder',
           content: '',
+          ownerId: user?.id,
         },
   });
 
   async function onSubmit(values: MessageTemplateFormInput) {
+    if (!user) {
+        toast({ title: 'Error', description: 'Debe iniciar sesión para guardar plantillas.', variant: 'destructive'});
+        return;
+    }
+    
     setIsSubmitting(true);
     try {
-      const result = await saveMessageTemplate(values, template?.id);
+      const result = await saveMessageTemplate(values, user, template?.id);
       if (result.success) {
           toast({ title: 'Éxito', description: result.message });
           onSave();
