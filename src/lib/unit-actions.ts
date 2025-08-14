@@ -140,6 +140,7 @@ export async function saveUnit(
       unitDataForFirestore.costoTotalContrato = undefined;
       unitDataForFirestore.mesesContrato = undefined;
       unitDataForFirestore.saldoContrato = undefined;
+      unitDataForFirestore.numeroOperacion = undefined;
     } else {
       unitDataForFirestore.costoMensual = undefined;
     }

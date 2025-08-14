@@ -397,34 +397,49 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
       )}
 
       {tipoContrato === 'con_contrato' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={control}
+              name="costoTotalContrato"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Costo Total del Contrato</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="300.00" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}/>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="mesesContrato"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Meses de Contrato</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="12" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}/>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={control}
-            name="costoTotalContrato"
+            name="numeroOperacion"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Costo Total del Contrato</FormLabel>
+                <FormLabel>Número de Operación</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="300.00" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}/>
+                  <Input placeholder="Ej. 123-456-789" {...field} value={field.value ?? ''}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
-            control={control}
-            name="mesesContrato"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Meses de Contrato</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="12" {...field} value={field.value ?? ''} onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}/>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        </>
       )}
 
       
@@ -646,6 +661,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoMensual: unit.costoMensual ?? undefined,
           costoTotalContrato: unit.costoTotalContrato ?? undefined,
           mesesContrato: unit.mesesContrato ?? undefined,
+          numeroOperacion: unit.numeroOperacion ?? undefined,
           fechaInstalacion: unit.fechaInstalacion ? new Date(unit.fechaInstalacion) : null,
           fechaInicioContrato: unit.fechaInicioContrato ? new Date(unit.fechaInicioContrato) : new Date(),
           fechaVencimiento: unit.fechaVencimiento ? new Date(unit.fechaVencimiento) : new Date(),
@@ -664,6 +680,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           costoMensual: undefined,
           costoTotalContrato: undefined,
           mesesContrato: undefined,
+          numeroOperacion: undefined,
           fechaInstalacion: new Date(),
           fechaInicioContrato: new Date(),
           fechaVencimiento: addMonths(new Date(), 1), 

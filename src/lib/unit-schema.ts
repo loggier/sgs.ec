@@ -38,6 +38,7 @@ export const UnitSchema = z.object({
   costoTotalContrato: z.coerce.number().optional(),
   saldoContrato: z.coerce.number().optional(),
   mesesContrato: z.coerce.number().optional(),
+  numeroOperacion: z.string().optional(),
   fechaInstalacion: nullableDateOrTimestamp,
   fechaSuspension: nullableDateOrTimestamp,
   fechaInicioContrato: dateOrTimestamp.refine(val => val !== null, 'Fecha de inicio es requerida.'),
