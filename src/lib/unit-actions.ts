@@ -22,18 +22,21 @@ import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
 import { getPgpsDevicesByClientId, getPgpsDeviceDetails, setPgpsDeviceStatus } from './pgps-actions';
-import { sendTemplatedWhatsAppMessage } from './notification-actions';
+import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any) => {
-  const data = { ...docData };
-  for (const key in data) {
-    if (data[key] instanceof Timestamp) {
-      // Convert Timestamp to ISO string for serialization
-      data[key] = data[key].toDate().toISOString();
-    }
+  const data: { [key: string]: any } = {};
+  for (const key in docData) {
+      if (docData[key] instanceof Timestamp) {
+          // Convert Timestamp to ISO string for serialization
+          data[key] = docData[key].toDate().toISOString();
+      } else {
+          data[key] = docData[key];
+      }
   }
   return data;
 };
+
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   try {
@@ -409,6 +412,7 @@ export async function importPgpsDevicesAsUnits(
                 fechaVencimiento: addMonths(now, 1),
                 ultimoPago: null,
                 fechaSiguientePago: addMonths(now, 1),
+                diasCorte: 0,
                 observacion: `Importado automáticamente desde P. GPS el ${now.toLocaleDateString('es-EC')}`,
             };
             batch.set(newUnitRef, newUnitData);
@@ -460,7 +464,7 @@ export async function updateUnitStatus(
 
     // Send notification
     const eventType = suspend ? 'service_suspended' : 'service_reactivated';
-    await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
+    await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, [{ id: unitId, ...unitData } as Unit]);
 
     // Revalidate paths to refresh data on the client
     revalidatePath(`/clients/${clientId}/units`);
@@ -483,6 +487,8 @@ export async function bulkUpdateUnitPgpsStatus(
     let failureCount = 0;
     const batch = writeBatch(db);
     const eventType = suspend ? 'service_suspended' : 'service_reactivated';
+    
+    const unitsByClient: { [clientId: string]: Unit[] } = {};
 
     for (const { unitId, clientId, pgpsDeviceId } of units) {
         try {
@@ -503,8 +509,13 @@ export async function bulkUpdateUnitPgpsStatus(
             };
             batch.update(unitDocRef, updateData);
             
-            // Send notification for each successful update
-            await sendTemplatedWhatsAppMessage(eventType, clientId, unitId);
+            if (!unitsByClient[clientId]) {
+                unitsByClient[clientId] = [];
+            }
+            const unitDoc = await getDoc(unitDocRef);
+            if (unitDoc.exists()) {
+                unitsByClient[clientId].push({ id: unitId, clientId, ...unitDoc.data() } as Unit);
+            }
 
             successCount++;
         } catch (error) {
@@ -519,6 +530,12 @@ export async function bulkUpdateUnitPgpsStatus(
             revalidatePath(`/clients/${units[0].clientId}/units`);
             revalidatePath('/units');
         }
+        
+        // Send grouped notifications after successful batch commit
+        for(const clientId in unitsByClient) {
+            await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, unitsByClient[clientId]);
+        }
+
     } catch (error) {
         console.error("Error committing batch update to Firestore:", error);
         return {

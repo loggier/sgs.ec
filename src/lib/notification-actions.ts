@@ -10,111 +10,99 @@ import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { startOfDay, isSameDay, subDays, add, parseISO } from 'date-fns';
+import { startOfDay, isSameDay, subDays, add, parseISO, addDays } from 'date-fns';
 
 /**
- * Replaces placeholders in a template string with actual data.
+ * Replaces placeholders in a template string with actual data for a group of units.
  * @param template The template string with placeholders like {nombre_cliente}.
  * @param client The client object.
- * @param unit The unit object.
+ * @param units An array of unit objects.
  * @param owner The user object of the owner/company.
  * @returns The formatted message string.
  */
-function formatMessage(template: string, client: Client, unit: Unit, owner: User | null): string {
+function formatGroupedMessage(template: string, client: Client, units: Unit[], owner: User | null): string {
     let message = template;
-    
-    // Calculate the amount due
-    let amountDue = 0;
-    if (unit.tipoContrato === 'con_contrato' && unit.costoTotalContrato && unit.mesesContrato) {
-        amountDue = unit.costoTotalContrato / unit.mesesContrato;
-    } else if (unit.costoMensual) {
-        amountDue = unit.costoMensual;
-    }
-    const formattedAmount = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amountDue);
 
-    // Format the date correctly
-    let formattedDate = 'N/A';
-    if (unit.fechaSiguientePago) {
+    // Helper to format a single date safely
+    const formatDate = (dateInput: any): string => {
+        if (!dateInput) return 'N/A';
         try {
-            // The date is an ISO string, so parse it and format it
-            const date = new Date(unit.fechaSiguientePago);
-            if (!isNaN(date.getTime())) {
-                formattedDate = date.toLocaleDateString('es-EC', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                });
-            }
+            const date = dateInput instanceof Timestamp ? dateInput.toDate() : new Date(dateInput);
+            if (isNaN(date.getTime())) return 'N/A';
+            return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
         } catch (e) {
-            console.error('Could not format date:', unit.fechaSiguientePago);
+            return 'Fecha Inválida';
         }
-    }
-
+    };
+    
+    // Create the summary string for all units
+    const unitsSummary = units.map(unit => {
+        const nextPaymentDate = formatDate(unit.fechaSiguientePago);
+        const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago 
+            ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
+            : 'N/A';
+        
+        return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Corte: ${cutoffDate}`;
+    }).join('\n'); // Join with newlines for a list format
 
     const replacements = {
         '{nombre_cliente}': client.nomSujeto,
-        '{placa_unidad}': unit.placa,
-        '{fecha_vencimiento}': formattedDate,
-        '{monto_vencido}': formattedAmount,
         '{nombre_empresa}': owner?.empresa || 'Su Proveedor de Servicios GPS',
         '{telefono_empresa}': owner?.telefono || '',
+        '{resumen_unidades}': unitsSummary, // New placeholder for the grouped summary
     };
 
     for (const [key, value] of Object.entries(replacements)) {
-        message = message.replace(new RegExp(key, 'g'), value);
+        message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
     }
+    
+    // The individual placeholders are now deprecated for grouped messages, but we clear them just in case
+    const singleUnitPlaceholders = ['{placa_unidad}', '{fecha_vencimiento}', '{monto_vencido}'];
+    singleUnitPlaceholders.forEach(placeholder => {
+        message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
+    });
+
 
     return message;
 }
 
 
 /**
- * Finds the appropriate template, formats it, and sends a WhatsApp message.
+ * Finds the appropriate template, formats it for a group of units, and sends a single WhatsApp message.
  * @param eventType The type of event triggering the notification.
  * @param clientId The ID of the client.
- * @param unitId The ID of the unit.
+ * @param units An array of unit objects to include in the notification.
  */
-export async function sendTemplatedWhatsAppMessage(
+export async function sendGroupedTemplatedWhatsAppMessage(
     eventType: TemplateEventType,
     clientId: string,
-    unitId: string
+    units: Unit[]
 ): Promise<{ success: boolean; message: string }> {
     try {
-        // 1. Get all available templates
+        if (!units || units.length === 0) {
+            return { success: false, message: 'No hay unidades para notificar.' };
+        }
+
         const allTemplates = await getMessageTemplates();
         const template = allTemplates.find(t => t.eventType === eventType);
 
-        // If no template is configured for this event, we do nothing.
         if (!template) {
             return { success: true, message: `No hay plantilla configurada para el evento '${eventType}'. No se envió mensaje.` };
         }
 
-        // 2. Get necessary data
         const clientDocRef = doc(db, 'clients', clientId);
-        const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
-        
-        const [clientDoc, unitDoc] = await Promise.all([
-            getDoc(clientDocRef),
-            getDoc(unitDocRef)
-        ]);
+        const clientDoc = await getDoc(clientDocRef);
 
-        if (!clientDoc.exists() || !unitDoc.exists()) {
-            return { success: false, message: 'No se pudo encontrar el cliente o la unidad.' };
+        if (!clientDoc.exists()) {
+            return { success: false, message: 'No se pudo encontrar el cliente.' };
         }
 
         const clientData = clientDoc.data() as Client;
-        const unitData = { id: unitDoc.id, clientId, ...unitDoc.data() } as Unit;
         
-        // When data comes from Firestore directly, dates might be Timestamps. Convert them.
-        if (unitData.fechaSiguientePago instanceof Timestamp) {
-            unitData.fechaSiguientePago = unitData.fechaSiguientePago.toDate().toISOString();
-        }
-
         if (!clientData.telefono) {
             return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
         }
         
-        // This is a check from the original logic and might need to be refined if ownerId is optional on client
         if (!clientData.ownerId) {
              return { success: false, message: 'El cliente no tiene un propietario asignado.' };
         }
@@ -123,15 +111,13 @@ export async function sendTemplatedWhatsAppMessage(
         const ownerDoc = await getDoc(ownerDocRef);
         const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
 
-        // 3. Format the message
-        const messageToSend = formatMessage(template.content, clientData, unitData, ownerData);
+        const messageToSend = formatGroupedMessage(template.content, clientData, units, ownerData);
 
-        // 4. Send the message
         return await sendQyvooMessage(clientData.telefono, messageToSend);
 
     } catch (error) {
-        console.error(`Error sending templated message for event ${eventType}:`, error);
-        return { success: false, message: 'Error interno al procesar la notificación.' };
+        console.error(`Error sending grouped templated message for event ${eventType}:`, error);
+        return { success: false, message: 'Error interno al procesar la notificación agrupada.' };
     }
 }
 
@@ -148,58 +134,58 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             return { success: true, message: "No se encontraron unidades para verificar." };
         }
 
-        // Use a consistent timezone for comparison, e.g., America/Guayaquil (UTC-5)
-        const timeZone = 'America/Guayaquil';
-        const nowInGuayaquil = new Date(new Date().toLocaleString('en-US', { timeZone }));
-        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(nowInGuayaquil);
-        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(subDays(nowInGuayaquil, 3));
+        const timeZone = "America/Guayaquil";
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone }));
+        const todayStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(now);
+        const threeDaysAgoStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(subDays(now, 3));
+        
+        // Group units by client and event type
+        const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[] } } = {};
+
+        for (const unit of allUnits) {
+            if (!unit.fechaSiguientePago) continue;
+            
+            const nextPaymentDate = new Date(unit.fechaSiguientePago);
+            const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(nextPaymentDate);
+            
+            if (!unitsToNotify[unit.clientId]) {
+                unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
+            }
+
+            if (nextPaymentDateStr === todayStr) {
+                unitsToNotify[unit.clientId].dueToday.push(unit);
+            } else if (nextPaymentDateStr === threeDaysAgoStr) {
+                unitsToNotify[unit.clientId].overdue.push(unit);
+            }
+        }
         
         let sentCount = 0;
         let errorCount = 0;
-        let skippedCount = 0;
 
-        for (const unit of allUnits) {
-            if (!unit.fechaSiguientePago) {
-                skippedCount++;
-                continue;
+        for (const clientId in unitsToNotify) {
+            const groups = unitsToNotify[clientId];
+
+            if (groups.dueToday.length > 0) {
+                const result = await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientId, groups.dueToday);
+                if (result.success) sentCount++; else errorCount++;
             }
-            
-            // Convert the unit's payment date to a comparable string in the same timezone
-            const nextPaymentDate = new Date(unit.fechaSiguientePago);
-            const nextPaymentDateInGuayaquil = new Date(nextPaymentDate.toLocaleString('en-US', { timeZone }));
-            const nextPaymentDateStr = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(nextPaymentDateInGuayaquil);
-            
-            let eventType: TemplateEventType | null = null;
-            
-            if (nextPaymentDateStr === todayStr) {
-                eventType = 'payment_due_today';
-            } else if (nextPaymentDateStr === threeDaysAgoStr) {
-                eventType = 'payment_overdue';
-            }
-            
-            if (eventType) {
-                const result = await sendTemplatedWhatsAppMessage(eventType, unit.clientId, unit.id);
-                if (result.success) {
-                    sentCount++;
-                } else {
-                    console.error(`Failed to send notification for unit ${unit.id}: ${result.message}`);
-                    errorCount++;
-                }
-            } else {
-                skippedCount++;
+
+            if (groups.overdue.length > 0) {
+                const result = await sendGroupedTemplatedWhatsAppMessage('payment_overdue', clientId, groups.overdue);
+                if (result.success) sentCount++; else errorCount++;
             }
         }
         
         if (sentCount === 0 && errorCount === 0) {
              return {
                 success: true,
-                message: "Proceso finalizado. Ninguna unidad cumplió con los criterios para enviar notificaciones hoy."
+                message: "Proceso finalizado. Ningún cliente tenía unidades que cumplieran con los criterios para enviar notificaciones hoy."
             };
         }
 
         return {
             success: true,
-            message: `Proceso finalizado. ${sentCount} notificaciones enviadas, ${errorCount} errores, ${skippedCount} unidades omitidas (no cumplen criterios).`
+            message: `Proceso finalizado. Se enviaron ${sentCount} notificaciones agrupadas. Hubo ${errorCount} errores.`
         };
 
     } catch (error) {

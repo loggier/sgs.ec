@@ -52,9 +52,7 @@ export const templateEventLabels: Record<TemplateEventType, string> = {
 
 export const templateVariables = [
     { variable: '{nombre_cliente}', description: 'Nombre completo del cliente.' },
-    { variable: '{placa_unidad}', description: 'Placa de la unidad vehicular.' },
-    { variable: '{fecha_vencimiento}', description: 'Fecha del próximo pago.' },
-    { variable: '{monto_vencido}', description: 'Monto total adeudado por la unidad.' },
+    { variable: '{resumen_unidades}', description: 'Tabla con el resumen de las unidades a notificar.'},
     { variable: '{nombre_empresa}', description: 'Nombre de su empresa (configurado en Perfil).' },
     { variable: '{telefono_empresa}', description: 'Teléfono de su empresa (configurado en Perfil).' },
 ];

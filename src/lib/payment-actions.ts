@@ -23,18 +23,21 @@ import type { User } from './user-schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 import { getCurrentUser } from './auth';
-import { sendTemplatedWhatsAppMessage } from './notification-actions';
+import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any): any => {
-    const data = { ...docData };
-    for (const key in data) {
-        if (data[key] instanceof Timestamp) {
+    const data: { [key: string]: any } = {};
+    for (const key in docData) {
+        if (docData[key] instanceof Timestamp) {
             // Convert Timestamp to ISO string for serialization
-            data[key] = data[key].toDate().toISOString();
+            data[key] = docData[key].toDate().toISOString();
+        } else {
+            data[key] = docData[key];
         }
     }
     return data;
 };
+
 
 export async function registerPayment(
   data: PaymentFormInput,
@@ -99,10 +102,8 @@ export async function registerPayment(
         }
     });
 
-    // Send notifications after transaction is successful
-    for (const unitId of unitIds) {
-        await sendTemplatedWhatsAppMessage('payment_received', clientId, unitId);
-    }
+    // Send a single grouped notification after the transaction is successful
+    await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnits);
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -111,7 +112,7 @@ export async function registerPayment(
 
     return { 
         success: true, 
-        message: `${processedCount} pago(s) registrado(s) con éxito. Se enviaron las notificaciones.`, 
+        message: `${processedCount} pago(s) registrado(s) con éxito. Se envió la notificación.`, 
         units: updatedUnits 
     };
 
