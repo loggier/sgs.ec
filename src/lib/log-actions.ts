@@ -7,9 +7,7 @@ import {
   Timestamp,
   getDocs,
   query,
-  orderBy,
   limit,
-  startAfter,
   writeBatch,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
@@ -17,7 +15,7 @@ import { db } from './firebase';
 import type { MessageLog } from './log-schema';
 
 const LOGS_COLLECTION = 'message_logs';
-const LOGS_PER_PAGE = 50; // Increased limit as we sort in-memory
+const LOGS_PER_PAGE = 50;
 
 // This type now includes the status and optional error message.
 type CreateLogData = Omit<MessageLog, 'id' | 'sentAt'>;
@@ -47,7 +45,8 @@ export async function createMessageLog(data: CreateLogData) {
     });
   } catch (error) {
     console.error("Error creating message log:", error);
-    // We don't throw here to avoid interrupting the user flow
+    // We don't throw here to avoid interrupting the user flow,
+    // as the primary action (sending the message) might have succeeded.
   }
 }
 
@@ -56,7 +55,6 @@ export async function getMessageLogs(lastVisible?: any): Promise<{ logs: Message
     const logsCollectionRef = collection(db, LOGS_COLLECTION);
     
     // Simplest possible query to avoid index issues. We will sort in code.
-    // Pagination is temporarily removed to ensure basic functionality.
     const q = query(logsCollectionRef, limit(LOGS_PER_PAGE));
     
     const logSnapshot = await getDocs(q);
@@ -109,3 +107,4 @@ export async function clearAllLogs(): Promise<{ success: boolean; message: strin
     return { success: false, message: 'Ocurrió un error al intentar limpiar los logs.' };
   }
 }
+
