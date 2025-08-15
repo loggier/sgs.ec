@@ -38,6 +38,7 @@ const convertTimestamps = (docData: any) => {
 export async function createMessageLog(data: CreateLogData) {
   try {
     const logCollectionRef = collection(db, LOGS_COLLECTION);
+    // Ensure sentAt is always a new server-side timestamp, ignoring any incoming value.
     await addDoc(logCollectionRef, {
       ...data,
       sentAt: Timestamp.now(),
