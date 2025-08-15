@@ -7,7 +7,6 @@ import {
   Timestamp,
   getDocs,
   query,
-  limit,
   writeBatch,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
@@ -15,71 +14,60 @@ import { db } from './firebase';
 import type { MessageLog } from './log-schema';
 
 const LOGS_COLLECTION = 'message_logs';
-const LOGS_PER_PAGE = 50;
 
-// This type now includes the status and optional error message.
 type CreateLogData = Omit<MessageLog, 'id' | 'sentAt'>;
 
-const convertTimestamps = (docData: any): any => {
-  const data: { [key: string]: any } = {};
-  for (const key in docData) {
-    if (Object.prototype.hasOwnProperty.call(docData, key)) {
-      if (docData[key] instanceof Timestamp) {
-        data[key] = docData[key].toDate(); // Convert to JS Date object
-      } else {
-        data[key] = docData[key];
-      }
-    }
-  }
-  return data;
-};
-
-// The function now accepts the full data object to be logged.
 export async function createMessageLog(data: CreateLogData) {
   try {
     const logCollectionRef = collection(db, LOGS_COLLECTION);
-    // Ensure sentAt is always a new server-side timestamp.
+    // Always use a server-side timestamp for consistency and to avoid client-side format issues.
     await addDoc(logCollectionRef, {
       ...data,
-      sentAt: Timestamp.now(), // Always use server timestamp for consistency
+      sentAt: Timestamp.now(), 
     });
   } catch (error) {
     console.error("Error creating message log:", error);
-    // We don't throw here to avoid interrupting the user flow,
-    // as the primary action (sending the message) might have succeeded.
+    // Log the error but don't throw, as the primary action (e.g., sending a message) might have succeeded.
   }
 }
 
-export async function getMessageLogs(lastVisible?: any): Promise<{ logs: MessageLog[], hasMore: boolean, lastDoc: any | null }> {
+export async function getMessageLogs(): Promise<{ logs: MessageLog[] }> {
   try {
     const logsCollectionRef = collection(db, LOGS_COLLECTION);
-    
-    // Simplest possible query to avoid index issues. We will sort in code.
-    const q = query(logsCollectionRef, limit(LOGS_PER_PAGE));
+    const q = query(logsCollectionRef); // Simplest possible query
     
     const logSnapshot = await getDocs(q);
 
     const logs = logSnapshot.docs.map(doc => {
-        const data = convertTimestamps(doc.data());
-        return { id: doc.id, ...data } as MessageLog;
+        const data = doc.data();
+        // Robustly convert different possible date formats to a JS Date object
+        let sentAtDate: Date;
+        if (data.sentAt instanceof Timestamp) {
+            sentAtDate = data.sentAt.toDate();
+        } else if (typeof data.sentAt === 'string') {
+            sentAtDate = new Date(data.sentAt);
+        } else if (data.sentAt && typeof data.sentAt === 'object' && data.sentAt.seconds) {
+            sentAtDate = new Date(data.sentAt.seconds * 1000);
+        } else {
+            sentAtDate = new Date(); // Fallback
+        }
+
+        return { 
+            id: doc.id,
+            ...data,
+            sentAt: sentAtDate 
+        } as MessageLog;
     });
     
-    // Sort manually in the backend
-    logs.sort((a, b) => {
-        const dateA = a.sentAt instanceof Date ? a.sentAt.getTime() : 0;
-        const dateB = b.sentAt instanceof Date ? b.sentAt.getTime() : 0;
-        return dateB - dateA;
-    });
+    // Sort manually in the backend to avoid complex indexed queries
+    logs.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
 
-    const hasMore = logs.length === LOGS_PER_PAGE;
-    const lastDoc = logSnapshot.docs.length > 0 ? logSnapshot.docs[logSnapshot.docs.length - 1] : null;
-
-    return { logs, hasMore, lastDoc };
+    return { logs };
   } catch (error) {
     console.error("Error getting message logs:", error);
-    // Re-throw the error so the calling component can handle it (e.g., show a toast)
     const errorMessage = error instanceof Error ? error.message : "Error desconocido en la base de datos.";
-    throw new Error(`Failed to fetch message logs: ${errorMessage}`);
+    // Throw the error so the calling component can catch it and display it.
+    throw new Error(`Error al leer los logs de Firestore: ${errorMessage}`);
   }
 }
 
@@ -107,4 +95,3 @@ export async function clearAllLogs(): Promise<{ success: boolean; message: strin
     return { success: false, message: 'Ocurrió un error al intentar limpiar los logs.' };
   }
 }
-

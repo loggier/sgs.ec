@@ -35,41 +35,35 @@ export default function LogList() {
   const { toast } = useToast();
   const [logs, setLogs] = React.useState<MessageLog[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [hasMore, setHasMore] = React.useState(true);
-  const [lastDoc, setLastDoc] = React.useState<any>(null);
   const [isClearing, setIsClearing] = React.useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const fetchLogs = React.useCallback(async (lastVisible: any = null) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { logs: newLogs, hasMore: newHasMore, lastDoc: newLastDoc } = await getMessageLogs(lastVisible);
-      setLogs(prev => lastVisible ? [...prev, ...newLogs] : newLogs);
-      setHasMore(newHasMore);
-      setLastDoc(newLastDoc);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
-      setError(errorMessage);
-      toast({ title: 'Error al Cargar', description: 'No se pudieron cargar los logs.', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   React.useEffect(() => {
+    const fetchLogs = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const { logs: newLogs } = await getMessageLogs();
+        setLogs(newLogs);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
+        setError(errorMessage);
+        console.error("Error fetching logs for display:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
     fetchLogs();
-  }, [fetchLogs]);
+  }, []);
 
   const handleClearLogs = async () => {
     setIsClearing(true);
     const result = await clearAllLogs();
     if (result.success) {
       toast({ title: 'Éxito', description: result.message });
-      setLogs([]); // Clear logs from state immediately
-      setHasMore(false);
-      setLastDoc(null);
+      setLogs([]);
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
@@ -85,25 +79,19 @@ export default function LogList() {
               if (isNaN(date.getTime())) return "Fecha inválida";
               return format(date, "dd/MM/yyyy HH:mm:ss", { locale: es });
           }
-          // Check if it's a Firestore Timestamp-like object
-          if (typeof date === 'object' && date.seconds) {
-              const d = new Date(date.seconds * 1000);
-              if (isNaN(d.getTime())) return "Fecha inválida";
-              return format(d, "dd/MM/yyyy HH:mm:ss", { locale: es });
-          }
           return "Formato desconocido";
       } catch {
           return "Fecha inválida";
       }
   }
   
-  if (error && !isLoading) {
+  if (error) {
     return (
        <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error de Carga</AlertTitle>
+          <AlertTitle>Error al Cargar los Logs</AlertTitle>
           <AlertDescription>
-             <p>No se pudieron cargar los logs desde la base de datos.</p>
+             <p>No se pudieron cargar los logs desde la base de datos. Este es el error reportado:</p>
              <pre className="mt-2 whitespace-pre-wrap rounded-md bg-destructive/10 p-2 text-xs font-mono">
                {error}
              </pre>
@@ -122,7 +110,7 @@ export default function LogList() {
                 <CardTitle>Historial de Envíos</CardTitle>
                 <CardDescription>Auditoría de todos los mensajes enviados por el sistema.</CardDescription>
               </div>
-              <Button size="sm" variant="destructive" onClick={() => setIsClearDialogOpen(true)} disabled={logs.length === 0}>
+              <Button size="sm" variant="destructive" onClick={() => setIsClearDialogOpen(true)} disabled={logs.length === 0 || isLoading}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Limpiar Logs
               </Button>
@@ -142,7 +130,7 @@ export default function LogList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoading && logs.length === 0 ? (
+                  {isLoading ? (
                     <TableRow>
                       <TableCell colSpan={6} className="h-24 text-center">
                         <Loader2 className="mx-auto h-6 w-6 animate-spin" />
@@ -199,14 +187,6 @@ export default function LogList() {
                 </TableBody>
               </Table>
             </div>
-            {hasMore && (
-              <div className="mt-6 flex justify-center">
-                <Button onClick={() => fetchLogs(lastDoc)} disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Cargar más
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
         <ClearLogsDialog
