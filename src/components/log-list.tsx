@@ -56,7 +56,7 @@ export default function LogList() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   React.useEffect(() => {
     fetchLogs();
@@ -79,10 +79,19 @@ export default function LogList() {
   
   const formatDate = (date: any) => {
       try {
-          if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-              return "Fecha inválida";
+          if (!date) return 'Fecha inválida';
+          // Check if it's already a Date object
+          if (date instanceof Date) {
+              if (isNaN(date.getTime())) return "Fecha inválida";
+              return format(date, "dd/MM/yyyy HH:mm:ss", { locale: es });
           }
-          return format(date, "dd/MM/yyyy HH:mm:ss", { locale: es });
+          // Check if it's a Firestore Timestamp-like object
+          if (typeof date === 'object' && date.seconds) {
+              const d = new Date(date.seconds * 1000);
+              if (isNaN(d.getTime())) return "Fecha inválida";
+              return format(d, "dd/MM/yyyy HH:mm:ss", { locale: es });
+          }
+          return "Formato desconocido";
       } catch {
           return "Fecha inválida";
       }
