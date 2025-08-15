@@ -160,13 +160,10 @@ const SidebarFooter = React.forwardRef<
       <Button
         variant="ghost"
         size="icon"
-        className={cn(
-          "size-10 shrink-0",
-          isCollapsed ? "hidden" : "inline-flex"
-        )}
-        onClick={() => setIsCollapsed(true)}
+        className={cn("size-10 shrink-0")}
+        onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        <ChevronLeft className="size-4" />
+        <ChevronLeft className={cn("size-4 transition-transform", isCollapsed && "rotate-180")} />
       </Button>
     </div>
   )
