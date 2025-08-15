@@ -62,17 +62,13 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
   const navContent = (
     <>
-        <SidebarHeader className="p-4">
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <Banknote className="h-5 w-5 text-primary-foreground" />
-            </div>
-             {!isCollapsed && (
-                <div className="flex items-center gap-2">
-                    <Image src="/sgi_logo.png" alt="SGI Logo" width={32} height={32} />
-                    <span className="font-bold">SGI</span>
-                </div>
-            )}
+        <SidebarHeader className="p-4 flex items-center justify-center">
+             <Link href="/" className="flex items-center gap-2 font-semibold">
+                {isCollapsed ? (
+                    <span className="font-bold text-xl">SGI</span>
+                ) : (
+                    <Image src="/sgi_logo.png" alt="SGI Logo" width={128} height={32} priority />
+                )}
             </Link>
         </SidebarHeader>
         <SidebarContent className="flex-1 p-2">
