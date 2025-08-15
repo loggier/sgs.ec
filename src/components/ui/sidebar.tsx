@@ -5,7 +5,7 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronLeft } from "lucide-react"
 
-import { Sheet, SheetContent } from "./sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./sheet"
 import { cn } from "@/lib/utils"
 
 import { Button } from "./button"
@@ -52,6 +52,9 @@ const Sidebar = React.forwardRef<
   if (mobile) {
     return (
       <SheetContent side="left" className="w-64 p-0">
+          <SheetHeader>
+            <SheetTitle className="sr-only">Menú Principal</SheetTitle>
+          </SheetHeader>
           <aside
             ref={ref}
             className={cn("flex flex-col h-full", className)}
