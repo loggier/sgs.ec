@@ -45,27 +45,21 @@ function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 const Sidebar = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { mobile?: boolean }
->(({ className, mobile = false, ...props }, ref) => {
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => {
   const { isCollapsed } = useSidebar()
 
-  if (mobile) {
-    return (
-      <SheetContent side="left" className="w-64 p-0">
-          <SheetHeader>
-            <SheetTitle className="sr-only">Menú Principal</SheetTitle>
-          </SheetHeader>
-          <aside
-            ref={ref}
-            className={cn("flex flex-col h-full", className)}
-            {...props}
-          />
-        </SheetContent>
-    )
-  }
-
   return (
-    <aside ref={ref} className={cn("flex-col", isCollapsed ? "w-16" : "w-64", "transition-all duration-300 ease-in-out", className)} {...props} />
+    <aside
+      ref={ref}
+      className={cn(
+        "flex-col",
+        isCollapsed ? "w-16" : "w-64",
+        "transition-all duration-300 ease-in-out",
+        className
+      )}
+      {...props}
+    />
   )
 })
 Sidebar.displayName = "Sidebar"

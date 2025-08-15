@@ -5,6 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History, Menu } from 'lucide-react';
+import Image from 'next/image';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -24,7 +25,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLab
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import ProfileForm from './profile-form';
-import { Sheet, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetTrigger, SheetContent } from './ui/sheet';
 
 type NavLinkProps = {
   href: string;
@@ -66,7 +67,12 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <Banknote className="h-5 w-5 text-primary-foreground" />
             </div>
-            {!isCollapsed && <span>SGI</span>}
+             {!isCollapsed && (
+                <div className="flex items-center gap-2">
+                    <Image src="/sgi_logo.png" alt="SGI Logo" width={32} height={32} />
+                    <span className="font-bold">SGI</span>
+                </div>
+            )}
             </Link>
         </SidebarHeader>
         <SidebarContent className="flex-1 p-2">
@@ -166,9 +172,12 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                     <Menu className="h-6 w-6" />
                 </Button>
             </SheetTrigger>
-            <Sidebar mobile>
+            <SheetContent side="left" className="w-64 p-0 flex flex-col">
+              <SheetHeader>
+                 <SheetTitle className="sr-only">Menú Principal</SheetTitle>
+              </SheetHeader>
               {navContent}
-            </Sidebar>
+            </SheetContent>
          </Sheet>
         
         <Sidebar className="hidden md:flex">
