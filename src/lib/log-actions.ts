@@ -17,7 +17,7 @@ import { db } from './firebase';
 import type { MessageLog } from './log-schema';
 
 const LOGS_COLLECTION = 'message_logs';
-const LOGS_PER_PAGE = 25;
+const LOGS_PER_PAGE = 50; // Increased limit as we sort in-memory
 
 // This type now includes the status and optional error message.
 type CreateLogData = Omit<MessageLog, 'id' | 'sentAt'>;
@@ -55,15 +55,22 @@ export async function getMessageLogs(lastVisible?: any): Promise<{ logs: Message
   try {
     const logsCollectionRef = collection(db, LOGS_COLLECTION);
     
-    // Firestore requires a composite index for this query which might not exist.
-    // Let's remove the orderBy and sort in code to make it more robust.
-    const q = query(logsCollectionRef, orderBy('sentAt', 'desc'), limit(LOGS_PER_PAGE));
+    // Simplest possible query to avoid index issues. We will sort in code.
+    // Pagination is temporarily removed to ensure basic functionality.
+    const q = query(logsCollectionRef, limit(LOGS_PER_PAGE));
     
     const logSnapshot = await getDocs(q);
 
     const logs = logSnapshot.docs.map(doc => {
         const data = convertTimestamps(doc.data());
         return { id: doc.id, ...data } as MessageLog;
+    });
+    
+    // Sort manually in the backend
+    logs.sort((a, b) => {
+        const dateA = a.sentAt instanceof Date ? a.sentAt.getTime() : 0;
+        const dateB = b.sentAt instanceof Date ? b.sentAt.getTime() : 0;
+        return dateB - dateA;
     });
 
     const hasMore = logs.length === LOGS_PER_PAGE;
@@ -73,7 +80,8 @@ export async function getMessageLogs(lastVisible?: any): Promise<{ logs: Message
   } catch (error) {
     console.error("Error getting message logs:", error);
     // Re-throw the error so the calling component can handle it (e.g., show a toast)
-    throw new Error('Failed to fetch message logs from the database.');
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido en la base de datos.";
+    throw new Error(`Failed to fetch message logs: ${errorMessage}`);
   }
 }
 

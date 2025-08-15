@@ -5,7 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Loader2, Trash2, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Trash2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 import type { MessageLog } from '@/lib/log-schema';
 import { getMessageLogs, clearAllLogs } from '@/lib/log-actions';
@@ -29,6 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 export default function LogList() {
   const { toast } = useToast();
@@ -38,16 +39,20 @@ export default function LogList() {
   const [lastDoc, setLastDoc] = React.useState<any>(null);
   const [isClearing, setIsClearing] = React.useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const fetchLogs = React.useCallback(async (lastVisible: any = null) => {
     setIsLoading(true);
+    setError(null);
     try {
       const { logs: newLogs, hasMore: newHasMore, lastDoc: newLastDoc } = await getMessageLogs(lastVisible);
       setLogs(prev => lastVisible ? [...prev, ...newLogs] : newLogs);
       setHasMore(newHasMore);
       setLastDoc(newLastDoc);
-    } catch (error) {
-      toast({ title: 'Error', description: 'No se pudieron cargar los logs.', variant: 'destructive' });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Ocurrió un error desconocido.';
+      setError(errorMessage);
+      toast({ title: 'Error al Cargar', description: 'No se pudieron cargar los logs.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -74,13 +79,28 @@ export default function LogList() {
   
   const formatDate = (date: any) => {
       try {
-          if (!(date instanceof Date) || isNaN(date.getTime())) {
+          if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
               return "Fecha inválida";
           }
           return format(date, "dd/MM/yyyy HH:mm:ss", { locale: es });
       } catch {
           return "Fecha inválida";
       }
+  }
+  
+  if (error && !isLoading) {
+    return (
+       <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error de Carga</AlertTitle>
+          <AlertDescription>
+             <p>No se pudieron cargar los logs desde la base de datos.</p>
+             <pre className="mt-2 whitespace-pre-wrap rounded-md bg-destructive/10 p-2 text-xs font-mono">
+               {error}
+             </pre>
+          </AlertDescription>
+        </Alert>
+    )
   }
 
   return (
