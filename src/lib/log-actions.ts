@@ -22,13 +22,15 @@ const LOGS_PER_PAGE = 25;
 // This type now includes the status and optional error message.
 type CreateLogData = Omit<MessageLog, 'id' | 'sentAt'>;
 
-const convertTimestamps = (docData: any) => {
+const convertTimestamps = (docData: any): any => {
   const data: { [key: string]: any } = {};
   for (const key in docData) {
-    if (Object.prototype.hasOwnProperty.call(docData, key) && docData[key] instanceof Timestamp) {
-      data[key] = docData[key].toDate(); // Convert to JS Date object
-    } else {
-      data[key] = docData[key];
+    if (Object.prototype.hasOwnProperty.call(docData, key)) {
+      if (docData[key] instanceof Timestamp) {
+        data[key] = docData[key].toDate(); // Convert to JS Date object
+      } else {
+        data[key] = docData[key];
+      }
     }
   }
   return data;
@@ -38,10 +40,10 @@ const convertTimestamps = (docData: any) => {
 export async function createMessageLog(data: CreateLogData) {
   try {
     const logCollectionRef = collection(db, LOGS_COLLECTION);
-    // Ensure sentAt is always a new server-side timestamp, ignoring any incoming value.
+    // Ensure sentAt is always a new server-side timestamp.
     await addDoc(logCollectionRef, {
       ...data,
-      sentAt: Timestamp.now(),
+      sentAt: Timestamp.now(), // Always use server timestamp for consistency
     });
   } catch (error) {
     console.error("Error creating message log:", error);
@@ -73,7 +75,8 @@ export async function getMessageLogs(lastVisible?: any): Promise<{ logs: Message
     return { logs, hasMore, lastDoc };
   } catch (error) {
     console.error("Error getting message logs:", error);
-    return { logs: [], hasMore: false, lastDoc: null };
+    // Re-throw the error so the calling component can handle it (e.g., show a toast)
+    throw new Error('Failed to fetch message logs from the database.');
   }
 }
 

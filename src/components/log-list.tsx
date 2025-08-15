@@ -72,16 +72,13 @@ export default function LogList() {
     setIsClearDialogOpen(false);
   };
   
-  const formatDate = (date: Date | string) => {
+  const formatDate = (date: any) => {
       try {
-          const dateObj = typeof date === 'string' ? new Date(date) : date;
-          // Check if date is a valid Date object
-          if (isNaN(dateObj.getTime())) {
+          if (!(date instanceof Date) || isNaN(date.getTime())) {
               return "Fecha inválida";
           }
-          return format(dateObj, "dd/MM/yyyy HH:mm:ss", { locale: es });
+          return format(date, "dd/MM/yyyy HH:mm:ss", { locale: es });
       } catch {
-          // Catch potential errors if the input is not a valid date representation
           return "Fecha inválida";
       }
   }
