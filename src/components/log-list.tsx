@@ -62,7 +62,9 @@ export default function LogList() {
     const result = await clearAllLogs();
     if (result.success) {
       toast({ title: 'Éxito', description: result.message });
-      fetchLogs();
+      setLogs([]); // Clear logs from state immediately
+      setHasMore(false);
+      setLastDoc(null);
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
@@ -72,7 +74,11 @@ export default function LogList() {
   
   const formatDate = (date: Date | string) => {
       try {
-          return format(new Date(date), "dd/MM/yyyy HH:mm:ss", { locale: es });
+          const dateObj = typeof date === 'string' ? new Date(date) : date;
+          if (isNaN(dateObj.getTime())) {
+              return "Fecha inválida";
+          }
+          return format(dateObj, "dd/MM/yyyy HH:mm:ss", { locale: es });
       } catch {
           return "Fecha inválida";
       }

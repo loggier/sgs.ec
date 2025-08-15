@@ -26,7 +26,7 @@ const convertTimestamps = (docData: any) => {
   const data: { [key: string]: any } = {};
   for (const key in docData) {
     if (Object.prototype.hasOwnProperty.call(docData, key) && docData[key] instanceof Timestamp) {
-      data[key] = docData[key].toDate().toISOString();
+      data[key] = docData[key].toDate(); // Convert to JS Date object
     } else {
       data[key] = docData[key];
     }
