@@ -5,7 +5,7 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronLeft } from "lucide-react"
 
-import { Sheet, SheetContent, SheetTrigger } from "./sheet"
+import { Sheet, SheetContent } from "./sheet"
 import { cn } from "@/lib/utils"
 
 import { Button } from "./button"
@@ -47,63 +47,25 @@ const Sidebar = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { mobile?: boolean }
 >(({ className, mobile = false, ...props }, ref) => {
-  const { isCollapsed, isOpen, setIsOpen } = useSidebar()
+  const { isCollapsed } = useSidebar()
 
   if (mobile) {
     return (
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+      <SheetContent side="left" className="w-64 p-0">
           <aside
             ref={ref}
             className={cn("flex flex-col h-full", className)}
             {...props}
           />
         </SheetContent>
-      </Sheet>
     )
   }
 
   return (
-    <aside ref={ref} className={cn("flex-col border-r bg-card hidden md:flex", isCollapsed ? "w-16" : "w-64", "transition-all duration-300 ease-in-out", className)} {...props} />
+    <aside ref={ref} className={cn("flex-col", isCollapsed ? "w-16" : "w-64", "transition-all duration-300 ease-in-out", className)} {...props} />
   )
 })
 Sidebar.displayName = "Sidebar"
-
-const SidebarTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<typeof Button>
->(({ className, ...props }, ref) => {
-  return (
-    <SheetTrigger asChild>
-      <Button
-        ref={ref}
-        variant="ghost"
-        size="icon"
-        className={cn("md:hidden", className)}
-        {...props}
-      >
-        {props.children}
-      </Button>
-    </SheetTrigger>
-  )
-})
-SidebarTrigger.displayName = "SidebarTrigger"
-
-const SidebarClose = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<typeof Button>
->(({ className, ...props }, ref) => {
-  return (
-    <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      className={cn("md:hidden", className)}
-      {...props}
-    />
-  )
-})
-SidebarClose.displayName = "SidebarClose"
 
 const SidebarHeader = React.forwardRef<
   HTMLDivElement,
@@ -231,8 +193,6 @@ export {
   SidebarProvider,
   useSidebar,
   Sidebar,
-  SidebarTrigger,
-  SidebarClose,
   SidebarHeader,
   SidebarContent,
   SidebarMenu,
