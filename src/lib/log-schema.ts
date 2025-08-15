@@ -9,6 +9,7 @@ export type MessageLogStatus = z.infer<typeof MessageLogStatus>;
 
 export const MessageLogSchema = z.object({
   id: z.string(),
+  ownerId: z.string(), // ID of the user (master/manager) whose credentials were used
   qyvooUserId: z.string(),
   recipientNumber: z.string(),
   clientId: z.string(),

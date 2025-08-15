@@ -28,10 +28,11 @@ export async function sendQyvooMessage(
     phoneNumber: string,
     message: string,
     settings: QyvooSettings | null,
-    logMetadata: { clientId: string; clientName: string; }
+    logMetadata: { ownerId: string; clientId: string; clientName: string; }
 ): Promise<{ success: boolean; message: string }> {
     const formattedNumber = formatPhoneNumber(phoneNumber);
     const logPayloadBase = {
+        ownerId: logMetadata.ownerId,
         qyvooUserId: settings?.userId || 'Desconocido',
         recipientNumber: formattedNumber,
         clientId: logMetadata.clientId,

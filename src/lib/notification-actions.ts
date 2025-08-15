@@ -95,12 +95,13 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             '{fecha_vencimiento}': formatDate(unit.fechaSiguientePago),
             '{fecha_corte}': cutoffDate,
             '{monto_a_pagar}': formatCurrency(amountToPay),
-            '{resumen_unidades}': '', // Clear summary placeholder
         };
 
         for (const [key, value] of Object.entries(singleUnitReplacements)) {
             message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
         }
+        // Clear summary placeholder if it exists
+        message = message.replace(/{resumen_unidades}/g, '');
 
     } else {
         // Multiple units: Build summary table and clear individual placeholders
@@ -110,7 +111,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             const overdueAmount = calculateOverdueAmount(unit);
             const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
             totalAmountDue += amountToPay;
-            return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Monto: ${formatCurrency(amountToPay)}`;
+            return `Placa: ${unit.placa} | Monto: ${formatCurrency(amountToPay)}`;
         }).join('\n');
 
         const summaryWithTotal = `${unitsSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
@@ -177,8 +178,14 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         }
 
         const messageToSend = formatMessage(template.content, clientData, units, ownerData);
+        
+        const logMetadata = { 
+            ownerId: clientData.ownerId, 
+            clientId: clientData.id!, 
+            clientName: clientData.nomSujeto 
+        };
 
-        return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings, { clientId: clientData.id!, clientName: clientData.nomSujeto });
+        return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings, logMetadata);
 
     } catch (error) {
         console.error(`Error sending grouped templated message for event ${eventType}:`, error);

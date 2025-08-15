@@ -71,11 +71,16 @@ export default function SendQyvooMessageDialog({
     setIsSubmitting(true);
     try {
       const settings = await getQyvooSettingsForUser(client.ownerId);
+      const logMetadata = { 
+        ownerId: client.ownerId, 
+        clientId: client.id!, 
+        clientName: client.nomSujeto 
+      };
       const result = await sendQyvooMessage(
           client.telefono, 
           values.message, 
           settings,
-          { clientId: client.id!, clientName: client.nomSujeto }
+          logMetadata
       );
       if (result.success) {
         toast({
