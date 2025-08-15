@@ -71,7 +71,12 @@ export default function SendQyvooMessageDialog({
     setIsSubmitting(true);
     try {
       const settings = await getQyvooSettingsForUser(client.ownerId);
-      const result = await sendQyvooMessage(client.telefono, values.message, settings);
+      const result = await sendQyvooMessage(
+          client.telefono, 
+          values.message, 
+          settings,
+          { clientId: client.id!, clientName: client.nomSujeto }
+      );
       if (result.success) {
         toast({
           title: 'Éxito',

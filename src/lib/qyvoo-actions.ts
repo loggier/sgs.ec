@@ -2,6 +2,7 @@
 'use server';
 
 import type { QyvooSettings } from './settings-schema';
+import { createMessageLog } from './log-actions';
 
 const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
 
@@ -26,14 +27,24 @@ function formatPhoneNumber(phone: string): string {
 export async function sendQyvooMessage(
     phoneNumber: string,
     message: string,
-    settings: QyvooSettings | null
+    settings: QyvooSettings | null,
+    logMetadata: { clientId: string; clientName: string; }
 ): Promise<{ success: boolean; message: string }> {
+    const formattedNumber = formatPhoneNumber(phoneNumber);
+    const logPayload = {
+        qyvooUserId: settings?.userId || 'Desconocido',
+        recipientNumber: formattedNumber,
+        clientId: logMetadata.clientId,
+        clientName: logMetadata.clientName,
+        messageContent: message,
+    };
+    
     try {
-        if (!settings?.apiKey) {
-            return { success: false, message: 'La integración con Qyvoo no está configurada (Falta API Key).' };
+        if (!settings?.apiKey || !settings?.userId) {
+            const errorMsg = 'La integración con Qyvoo no está configurada (Falta API Key o User ID).';
+            await createMessageLog({ ...logPayload, status: 'failure', errorMessage: errorMsg });
+            return { success: false, message: errorMsg };
         }
-
-        const formattedNumber = formatPhoneNumber(phoneNumber);
 
         const response = await fetch(QYVOO_API_URL, {
             method: 'POST',
@@ -53,14 +64,17 @@ export async function sendQyvooMessage(
         if (!response.ok || !responseBody.success) {
             const errorMessage = responseBody.message || `Error de la API de Qyvoo: ${response.statusText}`;
             console.error(`Error sending message via Qyvoo API: ${response.status} ${errorMessage}`, responseBody);
+            await createMessageLog({ ...logPayload, status: 'failure', errorMessage });
             return { success: false, message: `No se pudo enviar el mensaje: ${errorMessage}` };
         }
-
+        
+        await createMessageLog({ ...logPayload, status: 'success' });
         return { success: true, message: responseBody.message };
 
     } catch (error) {
         console.error("Failed to send Qyvoo message:", error);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido.';
+        await createMessageLog({ ...logPayload, status: 'failure', errorMessage });
         return { success: false, message: `Error inesperado: ${errorMessage}` };
     }
 }

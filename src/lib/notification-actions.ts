@@ -150,7 +150,7 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         if (!clientDoc.exists()) {
             return { success: false, message: 'No se pudo encontrar el cliente.' };
         }
-        const clientData = clientDoc.data() as Client;
+        const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
         
         if (!clientData.ownerId) {
              return { success: false, message: 'El cliente no tiene un propietario asignado.' };
@@ -164,9 +164,6 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         const ownerData = ownerDoc.data() as User;
         
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-        if (!qyvooSettings?.apiKey) {
-            return { success: false, message: `El propietario ${ownerData.nombre} no tiene la integración de Qyvoo configurada.` };
-        }
 
         const allTemplates = await getMessageTemplatesForUser(clientData.ownerId);
         const template = allTemplates.find(t => t.eventType === eventType);
@@ -181,7 +178,7 @@ export async function sendGroupedTemplatedWhatsAppMessage(
 
         const messageToSend = formatMessage(template.content, clientData, units, ownerData);
 
-        return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings);
+        return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings, { clientId: clientData.id!, clientName: clientData.nomSujeto });
 
     } catch (error) {
         console.error(`Error sending grouped templated message for event ${eventType}:`, error);

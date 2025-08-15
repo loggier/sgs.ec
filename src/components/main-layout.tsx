@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History } from 'lucide-react';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -103,11 +103,19 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                       </NavLink>
                   </SidebarMenuItem>
               )}
-               {user?.role === 'master' && (
+               {user && ['master', 'manager'].includes(user.role) && (
                   <SidebarMenuItem>
                       <NavLink href="/settings">
                           <Settings className="h-4 w-4" />
                           {!isCollapsed && <span>Configuración</span>}
+                      </NavLink>
+                  </SidebarMenuItem>
+                )}
+                 {user && ['master'].includes(user.role) && (
+                  <SidebarMenuItem>
+                      <NavLink href="/logs">
+                          <History className="h-4 w-4" />
+                          {!isCollapsed && <span>Logs de Notificaciones</span>}
                       </NavLink>
                   </SidebarMenuItem>
                 )}

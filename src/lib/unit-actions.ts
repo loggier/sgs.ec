@@ -446,6 +446,12 @@ export async function updateUnitStatus(
         return { success: false, message: 'La unidad no fue encontrada.' };
     }
     const unitData = unitSnapshot.data() as Unit;
+    const clientDocRef = doc(db, 'clients', clientId);
+    const clientSnapshot = await getDoc(clientDocRef);
+     if (!clientSnapshot.exists()) {
+        return { success: false, message: 'El cliente no fue encontrado.' };
+    }
+    const clientData = clientSnapshot.data() as Client;
 
     // If unit is linked to P. GPS, update status there first
     if (unitData.pgpsDeviceId) {
@@ -464,7 +470,7 @@ export async function updateUnitStatus(
 
     // Send notification
     const eventType = suspend ? 'service_suspended' : 'service_reactivated';
-    await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, [{ id: unitId, ...unitData } as Unit]);
+    await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, [{ id: unitId, ...unitData, ...updateData } as Unit]);
 
     // Revalidate paths to refresh data on the client
     revalidatePath(`/clients/${clientId}/units`);
@@ -514,7 +520,8 @@ export async function bulkUpdateUnitPgpsStatus(
             }
             const unitDoc = await getDoc(unitDocRef);
             if (unitDoc.exists()) {
-                unitsByClient[clientId].push({ id: unitId, clientId, ...unitDoc.data() } as Unit);
+                const fullUnitData = { id: unitId, clientId, ...unitDoc.data(), ...updateData } as Unit;
+                unitsByClient[clientId].push(fullUnitData);
             }
 
             successCount++;
@@ -533,7 +540,9 @@ export async function bulkUpdateUnitPgpsStatus(
         
         // Send grouped notifications after successful batch commit
         for(const clientId in unitsByClient) {
-            await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, unitsByClient[clientId]);
+            if (unitsByClient[clientId].length > 0) {
+                 await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, unitsByClient[clientId]);
+            }
         }
 
     } catch (error) {
