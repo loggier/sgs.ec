@@ -5,6 +5,7 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronLeft } from "lucide-react"
 
+import { Sheet, SheetContent, SheetTrigger } from "./sheet"
 import { cn } from "@/lib/utils"
 
 import { Button } from "./button"
@@ -44,20 +45,26 @@ function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 const Sidebar = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => {
-  const { isCollapsed } = useSidebar()
+  React.HTMLAttributes<HTMLDivElement> & { mobile?: boolean }
+>(({ className, mobile = false, ...props }, ref) => {
+  const { isCollapsed, isOpen, setIsOpen } = useSidebar()
+
+  if (mobile) {
+    return (
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetContent side="left" className="w-64 p-0">
+          <aside
+            ref={ref}
+            className={cn("flex flex-col h-full", className)}
+            {...props}
+          />
+        </SheetContent>
+      </Sheet>
+    )
+  }
+
   return (
-    <aside
-      ref={ref}
-      className={cn(
-        "hidden md:flex",
-        "transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-16" : "w-64",
-        className
-      )}
-      {...props}
-    />
+    <aside ref={ref} className={cn("flex-col border-r bg-card hidden md:flex", isCollapsed ? "w-16" : "w-64", "transition-all duration-300 ease-in-out", className)} {...props} />
   )
 })
 Sidebar.displayName = "Sidebar"
@@ -67,13 +74,17 @@ const SidebarTrigger = React.forwardRef<
   React.ComponentProps<typeof Button>
 >(({ className, ...props }, ref) => {
   return (
-    <Button
-      ref={ref}
-      variant="ghost"
-      size="icon"
-      className={cn("md:hidden", className)}
-      {...props}
-    />
+    <SheetTrigger asChild>
+      <Button
+        ref={ref}
+        variant="ghost"
+        size="icon"
+        className={cn("md:hidden", className)}
+        {...props}
+      >
+        {props.children}
+      </Button>
+    </SheetTrigger>
   )
 })
 SidebarTrigger.displayName = "SidebarTrigger"

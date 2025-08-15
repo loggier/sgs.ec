@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History, Menu } from 'lucide-react';
 
 import { useAuth } from '@/context/auth-context';
 import type { User } from '@/lib/user-schema';
@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
   useSidebar,
+  SidebarTrigger,
 } from './ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from '@/components/ui/dropdown-menu';
@@ -46,7 +47,7 @@ function NavLink({ href, children }: NavLinkProps) {
 function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const { logout, user, updateUserContext } = useAuth();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
-  const { isCollapsed } = useSidebar();
+  const { isCollapsed, setIsOpen } = useSidebar();
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -60,6 +61,9 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
       <div className="flex min-h-screen">
+        <SidebarTrigger onClick={() => setIsOpen(true)}>
+              <Menu className="h-6 w-6" />
+            </SidebarTrigger>
         <Sidebar className="flex-col border-r bg-card">
           <SidebarHeader className="p-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
