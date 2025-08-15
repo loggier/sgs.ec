@@ -8,65 +8,75 @@ import {
   getDocs,
   query,
   writeBatch,
+  orderBy,
+  limit,
+  startAfter,
+  doc,
+  getDoc,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from './firebase';
 import type { MessageLog } from './log-schema';
 
 const LOGS_COLLECTION = 'message_logs';
+const LOGS_PAGE_SIZE = 20;
 
 type CreateLogData = Omit<MessageLog, 'id' | 'sentAt'>;
 
 export async function createMessageLog(data: CreateLogData) {
   try {
     const logCollectionRef = collection(db, LOGS_COLLECTION);
-    // Always use a server-side timestamp for consistency and to avoid client-side format issues.
-    await addDoc(logCollectionRef, {
-      ...data,
-      sentAt: Timestamp.now(), 
-    });
+    const dataToSave = {
+        ...data,
+        sentAt: Timestamp.now(), // Always use a server timestamp
+    };
+    await addDoc(logCollectionRef, dataToSave);
   } catch (error) {
     console.error("Error creating message log:", error);
-    // Log the error but don't throw, as the primary action (e.g., sending a message) might have succeeded.
   }
 }
 
-export async function getMessageLogs(): Promise<{ logs: MessageLog[] }> {
+export async function getMessageLogs(lastVisibleId: string | null): Promise<{ logs: MessageLog[], lastVisible: string | null, hasMore: boolean }> {
   try {
     const logsCollectionRef = collection(db, LOGS_COLLECTION);
-    const q = query(logsCollectionRef); // Simplest possible query
+    let q;
+
+    const baseQuery = [
+      orderBy('sentAt', 'desc'),
+      limit(LOGS_PAGE_SIZE)
+    ];
+
+    if (lastVisibleId) {
+      const lastDoc = await getDoc(doc(db, LOGS_COLLECTION, lastVisibleId));
+      if (lastDoc.exists()) {
+        q = query(logsCollectionRef, ...baseQuery, startAfter(lastDoc));
+      } else {
+        q = query(logsCollectionRef, ...baseQuery);
+      }
+    } else {
+      q = query(logsCollectionRef, ...baseQuery);
+    }
     
     const logSnapshot = await getDocs(q);
 
     const logs = logSnapshot.docs.map(doc => {
         const data = doc.data();
-        // Robustly convert different possible date formats to a JS Date object
-        let sentAtDate: Date;
-        if (data.sentAt instanceof Timestamp) {
-            sentAtDate = data.sentAt.toDate();
-        } else if (typeof data.sentAt === 'string') {
-            sentAtDate = new Date(data.sentAt);
-        } else if (data.sentAt && typeof data.sentAt === 'object' && data.sentAt.seconds) {
-            sentAtDate = new Date(data.sentAt.seconds * 1000);
-        } else {
-            sentAtDate = new Date(); // Fallback
-        }
+        const sentAt = (data.sentAt as Timestamp).toDate().toISOString();
 
         return { 
             id: doc.id,
             ...data,
-            sentAt: sentAtDate 
+            sentAt,
         } as MessageLog;
     });
-    
-    // Sort manually in the backend to avoid complex indexed queries
-    logs.sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime());
 
-    return { logs };
+    const newLastVisible = logSnapshot.docs.length > 0 ? logSnapshot.docs[logSnapshot.docs.length - 1].id : null;
+    const hasMore = logSnapshot.docs.length === LOGS_PAGE_SIZE;
+
+    return { logs, lastVisible: newLastVisible, hasMore };
   } catch (error) {
     console.error("Error getting message logs:", error);
     const errorMessage = error instanceof Error ? error.message : "Error desconocido en la base de datos.";
-    // Throw the error so the calling component can catch it and display it.
     throw new Error(`Error al leer los logs de Firestore: ${errorMessage}`);
   }
 }

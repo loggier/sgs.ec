@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
-const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]);
+const dateOrTimestampOrString = z.union([z.instanceof(Timestamp), z.date(), z.string()]);
 
 export const MessageLogStatus = z.enum(['success', 'failure']);
 export type MessageLogStatus = z.infer<typeof MessageLogStatus>;
@@ -15,7 +15,7 @@ export const MessageLogSchema = z.object({
   clientId: z.string(),
   clientName: z.string(),
   messageContent: z.string(),
-  sentAt: dateOrTimestamp,
+  sentAt: dateOrTimestampOrString,
   status: MessageLogStatus,
   errorMessage: z.string().optional(),
 });
