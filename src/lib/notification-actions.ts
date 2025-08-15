@@ -86,6 +86,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
             : 'N/A';
         const overdueAmount = calculateOverdueAmount(unit);
+        const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
         
         const singleUnitReplacements = {
             '{placa}': unit.placa,
@@ -93,7 +94,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             '{modelo_unidad}': unit.modelo || 'N/A',
             '{fecha_vencimiento}': formatDate(unit.fechaSiguientePago),
             '{fecha_corte}': cutoffDate,
-            '{monto_a_pagar}': formatCurrency(overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit)),
+            '{monto_a_pagar}': formatCurrency(amountToPay),
             '{resumen_unidades}': '', // Clear summary placeholder
         };
 
@@ -107,8 +108,9 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         const unitsSummary = units.map(unit => {
             const nextPaymentDate = formatDate(unit.fechaSiguientePago);
             const overdueAmount = calculateOverdueAmount(unit);
-            totalAmountDue += overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
-            return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Deuda: ${formatCurrency(overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit))}`;
+            const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
+            totalAmountDue += amountToPay;
+            return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Monto: ${formatCurrency(amountToPay)}`;
         }).join('\n');
 
         const summaryWithTotal = `${unitsSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
