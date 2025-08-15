@@ -111,7 +111,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             const overdueAmount = calculateOverdueAmount(unit);
             const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
             totalAmountDue += amountToPay;
-            return `Placa: ${unit.placa} | Monto: ${formatCurrency(amountToPay)}`;
+            return `*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *Monto:* ${formatCurrency(amountToPay)}`;
         }).join('\n');
 
         const summaryWithTotal = `${unitsSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
