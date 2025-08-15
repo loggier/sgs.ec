@@ -19,18 +19,22 @@ import type { MessageLog } from './log-schema';
 const LOGS_COLLECTION = 'message_logs';
 const LOGS_PER_PAGE = 25;
 
+// This type now includes the status and optional error message.
 type CreateLogData = Omit<MessageLog, 'id' | 'sentAt'>;
 
 const convertTimestamps = (docData: any) => {
   const data: { [key: string]: any } = {};
   for (const key in docData) {
-    if (docData[key] instanceof Timestamp) {
+    if (Object.prototype.hasOwnProperty.call(docData, key) && docData[key] instanceof Timestamp) {
       data[key] = docData[key].toDate().toISOString();
+    } else {
+      data[key] = docData[key];
     }
   }
   return data;
 };
 
+// The function now accepts the full data object to be logged.
 export async function createMessageLog(data: CreateLogData) {
   try {
     const logCollectionRef = collection(db, LOGS_COLLECTION);
@@ -63,7 +67,7 @@ export async function getMessageLogs(lastVisible?: any): Promise<{ logs: Message
     });
 
     const hasMore = logs.length === LOGS_PER_PAGE;
-    const lastDoc = logSnapshot.docs[logSnapshot.docs.length - 1] || null;
+    const lastDoc = logSnapshot.docs.length > 0 ? logSnapshot.docs[logSnapshot.docs.length - 1] : null;
 
     return { logs, hasMore, lastDoc };
   } catch (error) {

@@ -31,7 +31,7 @@ export async function sendQyvooMessage(
     logMetadata: { clientId: string; clientName: string; }
 ): Promise<{ success: boolean; message: string }> {
     const formattedNumber = formatPhoneNumber(phoneNumber);
-    const logPayload = {
+    const logPayloadBase = {
         qyvooUserId: settings?.userId || 'Desconocido',
         recipientNumber: formattedNumber,
         clientId: logMetadata.clientId,
@@ -42,7 +42,7 @@ export async function sendQyvooMessage(
     try {
         if (!settings?.apiKey || !settings?.userId) {
             const errorMsg = 'La integración con Qyvoo no está configurada (Falta API Key o User ID).';
-            await createMessageLog({ ...logPayload, status: 'failure', errorMessage: errorMsg });
+            await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage: errorMsg });
             return { success: false, message: errorMsg };
         }
 
@@ -64,17 +64,17 @@ export async function sendQyvooMessage(
         if (!response.ok || !responseBody.success) {
             const errorMessage = responseBody.message || `Error de la API de Qyvoo: ${response.statusText}`;
             console.error(`Error sending message via Qyvoo API: ${response.status} ${errorMessage}`, responseBody);
-            await createMessageLog({ ...logPayload, status: 'failure', errorMessage });
+            await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage });
             return { success: false, message: `No se pudo enviar el mensaje: ${errorMessage}` };
         }
         
-        await createMessageLog({ ...logPayload, status: 'success' });
+        await createMessageLog({ ...logPayloadBase, status: 'success' });
         return { success: true, message: responseBody.message };
 
     } catch (error) {
         console.error("Failed to send Qyvoo message:", error);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido.';
-        await createMessageLog({ ...logPayload, status: 'failure', errorMessage });
+        await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage });
         return { success: false, message: `Error inesperado: ${errorMessage}` };
     }
 }
