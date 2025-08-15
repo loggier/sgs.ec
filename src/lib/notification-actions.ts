@@ -10,7 +10,7 @@ import type { Unit } from './unit-schema';
 import type { TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
-import { startOfDay, addDays, isSameDay } from 'date-fns';
+import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date-fns';
 
 /**
  * Replaces placeholders in a template string with actual data.
@@ -37,7 +37,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
     };
     
     const formatCurrency = (amount?: number | null) => {
-        if (amount === undefined || amount === null) return '0.00';
+        if (amount === undefined || amount === null) return '$0.00';
         return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
     };
 
@@ -46,6 +46,26 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             return (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
         }
         return unit.costoMensual ?? 0;
+    };
+
+    const calculateOverdueAmount = (unit: Unit): number => {
+      const today = startOfDay(new Date());
+      if (!unit.fechaSiguientePago) return 0;
+      const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
+
+      if (isBefore(today, nextPaymentDate)) {
+          return 0; // Not overdue yet
+      }
+      
+      const daysOverdue = differenceInDays(today, nextPaymentDate);
+      const monthlyRate = getMonthlyCost(unit);
+      
+      if (monthlyRate === 0) return 0;
+
+      // Calculate how many full 30-day periods have passed
+      const monthsOverdue = Math.floor(daysOverdue / 30) + 1;
+      
+      return monthsOverdue * monthlyRate;
     };
     
     // --- General Replacements ---
@@ -65,6 +85,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
             ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
             : 'N/A';
+        const overdueAmount = calculateOverdueAmount(unit);
         
         const singleUnitReplacements = {
             '{placa}': unit.placa,
@@ -72,7 +93,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             '{modelo_unidad}': unit.modelo || 'N/A',
             '{fecha_vencimiento}': formatDate(unit.fechaSiguientePago),
             '{fecha_corte}': cutoffDate,
-            '{monto_a_pagar}': formatCurrency(getMonthlyCost(unit)),
+            '{monto_a_pagar}': formatCurrency(overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit)),
             '{resumen_unidades}': '', // Clear summary placeholder
         };
 
@@ -82,15 +103,17 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
 
     } else {
         // Multiple units: Build summary table and clear individual placeholders
+        let totalAmountDue = 0;
         const unitsSummary = units.map(unit => {
             const nextPaymentDate = formatDate(unit.fechaSiguientePago);
-            const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago 
-                ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
-                : 'N/A';
-            return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Corte: ${cutoffDate}`;
+            const overdueAmount = calculateOverdueAmount(unit);
+            totalAmountDue += overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
+            return `Placa: ${unit.placa} | Vence: ${nextPaymentDate} | Deuda: ${formatCurrency(overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit))}`;
         }).join('\n');
 
-        message = message.replace(/{resumen_unidades}/g, unitsSummary);
+        const summaryWithTotal = `${unitsSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
+
+        message = message.replace(/{resumen_unidades}/g, summaryWithTotal);
         
         // Clear individual placeholders
         const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
