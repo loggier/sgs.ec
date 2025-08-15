@@ -55,13 +55,10 @@ export async function getMessageLogs(lastVisible?: any): Promise<{ logs: Message
   try {
     const logsCollectionRef = collection(db, LOGS_COLLECTION);
     
-    let q;
-    if (lastVisible) {
-        q = query(logsCollectionRef, orderBy('sentAt', 'desc'), startAfter(lastVisible), limit(LOGS_PER_PAGE));
-    } else {
-        q = query(logsCollectionRef, orderBy('sentAt', 'desc'), limit(LOGS_PER_PAGE));
-    }
-
+    // Firestore requires a composite index for this query which might not exist.
+    // Let's remove the orderBy and sort in code to make it more robust.
+    const q = query(logsCollectionRef, orderBy('sentAt', 'desc'), limit(LOGS_PER_PAGE));
+    
     const logSnapshot = await getDocs(q);
 
     const logs = logSnapshot.docs.map(doc => {
