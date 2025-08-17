@@ -6,7 +6,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { subDays, startOfDay, isSameDay } from "date-fns";
+import { subDays, startOfDay, isSameDay, addDays } from "date-fns";
 import { sendGroupedTemplatedWhatsAppMessage } from "../lib/notification-actions";
 import type { Unit } from '../lib/unit-schema';
 
@@ -48,9 +48,10 @@ export const dailyNotificationCheck = functions
         const now = new Date();
         const today = startOfDay(now);
         const threeDaysAgo = startOfDay(subDays(now, 3));
+        const threeDaysFromNow = startOfDay(addDays(now, 3));
         
         // Group units by client and event type
-        const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[] } } = {};
+        const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[], dueInThreeDays: Unit[] } } = {};
 
         try {
             const unitsSnapshot = await db.collectionGroup("units").get();
@@ -70,10 +71,12 @@ export const dailyNotificationCheck = functions
                 const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
                 if (!unitsToNotify[unit.clientId]) {
-                    unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
+                    unitsToNotify[unit.clientId] = { dueToday: [], overdue: [], dueInThreeDays: [] };
                 }
 
-                if (isSameDay(nextPaymentDate, today)) {
+                if (isSameDay(nextPaymentDate, threeDaysFromNow)) {
+                    unitsToNotify[unit.clientId].dueInThreeDays.push(unit);
+                } else if (isSameDay(nextPaymentDate, today)) {
                     unitsToNotify[unit.clientId].dueToday.push(unit);
                 } else if (isSameDay(nextPaymentDate, threeDaysAgo)) {
                     unitsToNotify[unit.clientId].overdue.push(unit);
@@ -85,6 +88,12 @@ export const dailyNotificationCheck = functions
             for (const clientId in unitsToNotify) {
                 const groups = unitsToNotify[clientId];
 
+                if (groups.dueInThreeDays.length > 0) {
+                    await sendGroupedTemplatedWhatsAppMessage('payment_reminder', clientId, groups.dueInThreeDays);
+                    functions.logger.info(`Enviando recordatorio de pago próximo para cliente ${clientId} con ${groups.dueInThreeDays.length} unidades.`);
+                    processedCount++;
+                }
+                
                 if (groups.dueToday.length > 0) {
                     await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientId, groups.dueToday);
                     functions.logger.info(`Enviando aviso de vencimiento hoy para cliente ${clientId} con ${groups.dueToday.length} unidades.`);

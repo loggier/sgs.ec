@@ -206,24 +206,26 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             return { success: true, message: "No se encontraron unidades para verificar." };
         }
         
-        const today = new Date();
-        const threeDaysAgo = new Date();
-        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+        const today = startOfDay(new Date());
+        const threeDaysAgo = startOfDay(new Date(new Date().setDate(new Date().getDate() - 3)));
+        const threeDaysFromNow = startOfDay(addDays(new Date(), 3));
+
 
         const groupUnits = (units: Unit[]) => {
-            const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[] } } = {};
+            const unitsToNotify: { [clientId: string]: { dueToday: Unit[], overdue: Unit[], dueInThreeDays: Unit[] } } = {};
 
             for (const unit of units) {
                 if (!unit.fechaSiguientePago) continue;
                 
-                const nextPaymentDate = new Date(unit.fechaSiguientePago);
+                const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
                 if (!unitsToNotify[unit.clientId]) {
-                    unitsToNotify[unit.clientId] = { dueToday: [], overdue: [] };
+                    unitsToNotify[unit.clientId] = { dueToday: [], overdue: [], dueInThreeDays: [] };
                 }
                 
-                // Use isSameDay for robust date comparison, ignoring time
-                if (isSameDay(nextPaymentDate, today)) {
+                if (isSameDay(nextPaymentDate, threeDaysFromNow)) {
+                     unitsToNotify[unit.clientId].dueInThreeDays.push(unit);
+                } else if (isSameDay(nextPaymentDate, today)) {
                     unitsToNotify[unit.clientId].dueToday.push(unit);
                 } else if (isSameDay(nextPaymentDate, threeDaysAgo)) {
                     unitsToNotify[unit.clientId].overdue.push(unit);
@@ -239,6 +241,11 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
 
         for (const clientId in unitsToNotify) {
             const groups = unitsToNotify[clientId];
+            
+            if (groups.dueInThreeDays.length > 0) {
+                const result = await sendGroupedTemplatedWhatsAppMessage('payment_reminder', clientId, groups.dueInThreeDays);
+                if (result.success) sentCount++; else errorCount++;
+            }
 
             if (groups.dueToday.length > 0) {
                 const result = await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientId, groups.dueToday);
