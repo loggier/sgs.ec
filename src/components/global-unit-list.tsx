@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2, CalendarClock } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2, CalendarClock, FileText } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
@@ -183,12 +183,21 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   
   const getContractDisplay = (unit: Unit) => {
     const baseText = unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato';
-    const duration = unit.mesesContrato ? `${unit.mesesContrato} meses` : null;
-
     return (
-      <div>
-        <div className="font-medium">{baseText}</div>
-        {duration && <div className="text-xs text-muted-foreground">{duration}</div>}
+      <div className="flex items-center gap-2">
+        <span>{baseText}</span>
+        {unit.tipoContrato === 'con_contrato' && unit.urlContrato && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <a href={unit.urlContrato} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                <FileText className="h-4 w-4" />
+              </a>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver contrato adjunto</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
     );
   };

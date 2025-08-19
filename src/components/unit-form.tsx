@@ -7,7 +7,7 @@ import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form
 import { z } from 'zod';
 import { format, addMonths, formatDistanceToNow, parseISO, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Loader2, AlertTriangle, Link2 } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
@@ -168,6 +168,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
   const mesesContrato = watch('mesesContrato');
   const fechaSiguientePago = watch('fechaSiguientePago');
   const diasCorte = watch('diasCorte');
+  const urlContrato = watch('urlContrato');
 
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
@@ -435,6 +436,32 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
               </FormItem>
             )}
           />
+           <FormField
+            control={control}
+            name="urlContrato"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>URL del Contrato</FormLabel>
+                <div className="flex items-center gap-2">
+                    <FormControl>
+                        <Input placeholder="https://ejemplo.com/contrato.pdf" {...field} value={field.value ?? ''} />
+                    </FormControl>
+                    {urlContrato && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => window.open(urlContrato, '_blank')}
+                            aria-label="Abrir contrato"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </>
       )}
 
@@ -628,7 +655,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
           <FormItem>
             <FormLabel>Observación</FormLabel>
             <FormControl>
-              <Textarea placeholder="Añadir una observación..." {...field} />
+              <Textarea placeholder="Añadir una observación..." {...field} value={field.value ?? ''}/>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -664,6 +691,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: unit.fechaSiguientePago ? new Date(unit.fechaSiguientePago) : new Date(),
           diasCorte: unit.diasCorte ?? 0,
+          urlContrato: unit.urlContrato ?? '',
         }
       : {
           clientId: clientId ?? '',
@@ -684,6 +712,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           fechaSiguientePago: addMonths(new Date(), 1),
           diasCorte: 0,
           observacion: '',
+          urlContrato: '',
         },
   });
 

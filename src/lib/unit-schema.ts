@@ -47,6 +47,7 @@ export const UnitSchema = z.object({
   fechaSiguientePago: dateOrTimestamp.refine(val => val !== null, 'Fecha de siguiente pago es requerida.'),
   diasCorte: z.coerce.number().int().min(0).default(0),
   observacion: z.string().optional(),
+  urlContrato: z.string().url('Debe ser una URL válida.').optional().or(z.literal('')),
 });
 
 export type Unit = z.infer<typeof UnitSchema>;
