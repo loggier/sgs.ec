@@ -155,17 +155,16 @@ export async function saveMessageTemplate(
 }
 
 
-async function copyGlobalTemplatesForUser(userId: string): Promise<MessageTemplate[]> {
+async function copyGlobalTemplatesForUser(userId: string): Promise<void> {
     const globalTemplatesQuery = query(collection(db, TEMPLATES_COLLECTION), where('isGlobal', '==', true));
     const globalSnapshot = await getDocs(globalTemplatesQuery);
 
     if (globalSnapshot.empty) {
         console.log("No global templates found to copy.");
-        return [];
+        return;
     }
 
     const batch = writeBatch(db);
-    const newTemplates: MessageTemplate[] = [];
 
     globalSnapshot.forEach(doc => {
         const globalTemplate = doc.data() as Omit<MessageTemplate, 'id'>;
@@ -176,12 +175,10 @@ async function copyGlobalTemplatesForUser(userId: string): Promise<MessageTempla
         };
         const newTemplateRef = doc(collection(db, TEMPLATES_COLLECTION));
         batch.set(newTemplateRef, newTemplateData);
-        newTemplates.push({ id: newTemplateRef.id, ...newTemplateData });
     });
 
     await batch.commit();
-    console.log(`Copied ${newTemplates.length} global templates to user ${userId}`);
-    return newTemplates;
+    console.log(`Copied ${globalSnapshot.size} global templates to user ${userId}`);
 }
 
 
@@ -202,11 +199,9 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
 
         // If a master/manager has no templates, copy the global ones for them.
         if (personalSnapshot.empty && ['master', 'manager'].includes(user.role)) {
-            const copiedTemplates = await copyGlobalTemplatesForUser(userId);
-            // If templates were copied, we return them directly
-            if (copiedTemplates.length > 0) {
-                 personalSnapshot = await getDocs(personalTemplatesQuery);
-            }
+            await copyGlobalTemplatesForUser(userId);
+            // After copying, we must re-fetch the personal templates.
+            personalSnapshot = await getDocs(personalTemplatesQuery);
         }
         
         const globalTemplatesQuery = query(collection(db, TEMPLATES_COLLECTION), where('isGlobal', '==', true));
