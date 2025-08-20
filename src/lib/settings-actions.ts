@@ -119,9 +119,9 @@ export async function getQyvooSettingsForUser(userId: string): Promise<QyvooSett
 
 // --- Message Template Actions ---
 
-async function createDefaultGlobalTemplates() {
+async function ensureGlobalTemplatesExist() {
     const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
-    const globalTemplatesQuery = query(templatesCollectionRef, where('isGlobal', '==', true));
+    const globalTemplatesQuery = query(templatesCollectionRef, where('isGlobal', '==', true), limit(1));
     const globalSnapshot = await getDocs(globalTemplatesQuery);
 
     if (!globalSnapshot.empty) {
@@ -131,7 +131,7 @@ async function createDefaultGlobalTemplates() {
     console.log("No global templates found. Creating defaults...");
 
     const batch = writeBatch(db);
-    const defaultTemplates: Omit<MessageTemplate, 'id'>[] = [
+    const defaultTemplates: Omit<MessageTemplate, 'id' | 'ownerId'>[] = [
         { name: 'Recordatorio de Pago (Global)', eventType: 'payment_reminder', content: 'Estimado/a {nombre_cliente}, le recordamos que su pago está próximo a vencer.\n\n{resumen_unidades}\n\nPara evitar la suspensión del servicio, por favor realice su pago. Gracias, {nombre_empresa}.', isGlobal: true },
         { name: 'Vencimiento Hoy (Global)', eventType: 'payment_due_today', content: 'Estimado/a {nombre_cliente}, su servicio vence el día de hoy.\n\n{resumen_unidades}\n\nRealice su pago para mantener su servicio activo. Atentamente, {nombre_empresa}.', isGlobal: true },
         { name: 'Pago Vencido (Global)', eventType: 'payment_overdue', content: 'Estimado/a {nombre_cliente}, su pago se encuentra vencido.\n\n{resumen_unidades}\n\nSu servicio será suspendido. Comuníquese con {nombre_empresa} para regularizar su situación.', isGlobal: true },
@@ -187,10 +187,12 @@ export async function saveMessageTemplate(
 
 
 async function copyGlobalTemplatesForUser(userId: string) {
-    // Ensure global templates exist before copying.
-    await createDefaultGlobalTemplates();
+    // 1. Ensure global templates exist before copying.
+    await ensureGlobalTemplatesExist();
 
-    const globalTemplatesQuery = query(collection(db, TEMPLATES_COLLECTION), where('isGlobal', '==', true));
+    // 2. Fetch all global templates
+    const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
+    const globalTemplatesQuery = query(templatesCollectionRef, where('isGlobal', '==', true));
     const globalSnapshot = await getDocs(globalTemplatesQuery);
 
     if (globalSnapshot.empty) {
@@ -198,20 +200,22 @@ async function copyGlobalTemplatesForUser(userId: string) {
         return;
     }
 
+    // 3. Create a batch write to add copies for the new user
     const batch = writeBatch(db);
-    const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
-
     globalSnapshot.forEach(doc => {
-        const globalTemplate = doc.data() as Omit<MessageTemplate, 'id'>;
-        const newTemplateData = {
+        const globalTemplate = doc.data() as Omit<MessageTemplate, 'id' | 'ownerId'>;
+        const newTemplateRef = doc(templatesCollectionRef); // Create a new doc ref for the copy
+        
+        // Create the new personal template data, assigning the correct ownerId
+        const newTemplateData: Omit<MessageTemplate, 'id'> = {
             ...globalTemplate,
-            ownerId: userId,
+            ownerId: userId, // This is the crucial part that was missing
             isGlobal: false, // It's a personal copy now
         };
-        const newTemplateRef = doc(templatesCollectionRef);
         batch.set(newTemplateRef, newTemplateData);
     });
 
+    // 4. Commit the batch
     await batch.commit();
     console.log(`Copied ${globalSnapshot.size} global templates to user ${userId}`);
 }
@@ -224,20 +228,20 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
         const user = userDoc.data() as User;
         
         const ownerId = (user.role === 'analista' && user.creatorId) ? user.creatorId : userId;
+        const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
         
-        const personalTemplatesQuery = query(
-            collection(db, TEMPLATES_COLLECTION),
-            where('ownerId', '==', ownerId)
-        );
-        
+        const personalTemplatesQuery = query(templatesCollectionRef, where('ownerId', '==', ownerId));
         let personalSnapshot = await getDocs(personalTemplatesQuery);
 
+        // If a manager/master has no templates, create them from globals
         if (personalSnapshot.empty && ['master', 'manager'].includes(user.role)) {
             await copyGlobalTemplatesForUser(ownerId);
+            // Re-fetch personal templates after copying them
             personalSnapshot = await getDocs(personalTemplatesQuery);
         }
         
-        const globalTemplatesQuery = query(collection(db, TEMPLATES_COLLECTION), where('isGlobal', '==', true));
+        // Always fetch global templates to serve as defaults
+        const globalTemplatesQuery = query(templatesCollectionRef, where('isGlobal', '==', true));
         const globalSnapshot = await getDocs(globalTemplatesQuery);
         
         const templatesMap = new Map<TemplateEventType, MessageTemplate>();
