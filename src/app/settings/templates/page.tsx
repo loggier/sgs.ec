@@ -64,16 +64,24 @@ function MessageTemplatesPageContent() {
   const fetchTemplates = React.useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
-    const data = await getMessageTemplatesForUser(user.id);
-    setTemplates(data);
-    setIsLoading(false);
-  }, [user]);
+    try {
+      const data = await getMessageTemplatesForUser(user.id);
+      setTemplates(data);
+    } catch (error) {
+      console.error("Failed to fetch templates:", error);
+      toast({ title: "Error", description: "No se pudieron cargar las plantillas.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, toast]);
 
   React.useEffect(() => {
-    if (!authLoading && user?.role && !['master', 'manager'].includes(user.role)) {
-      router.push('/');
-    } else if (user) {
-      fetchTemplates();
+    if (!authLoading) {
+      if (user?.role && !['master', 'manager'].includes(user.role)) {
+        router.push('/');
+      } else if (user) {
+        fetchTemplates();
+      }
     }
   }, [user, authLoading, router, fetchTemplates]);
 
