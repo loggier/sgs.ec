@@ -78,52 +78,32 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
     }
 
-    // --- Conditional Replacements (Single vs. Multiple Units) ---
-    if (units.length === 1) {
-        // Single unit: Fill individual placeholders
-        const unit = units[0];
+    // --- Build Units Summary ---
+    let totalAmountDue = 0;
+    const unitsSummary = units.map(unit => {
+        const nextPaymentDate = formatDate(unit.fechaSiguientePago);
         const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
             ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
             : 'N/A';
         const overdueAmount = calculateOverdueAmount(unit);
         const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
-        
-        const singleUnitReplacements = {
-            '{placa}': unit.placa,
-            '{imei}': unit.imei,
-            '{modelo_unidad}': unit.modelo || 'N/A',
-            '{fecha_vencimiento}': formatDate(unit.fechaSiguientePago),
-            '{fecha_corte}': cutoffDate,
-            '{monto_a_pagar}': formatCurrency(amountToPay),
-        };
+        totalAmountDue += amountToPay;
 
-        for (const [key, value] of Object.entries(singleUnitReplacements)) {
-            message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
-        }
-        // Clear summary placeholder if it exists
-        message = message.replace(/{resumen_unidades}/g, '');
+        return `*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`;
+    }).join('\n');
 
-    } else {
-        // Multiple units: Build summary table and clear individual placeholders
-        let totalAmountDue = 0;
-        const unitsSummary = units.map(unit => {
-            const nextPaymentDate = formatDate(unit.fechaSiguientePago);
-            const overdueAmount = calculateOverdueAmount(unit);
-            const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
-            totalAmountDue += amountToPay;
-            return `*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *Monto:* ${formatCurrency(amountToPay)}`;
-        }).join('\n');
-
-        const summaryWithTotal = `${unitsSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
-
-        message = message.replace(/{resumen_unidades}/g, summaryWithTotal);
-        
-        // Clear individual placeholders
-        const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
-        singleUnitPlaceholders.forEach(placeholder => {
-            message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
-        });
+    let finalSummary = unitsSummary;
+    if (units.length > 1) {
+        finalSummary += `\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
     }
+    
+    message = message.replace(/{resumen_unidades}/g, finalSummary);
+    
+    // Clear individual placeholders that are now part of the summary
+    const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
+    singleUnitPlaceholders.forEach(placeholder => {
+        message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
+    });
 
     return message;
 }
