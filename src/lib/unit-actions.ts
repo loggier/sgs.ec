@@ -70,6 +70,23 @@ export async function uploadContract(
     }
 }
 
+export async function saveContractUrl(
+    clientId: string,
+    unitId: string,
+    urlContrato: string
+): Promise<{ success: boolean; message: string }> {
+    try {
+        const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+        await updateDoc(unitDocRef, { urlContrato });
+        revalidatePath(`/clients/${clientId}/units`);
+        return { success: true, message: 'URL del contrato actualizada.' };
+    } catch (error) {
+        console.error("Error saving contract URL:", error);
+        const message = error instanceof Error ? error.message : 'Error desconocido.';
+        return { success: false, message };
+    }
+}
+
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   try {
@@ -605,3 +622,5 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
+
+    

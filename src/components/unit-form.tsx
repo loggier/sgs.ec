@@ -11,7 +11,7 @@ import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink, FileText, Up
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
-import { saveUnit, uploadContract } from '@/lib/unit-actions';
+import { saveUnit, uploadContract, saveContractUrl } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
@@ -68,8 +68,8 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 const unitCategoryOptions = UnitCategory.options;
 
 
-function ContractUploader({ control, name }: { control: any, name: string }) {
-  const { setValue } = useFormContext<UnitFormInput>();
+function ContractUploader({ unit, name }: { unit: Unit | null, name: string }) {
+  const { control, setValue } = useFormContext<UnitFormInput>();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState(0);
@@ -100,6 +100,17 @@ function ContractUploader({ control, name }: { control: any, name: string }) {
         if (result.success && result.url) {
             setValue(name, result.url, { shouldValidate: true });
             toast({ title: 'Éxito', description: 'Contrato subido correctamente.' });
+
+            // If we are editing an existing unit, save the URL immediately.
+            if (unit && unit.id && unit.clientId) {
+                const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, result.url);
+                if (!saveUrlResult.success) {
+                    toast({ title: 'Error al Guardar URL', description: saveUrlResult.message, variant: 'destructive'});
+                } else {
+                    toast({ title: 'URL Guardada', description: 'La URL del contrato se guardó en el registro de la unidad.' });
+                }
+            }
+
         } else {
             throw new Error(result.message || 'Error desconocido al subir el archivo.');
         }
@@ -116,8 +127,16 @@ function ContractUploader({ control, name }: { control: any, name: string }) {
     }
   };
 
-  const handleRemoveContract = () => {
+  const handleRemoveContract = async () => {
       setValue(name, '', { shouldValidate: true });
+       if (unit && unit.id && unit.clientId) {
+          const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, '');
+           if (!saveUrlResult.success) {
+               toast({ title: 'Error al Quitar URL', description: saveUrlResult.message, variant: 'destructive'});
+           } else {
+               toast({ title: 'URL Removida', description: 'Se ha quitado la URL del contrato del registro de la unidad.' });
+           }
+       }
   }
 
   return (
@@ -139,7 +158,7 @@ function ContractUploader({ control, name }: { control: any, name: string }) {
                     type="button"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
+                    disabled={isUploading || (!!unit && !unit.id)} // Disable if creating a new unit
                 >
                     <Upload className="mr-2 h-4 w-4" />
                     Subir Contrato (PDF)
@@ -164,6 +183,11 @@ function ContractUploader({ control, name }: { control: any, name: string }) {
                         <span className="sr-only">Quitar contrato</span>
                     </Button>
                 </div>
+            )}
+            {!!unit && !unit.id && (
+                <p className="text-xs text-muted-foreground mt-1">
+                    Guarde la unidad primero para poder subir un contrato.
+                </p>
             )}
         </div>
       </FormControl>
@@ -266,7 +290,7 @@ function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
     );
 }
 
-function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showClientSelector: boolean, isEditing: boolean, pgpsDeviceId?: string }) {
+function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSelector: boolean, isEditing: boolean, unit: Unit | null }) {
   const { control, setValue, getValues, watch } = useFormContext<UnitFormInput>();
   
   const tipoContrato = watch('tipoContrato');
@@ -346,7 +370,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
   
   return (
     <div className="space-y-4 py-4">
-      {pgpsDeviceId && <PgpsInfoDisplay pgpsDeviceId={pgpsDeviceId} />}
+      {unit?.pgpsDeviceId && <PgpsInfoDisplay pgpsDeviceId={unit.pgpsDeviceId} />}
 
       {showClientSelector && (
         <FormField
@@ -544,7 +568,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
            <FormField
             control={control}
             name="urlContrato"
-            render={({ field }) => <ContractUploader control={control} name="urlContrato" />}
+            render={({ field }) => <ContractUploader unit={unit} name="urlContrato" />}
           />
         </div>
       )}
@@ -844,7 +868,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} pgpsDeviceId={unit?.pgpsDeviceId} />
+          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} unit={unit} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
@@ -859,3 +883,5 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
+
+    
