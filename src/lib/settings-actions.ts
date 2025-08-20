@@ -1,10 +1,10 @@
 
 'use server';
 
-import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { revalidatePath } from 'next/cache';
-import { WoxSettingsSchema, type WoxSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput } from './settings-schema';
+import { WoxSettingsSchema, type WoxSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput, TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 
 const SETTINGS_DOC_ID = 'integrations';
@@ -154,6 +154,37 @@ export async function saveMessageTemplate(
     }
 }
 
+
+async function copyGlobalTemplatesForUser(userId: string): Promise<MessageTemplate[]> {
+    const globalTemplatesQuery = query(collection(db, TEMPLATES_COLLECTION), where('isGlobal', '==', true));
+    const globalSnapshot = await getDocs(globalTemplatesQuery);
+
+    if (globalSnapshot.empty) {
+        console.log("No global templates found to copy.");
+        return [];
+    }
+
+    const batch = writeBatch(db);
+    const newTemplates: MessageTemplate[] = [];
+
+    globalSnapshot.forEach(doc => {
+        const globalTemplate = doc.data() as Omit<MessageTemplate, 'id'>;
+        const newTemplateData = {
+            ...globalTemplate,
+            ownerId: userId,
+            isGlobal: false, // It's a personal copy now
+        };
+        const newTemplateRef = doc(collection(db, TEMPLATES_COLLECTION));
+        batch.set(newTemplateRef, newTemplateData);
+        newTemplates.push({ id: newTemplateRef.id, ...newTemplateData });
+    });
+
+    await batch.commit();
+    console.log(`Copied ${newTemplates.length} global templates to user ${userId}`);
+    return newTemplates;
+}
+
+
 export async function getMessageTemplatesForUser(userId: string): Promise<MessageTemplate[]> {
     try {
         const userDoc = await getDoc(doc(db, 'users', userId));
@@ -166,21 +197,26 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
             collection(db, TEMPLATES_COLLECTION),
             where('ownerId', '==', ownerId)
         );
-        const globalTemplatesQuery = query(
-            collection(db, TEMPLATES_COLLECTION),
-            where('ownerId', '==', null)
-        );
         
-        const [personalSnapshot, globalSnapshot] = await Promise.all([
-            getDocs(personalTemplatesQuery),
-            getDocs(globalTemplatesQuery),
-        ]);
+        let personalSnapshot = await getDocs(personalTemplatesQuery);
+
+        // If a master/manager has no templates, copy the global ones for them.
+        if (personalSnapshot.empty && ['master', 'manager'].includes(user.role)) {
+            const copiedTemplates = await copyGlobalTemplatesForUser(userId);
+            // If templates were copied, we return them directly
+            if (copiedTemplates.length > 0) {
+                 personalSnapshot = await getDocs(personalTemplatesQuery);
+            }
+        }
+        
+        const globalTemplatesQuery = query(collection(db, TEMPLATES_COLLECTION), where('isGlobal', '==', true));
+        const globalSnapshot = await getDocs(globalTemplatesQuery);
         
         const templatesMap = new Map<TemplateEventType, MessageTemplate>();
         
         // Add global templates first (they will be the default)
         globalSnapshot.docs.forEach(doc => {
-            const template = { id: doc.id, isGlobal: true, ...doc.data() } as MessageTemplate;
+            const template = { id: doc.id, ...doc.data() } as MessageTemplate;
             templatesMap.set(template.eventType, template);
         });
 

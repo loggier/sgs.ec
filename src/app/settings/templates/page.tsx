@@ -70,7 +70,7 @@ function MessageTemplatesPageContent() {
   }, [user]);
 
   React.useEffect(() => {
-    if (!authLoading && user?.role !== 'master' && user?.role !== 'manager') {
+    if (!authLoading && user?.role && !['master', 'manager'].includes(user.role)) {
       router.push('/');
     } else if (user) {
       fetchTemplates();

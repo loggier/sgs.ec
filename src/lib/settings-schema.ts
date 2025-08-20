@@ -34,7 +34,7 @@ export type TemplateEventType = z.infer<typeof TemplateEventType>;
 
 export const MessageTemplateSchema = z.object({
     id: z.string().optional(),
-    ownerId: z.string().optional(), // ID of the master/manager who owns this template
+    ownerId: z.string().nullable().optional(), // ID of the master/manager who owns this template. Null for global.
     name: z.string().min(1, 'El nombre de la plantilla es requerido.'),
     eventType: TemplateEventType,
     content: z.string().min(10, 'El contenido debe tener al menos 10 caracteres.'),
