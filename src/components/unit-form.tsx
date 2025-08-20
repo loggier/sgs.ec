@@ -7,11 +7,11 @@ import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form
 import { z } from 'zod';
 import { format, addMonths, formatDistanceToNow, parseISO, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink, FileText, Upload, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
-import { saveUnit } from '@/lib/unit-actions';
+import { saveUnit, uploadContract } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +42,7 @@ import { Combobox } from './ui/combobox';
 import { Alert, AlertDescription } from './ui/alert';
 import { Skeleton } from './ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Progress } from './ui/progress';
 
 type UnitFormProps = {
   unit: Unit | null;
@@ -65,6 +66,111 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 };
 
 const unitCategoryOptions = UnitCategory.options;
+
+
+function ContractUploader({ control, name }: { control: any, name: string }) {
+  const { setValue } = useFormContext<UnitFormInput>();
+  const { toast } = useToast();
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState(0);
+  const urlContrato = useWatch({ control, name });
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+        toast({ title: 'Error', description: 'Solo se permiten archivos PDF.', variant: 'destructive' });
+        return;
+    }
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const result = await uploadContract(formData, (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total ?? 1));
+            setUploadProgress(percentCompleted);
+        });
+
+        if (result.success && result.url) {
+            setValue(name, result.url, { shouldValidate: true });
+            toast({ title: 'Éxito', description: 'Contrato subido correctamente.' });
+        } else {
+            throw new Error(result.message || 'Error desconocido al subir el archivo.');
+        }
+
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error al subir el contrato.';
+        toast({ title: 'Error de Subida', description: message, variant: 'destructive' });
+    } finally {
+        setIsUploading(false);
+        setUploadProgress(0);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    }
+  };
+
+  const handleRemoveContract = () => {
+      setValue(name, '', { shouldValidate: true });
+  }
+
+  return (
+    <FormItem>
+      <FormLabel>Archivo del Contrato</FormLabel>
+      <FormControl>
+        <div>
+            <Input
+                id="contract-file-input"
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                disabled={isUploading}
+            />
+            {!urlContrato && !isUploading && (
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Subir Contrato (PDF)
+                </Button>
+            )}
+            
+            {isUploading && (
+                 <div className="flex items-center gap-2">
+                    <Progress value={uploadProgress} className="w-[60%]" />
+                    <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                 </div>
+            )}
+
+            {urlContrato && !isUploading && (
+                <div className="flex items-center gap-2 p-2 rounded-md border bg-muted">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <a href={urlContrato} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline truncate">
+                       Ver Contrato
+                    </a>
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 ml-auto" onClick={handleRemoveContract}>
+                        <X className="h-4 w-4"/>
+                        <span className="sr-only">Quitar contrato</span>
+                    </Button>
+                </div>
+            )}
+        </div>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  );
+}
 
 
 function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
@@ -168,7 +274,6 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
   const mesesContrato = watch('mesesContrato');
   const fechaSiguientePago = watch('fechaSiguientePago');
   const diasCorte = watch('diasCorte');
-  const urlContrato = watch('urlContrato');
 
   const { user } = useAuth();
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
@@ -394,7 +499,7 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
       )}
 
       {tipoContrato === 'con_contrato' && (
-        <>
+        <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={control}
@@ -439,30 +544,9 @@ function UnitFormFields({ showClientSelector, isEditing, pgpsDeviceId }: { showC
            <FormField
             control={control}
             name="urlContrato"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>URL del Contrato</FormLabel>
-                <div className="flex items-center gap-2">
-                    <FormControl>
-                        <Input placeholder="https://ejemplo.com/contrato.pdf" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    {urlContrato && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => window.open(urlContrato, '_blank')}
-                            aria-label="Abrir contrato"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => <ContractUploader control={control} name="urlContrato" />}
           />
-        </>
+        </div>
       )}
 
       
@@ -775,5 +859,3 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
-
-    

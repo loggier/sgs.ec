@@ -23,6 +23,7 @@ import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
 import { getPgpsDevicesByClientId, getPgpsDeviceDetails, setPgpsDeviceStatus } from './pgps-actions';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
+import axios from 'axios';
 
 const convertTimestamps = (docData: any) => {
   const data: { [key: string]: any } = {};
@@ -36,6 +37,38 @@ const convertTimestamps = (docData: any) => {
   }
   return data;
 };
+
+export async function uploadContract(
+    formData: FormData,
+    onUploadProgress: (progressEvent: any) => void
+): Promise<{ success: boolean; message: string; url?: string }> {
+    const file = formData.get('file') as File;
+    if (!file) {
+        return { success: false, message: 'No se encontró ningún archivo.' };
+    }
+
+    try {
+        const uploadFormData = new FormData();
+        uploadFormData.append('files', file);
+
+        const response = await axios.post('https://storage.gpsplataforma.net/upload', uploadFormData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress,
+        });
+
+        if (response.data && response.data.urls && response.data.urls.length > 0) {
+            return { success: true, message: 'Archivo subido con éxito.', url: response.data.urls[0] };
+        } else {
+            return { success: false, message: 'La respuesta del servicio de subida no contenía una URL.' };
+        }
+    } catch (error) {
+        console.error('Error uploading file to external service:', error);
+        const message = axios.isAxiosError(error) ? error.response?.data?.error || error.message : 'Error desconocido al subir el archivo.';
+        return { success: false, message };
+    }
+}
 
 
 export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
