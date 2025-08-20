@@ -197,13 +197,13 @@ async function copyGlobalTemplatesForUser(userId: string) {
     }
 
     const batch = writeBatch(db);
-    globalSnapshot.forEach(doc => {
-        const globalTemplateData = doc.data() as Omit<MessageTemplate, 'id'>;
-        const newTemplateRef = doc(templatesCollectionRef);
+    globalSnapshot.forEach(globalDoc => {
+        const globalTemplateData = globalDoc.data() as Omit<MessageTemplate, 'id'>;
+        const newTemplateRef = doc(templatesCollectionRef); // Create a new doc reference for the personal copy
         const newTemplateData: Omit<MessageTemplate, 'id'> = {
             ...globalTemplateData,
-            ownerId: userId,
-            isGlobal: false,
+            ownerId: userId, // Assign the correct owner
+            isGlobal: false,   // It's a personal copy, not a global one
         };
         batch.set(newTemplateRef, newTemplateData);
     });
@@ -225,8 +225,10 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
         const personalTemplatesQuery = query(templatesCollectionRef, where('ownerId', '==', ownerId));
         let personalSnapshot = await getDocs(personalTemplatesQuery);
 
+        // If the user is a manager/master and has no templates, create them.
         if (personalSnapshot.empty && ['master', 'manager'].includes(user.role)) {
             await copyGlobalTemplatesForUser(ownerId);
+            // Re-fetch the personal templates after they've been created.
             personalSnapshot = await getDocs(personalTemplatesQuery);
         }
         
@@ -235,11 +237,13 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
         
         const templatesMap = new Map<TemplateEventType, MessageTemplate>();
         
+        // Load global templates first as a base
         globalSnapshot.docs.forEach(doc => {
             const template = { id: doc.id, ...doc.data() } as MessageTemplate;
             templatesMap.set(template.eventType, template);
         });
 
+        // Overwrite with personal templates if they exist
         personalSnapshot.docs.forEach(doc => {
             const template = { id: doc.id, ...doc.data() } as MessageTemplate;
             templatesMap.set(template.eventType, template);
