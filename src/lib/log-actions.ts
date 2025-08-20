@@ -13,6 +13,10 @@ import {
   startAfter,
   doc,
   getDoc,
+  where,
+  Query,
+  DocumentData,
+  endBefore
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from './firebase';
@@ -36,33 +40,42 @@ export async function createMessageLog(data: CreateLogData) {
   }
 }
 
-export async function getMessageLogs(lastVisibleId: string | null): Promise<{ logs: MessageLog[], lastVisible: string | null, hasMore: boolean }> {
+export async function getMessageLogs(
+  cursor: string | null,
+  direction: 'next' | 'prev',
+  startDate?: Date
+): Promise<{ logs: MessageLog[], lastVisible: string | null, firstVisible: string | null, hasMore: boolean }> {
   try {
     const logsCollectionRef = collection(db, LOGS_COLLECTION);
-    let q;
+    let q: Query<DocumentData>;
+    let baseQuery: any[] = [];
 
-    const baseQuery = [
-      orderBy('sentAt', 'desc'),
-      limit(LOGS_PAGE_SIZE)
-    ];
+    // Order by descending date for standard view
+    baseQuery.push(orderBy('sentAt', 'desc'));
 
-    if (lastVisibleId) {
-      const lastDoc = await getDoc(doc(db, LOGS_COLLECTION, lastVisibleId));
-      if (lastDoc.exists()) {
-        q = query(logsCollectionRef, ...baseQuery, startAfter(lastDoc));
-      } else {
-        q = query(logsCollectionRef, ...baseQuery);
-      }
-    } else {
-      q = query(logsCollectionRef, ...baseQuery);
+    // Add date filter if provided
+    if (startDate) {
+        baseQuery.push(where('sentAt', '>=', Timestamp.fromDate(startDate)));
     }
     
+    // Limit the results per page
+    baseQuery.push(limit(LOGS_PAGE_SIZE));
+
+    // Handle pagination cursor
+    if (cursor) {
+      const cursorDoc = await getDoc(doc(db, LOGS_COLLECTION, cursor));
+      if (cursorDoc.exists()) {
+        baseQuery.push(startAfter(cursorDoc));
+      }
+    }
+    
+    q = query(logsCollectionRef, ...baseQuery);
+
     const logSnapshot = await getDocs(q);
 
     const logs = logSnapshot.docs.map(doc => {
         const data = doc.data();
         const sentAt = (data.sentAt as Timestamp).toDate().toISOString();
-
         return { 
             id: doc.id,
             ...data,
@@ -70,10 +83,17 @@ export async function getMessageLogs(lastVisibleId: string | null): Promise<{ lo
         } as MessageLog;
     });
 
-    const newLastVisible = logSnapshot.docs.length > 0 ? logSnapshot.docs[logSnapshot.docs.length - 1].id : null;
-    const hasMore = logSnapshot.docs.length === LOGS_PAGE_SIZE;
+    const lastVisible = logSnapshot.docs.length > 0 ? logSnapshot.docs[logSnapshot.docs.length - 1].id : null;
+    const firstVisible = logSnapshot.docs.length > 0 ? logSnapshot.docs[0].id : null;
+    
+    let hasMore = false;
+    if (lastVisible) {
+        const nextQuery = query(logsCollectionRef, ...baseQuery, startAfter(logSnapshot.docs[logSnapshot.docs.length - 1]), limit(1));
+        const nextSnapshot = await getDocs(nextQuery);
+        hasMore = !nextSnapshot.empty;
+    }
 
-    return { logs, lastVisible: newLastVisible, hasMore };
+    return { logs, lastVisible, firstVisible, hasMore };
   } catch (error) {
     console.error("Error getting message logs:", error);
     const errorMessage = error instanceof Error ? error.message : "Error desconocido en la base de datos.";
