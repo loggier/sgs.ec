@@ -129,7 +129,7 @@ export async function saveClient(
 
     // Correctly determine the owner of the client.
     // If the creator is an analyst, the owner is their manager (creatorId).
-    const ownerId = user.role === 'analista' ? user.creatorId : user.id;
+    const ownerId = user.role === 'analista' && user.creatorId ? user.creatorId : user.id;
     if (!ownerId) {
          return { success: false, message: 'No se pudo determinar el propietario del cliente.' };
     }
