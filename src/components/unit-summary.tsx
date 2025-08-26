@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Car, CircleDollarSign, FileText, Tag } from 'lucide-react';
+import { Car, CircleDollarSign, FileText, ShieldOff, Tag } from 'lucide-react';
 import type { Unit } from '@/lib/unit-schema';
 
 type UnitSummaryProps = {
   totalUnits: number;
   totalAmount: number;
+  totalSuspended: number;
   unitsByPlan: Record<string, number>;
   unitsByContractType: Record<string, number>;
 };
@@ -24,11 +25,11 @@ const contractTypeDisplayNames: Record<string, string> = {
   'sin_contrato': 'Sin Contrato',
 };
 
-export default function UnitSummary({ totalUnits, totalAmount, unitsByPlan, unitsByContractType }: UnitSummaryProps) {
+export default function UnitSummary({ totalUnits, totalAmount, totalSuspended, unitsByPlan, unitsByContractType }: UnitSummaryProps) {
   return (
     <div>
       <h2 className="text-2xl font-semibold mb-4">Resumen de Unidades</h2>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total de Unidades</CardTitle>
@@ -37,6 +38,16 @@ export default function UnitSummary({ totalUnits, totalAmount, unitsByPlan, unit
           <CardContent>
             <div className="text-2xl font-bold">{totalUnits}</div>
             <p className="text-xs text-muted-foreground">Unidades activas registradas</p>
+          </CardContent>
+        </Card>
+         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unidades Suspendidas</CardTitle>
+            <ShieldOff className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{totalSuspended}</div>
+            <p className="text-xs text-muted-foreground">Servicios no activos</p>
           </CardContent>
         </Card>
         <Card>

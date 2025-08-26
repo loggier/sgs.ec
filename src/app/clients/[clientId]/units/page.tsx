@@ -115,6 +115,7 @@ function UnitsPageContent() {
 
   // Calculate summary data
   const totalUnits = units.length;
+  const totalSuspended = units.filter(u => u.estaSuspendido).length;
   const totalMonthlyAmount = units.reduce((sum, unit) => {
     if (unit.tipoContrato === 'con_contrato' && unit.mesesContrato) {
       const monthlyCost = (unit.costoTotalContrato ?? 0) / unit.mesesContrato;
@@ -161,6 +162,7 @@ function UnitsPageContent() {
         <UnitSummary 
           totalUnits={totalUnits}
           totalAmount={totalMonthlyAmount}
+          totalSuspended={totalSuspended}
           unitsByPlan={unitsByPlan}
           unitsByContractType={unitsByContractType}
         />
