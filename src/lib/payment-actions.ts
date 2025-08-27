@@ -50,16 +50,17 @@ export async function registerPayment(
   unitIds: string[],
   clientId: string
 ): Promise<{ success: boolean; message: string; units?: Unit[] }> {
-  console.log('[SERVER] Iniciando registerPayment. Datos recibidos:', { data, unitIds, clientId });
+  console.log('[SERVER] [PASO 1] Iniciando registerPayment. Datos recibidos:', { data, unitIds, clientId });
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
-    console.error('[SERVER] Falla de validación Zod:', validation.error.flatten().fieldErrors);
+    console.error('[SERVER] [ERROR] Falla de validación Zod:', validation.error.flatten().fieldErrors);
     return { success: false, message: 'Datos de pago no válidos.' };
   }
+  console.log('[SERVER] [PASO 2] Validación de datos exitosa.');
   
   if (!unitIds || unitIds.length === 0) {
-     console.error('[SERVER] No se proporcionaron unitIds.');
+     console.error('[SERVER] [ERROR] No se proporcionaron unitIds.');
     return { success: false, message: 'No se seleccionó ninguna unidad.' };
   }
   
@@ -68,19 +69,19 @@ export async function registerPayment(
     const updatedUnitsForNotification: Unit[] = [];
     let processedCount = 0;
     
-    console.log('[SERVER] Buscando cliente en la BD...');
+    console.log('[SERVER] [PASO 3] Buscando cliente en la BD...');
     const clientDoc = await getDoc(doc(db, 'clients', clientId));
     if (!clientDoc.exists()) {
-        console.error(`[SERVER] Cliente con ID ${clientId} no encontrado.`);
+        console.error(`[SERVER] [ERROR] Cliente con ID ${clientId} no encontrado.`);
         return { success: false, message: 'El cliente especificado no existe.' };
     }
     const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
-    console.log('[SERVER] Cliente encontrado:', clientData.nomSujeto);
+    console.log('[SERVER] [PASO 4] Cliente encontrado:', clientData.nomSujeto);
 
     await runTransaction(db, async (transaction) => {
-        console.log(`[SERVER] [TRANSACTION_START] Iniciando transacción para cliente ${clientId}`);
+        console.log(`[SERVER] [PASO 5] Iniciando transacción para cliente ${clientId}`);
         for (const unitId of unitIds) {
-            console.log(`[SERVER] [TRANSACTION_LOOP] Procesando unidad ${unitId}...`);
+            console.log(`[SERVER] [BUCLE] Procesando unidad ${unitId}...`);
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
 
@@ -89,33 +90,33 @@ export async function registerPayment(
             }
 
             const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
-            console.log('[SERVER] [TRANSACTION_LOOP] Datos crudos de la unidad desde DB:', unitSnapshot.data());
+            console.log('[SERVER] [BUCLE] Datos crudos de la unidad desde DB:', unitSnapshot.data());
 
             // --- Lógica de Fecha Robusta ---
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
-            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
-            console.log(`[SERVER] [TRANSACTION_LOOP] Fechas leídas: ultimoPago=${lastPaymentDate}, fechaInicioContrato=${contractStartDate}`);
+            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : new Date();
+            console.log(`[SERVER] [BUCLE] Fechas leídas: ultimoPago=${lastPaymentDate}, fechaInicioContrato=${contractStartDate}`);
 
             let baseDateForCalculation: Date;
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
-                console.log(`[SERVER] [TRANSACTION_LOOP] Usando ultimoPago como fecha base:`, baseDateForCalculation);
+                console.log(`[SERVER] [BUCLE] Usando ultimoPago como fecha base:`, baseDateForCalculation);
             } else if (contractStartDate && isValid(contractStartDate)) {
                 baseDateForCalculation = contractStartDate;
-                 console.log(`[SERVER] [TRANSACTION_LOOP] Usando fechaInicioContrato como fecha base:`, baseDateForCalculation);
+                 console.log(`[SERVER] [BUCLE] Usando fechaInicioContrato como fecha base:`, baseDateForCalculation);
             } else {
                 baseDateForCalculation = new Date(); // Fallback seguro
-                console.log(`[SERVER] [TRANSACTION_LOOP] Usando fecha actual como fecha base (fallback):`, baseDateForCalculation);
+                console.log(`[SERVER] [BUCLE] Usando fecha actual como fecha base (fallback):`, baseDateForCalculation);
             }
 
             let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
-            console.log(`[SERVER] [TRANSACTION_LOOP] Siguiente fecha de pago calculada (antes de ajuste):`, newNextPaymentDate);
+            console.log(`[SERVER] [BUCLE] Siguiente fecha de pago calculada (antes de ajuste):`, newNextPaymentDate);
 
             if (isBefore(newNextPaymentDate, new Date())) {
                 newNextPaymentDate = addMonths(new Date(), mesesPagados);
-                console.log(`[SERVER] [TRANSACTION_LOOP] La fecha calculada está en el pasado. Ajustando a futuro:`, newNextPaymentDate);
+                console.log(`[SERVER] [BUCLE] La fecha calculada está en el pasado. Ajustando a futuro:`, newNextPaymentDate);
             }
-            console.log(`[SERVER] [TRANSACTION_LOOP] Fecha de siguiente pago final:`, newNextPaymentDate);
+            console.log(`[SERVER] [BUCLE] Fecha de siguiente pago final:`, newNextPaymentDate);
             // --- Fin de la Lógica de Fecha Robusta ---
 
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
@@ -128,15 +129,15 @@ export async function registerPayment(
                 const paymentAmountForBalance = monthlyCost * mesesPagados;
                 const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
-                console.log(`[SERVER] [TRANSACTION_LOOP] Cálculo de contrato: Saldo anterior=${currentBalance}, Saldo nuevo=${unitUpdateData.saldoContrato}`);
+                console.log(`[SERVER] [BUCLE] Cálculo de contrato: Saldo anterior=${currentBalance}, Saldo nuevo=${unitUpdateData.saldoContrato}`);
             }
             
             const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
             let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
             unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
-            console.log(`[SERVER] [TRANSACTION_LOOP] Nueva fecha de vencimiento:`, unitUpdateData.fechaVencimiento);
+            console.log(`[SERVER] [BUCLE] Nueva fecha de vencimiento:`, unitUpdateData.fechaVencimiento);
             
-            console.log(`[SERVER] [TRANSACTION_LOOP] Objeto de actualización para la unidad:`, unitUpdateData);
+            console.log(`[SERVER] [BUCLE] Objeto de actualización para la unidad:`, unitUpdateData);
             transaction.update(unitDocRef, unitUpdateData);
 
             const newPayment: Omit<Payment, 'id'> = {
@@ -146,7 +147,7 @@ export async function registerPayment(
                 mesesPagados,
                 ...paymentData,
             };
-            console.log(`[SERVER] [TRANSACTION_LOOP] Objeto de nuevo pago:`, newPayment);
+            console.log(`[SERVER] [BUCLE] Objeto de nuevo pago:`, newPayment);
             const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
             transaction.set(paymentDocRef, newPayment);
             
@@ -154,10 +155,10 @@ export async function registerPayment(
             updatedUnitsForNotification.push(fullUpdatedUnit);
             processedCount++;
         }
-        console.log(`[SERVER] [TRANSACTION_END] Transacción a punto de confirmar.`);
+        console.log(`[SERVER] [PASO 6] Fin de la transacción. A punto de confirmar.`);
     });
     
-    console.log('[SERVER] Transacción completada con éxito.');
+    console.log('[SERVER] [PASO 7] Transacción completada con éxito.');
 
     // He comentado la notificación para aislar el problema, como solicitaste.
     // console.log('[SERVER] Omitiendo notificación para depuración.');
@@ -189,7 +190,7 @@ export async function registerPayment(
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    console.error("[SERVER] Error detallado en registerPayment:", error);
+    console.error("[SERVER] [ERROR CATCH] Error detallado en registerPayment:", error);
     return { 
         success: false, 
         message: `Error al registrar el pago. Detalles: ${errorMessage}` 
