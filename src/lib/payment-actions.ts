@@ -51,14 +51,16 @@ export async function registerPayment(
   unitIds: string[],
   clientId: string
 ): Promise<{ success: boolean; message: string; units?: Unit[] }> {
+  console.log('[DEBUG] Iniciando registerPayment...');
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
-    console.error(validation.error.flatten().fieldErrors);
+    console.error('[DEBUG] Falla de validación Zod:', validation.error.flatten().fieldErrors);
     return { success: false, message: 'Datos de pago no válidos.' };
   }
   
   if (!unitIds || unitIds.length === 0) {
+     console.error('[DEBUG] No se proporcionaron unitIds.');
     return { success: false, message: 'No se seleccionó ninguna unidad.' };
   }
   
@@ -69,48 +71,43 @@ export async function registerPayment(
     
     const clientDoc = await getDoc(doc(db, 'clients', clientId));
     if (!clientDoc.exists()) {
+        console.error(`[DEBUG] Cliente con ID ${clientId} no encontrado.`);
         return { success: false, message: 'El cliente especificado no existe.' };
     }
     const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
     await runTransaction(db, async (transaction) => {
-        const unitsFromDB: { id: string; ref: any; data: Unit; }[] = [];
-
+        console.log(`[DEBUG] Iniciando transacción para cliente ${clientId}`);
         for (const unitId of unitIds) {
+            console.log(`[DEBUG] Procesando unidad ${unitId}...`);
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
             if (!unitSnapshot.exists()) {
                 throw new Error(`Unidad con ID ${unitId} no encontrada.`);
             }
-            unitsFromDB.push({ 
-                id: unitId,
-                ref: unitDocRef,
-                data: convertTimestamps(unitSnapshot.data()) as Unit,
-            });
-        }
-        
-        for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
-            
+            const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
+            console.log('[DEBUG] Datos de la unidad desde DB:', unitDataFromDB);
+
             // --- Lógica de Fecha Robusta ---
-            const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
-            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
+            console.log(`[DEBUG] últimoPago: ${unitDataFromDB.ultimoPago}, fechaInicioContrato: ${unitDataFromDB.fechaInicioContrato}`);
             
             let baseDateForCalculation: Date;
+            const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
+            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
 
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
+                 console.log('[DEBUG] Usando ultimoPago como fecha base:', baseDateForCalculation);
             } else if (contractStartDate && isValid(contractStartDate)) {
                 baseDateForCalculation = contractStartDate;
+                console.log('[DEBUG] Usando fechaInicioContrato como fecha base:', baseDateForCalculation);
             } else {
                 baseDateForCalculation = new Date(); // Fallback seguro
-            }
-
-            // Si la fecha base está en el pasado, empezar a contar desde hoy para evitar fechas de pago pasadas.
-            if (isBefore(baseDateForCalculation, startOfDay(new Date()))) {
-                baseDateForCalculation = new Date();
+                console.log('[DEBUG] Usando fecha actual como fecha base (fallback):', baseDateForCalculation);
             }
 
             const newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
+            console.log('[DEBUG] Nueva fecha de siguiente pago calculada:', newNextPaymentDate);
             // --- Fin de la Lógica de Fecha Robusta ---
 
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
@@ -129,6 +126,7 @@ export async function registerPayment(
             let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
             unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
             
+            console.log('[DEBUG] Datos a actualizar en la unidad:', unitUpdateData);
             transaction.update(unitDocRef, unitUpdateData);
 
             const newPayment: Omit<Payment, 'id'> = {
@@ -147,25 +145,19 @@ export async function registerPayment(
         }
     });
     
-    try {
-        if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
-            const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-            if (qyvooSettings?.apiKey && qyvooSettings.userId) {
-                // await sendGroupedTemplatedWhatsAppMessage(clientData, updatedUnitsForNotification, 'payment_received');
-            }
-        }
-    } catch (notificationError) {
-        console.error("Error en el bloque de notificación:", notificationError);
-        revalidatePath(`/clients/${clientId}/units`);
-        revalidatePath('/');
-        revalidatePath('/units');
-        revalidatePath('/payments');
-        return { 
-            success: true, 
-            message: `Pago registrado, pero la notificación falló: ${notificationError instanceof Error ? notificationError.message : 'Error desconocido'}.`,
-            units: updatedUnitsForNotification
-        };
-    }
+    console.log('[DEBUG] Transacción completada con éxito.');
+
+    // Notificación comentada temporalmente para depuración
+    // try {
+    //     if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
+    //         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+    //         if (qyvooSettings?.apiKey && qyvooSettings.userId) {
+    //             await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+    //         }
+    //     }
+    // } catch (notificationError) {
+    //     console.error("[DEBUG] Error en el bloque de notificación:", notificationError);
+    // }
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -180,10 +172,10 @@ export async function registerPayment(
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    console.error("Error detallado en registerPayment:", error);
+    console.error("[DEBUG] Error detallado en registerPayment:", error);
     return { 
         success: false, 
-        message: `Error al registrar el pago: ${errorMessage}` 
+        message: `Error al registrar el pago. Detalles: ${errorMessage}` 
     };
   }
 }
