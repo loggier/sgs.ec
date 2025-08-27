@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -29,7 +28,9 @@ import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 import type { Client } from './schema';
 
 const convertTimestamps = (docData: any): any => {
+    // Defensive check to prevent error on undefined/null input
     if (!docData) return docData;
+    
     const data: { [key: string]: any } = {};
     for (const key in docData) {
         if (Object.prototype.hasOwnProperty.call(docData, key)) {
@@ -260,10 +261,12 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
             const unitUpdate: Partial<Record<keyof Unit, any>> = {};
             
+            // --- Lógica de reversión de fecha BLINDADA ---
             const currentNextPaymentDate = unitData.fechaSiguientePago ? new Date(unitData.fechaSiguientePago) : null;
             if (currentNextPaymentDate && isValid(currentNextPaymentDate)) {
                  unitUpdate.fechaSiguientePago = subMonths(currentNextPaymentDate, paymentData.mesesPagados);
             }
+            // Si la fecha actual es inválida, no la tocamos para evitar corrupción.
 
             if (unitData.tipoContrato === 'con_contrato') {
                 const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
@@ -275,12 +278,13 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             if (currentExpirationDate && isValid(currentExpirationDate)) {
                 unitUpdate.fechaVencimiento = subMonths(currentExpirationDate, paymentData.mesesPagados);
             }
+            // --- Fin de la lógica blindada ---
             
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const q = query(
                 paymentsCollectionRef,
                 orderBy('fechaPago', 'desc'),
-                where(documentId(), '!=', paymentId), // Exclude the document being deleted
+                where(documentId(), '!=', paymentId), // Excluir el documento que se está eliminando
                 limit(1)
             );
             
@@ -290,8 +294,8 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 unitUpdate.ultimoPago = null;
             } else {
                  const lastPaymentData = previousPaymentsSnapshot.docs[0].data();
-                 if (lastPaymentData.fechaPago) {
-                    unitUpdate.ultimoPago = (lastPaymentData.fechaPago as Timestamp).toDate();
+                 if (lastPaymentData.fechaPago && lastPaymentData.fechaPago instanceof Timestamp) {
+                    unitUpdate.ultimoPago = lastPaymentData.fechaPago.toDate();
                  } else {
                     unitUpdate.ultimoPago = null;
                  }
@@ -314,3 +318,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
