@@ -22,6 +22,8 @@ import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date
  * @returns The formatted message string.
  */
 function formatMessage(template: string, client: Client, units: Unit[], owner: User): string {
+    if (!template) return ''; // Safety check
+
     let message = template;
 
     // --- Helper functions ---
@@ -67,15 +69,15 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
     };
     
     // --- General Replacements ---
-    message = message.replace(/{nombre_cliente}/g, client.nomSujeto);
+    message = message.replace(/{nombre_cliente}/g, client.nomSujeto || 'Cliente');
     message = message.replace(/{nombre_empresa}/g, owner.empresa || 'Su Proveedor GPS');
     message = message.replace(/{telefono_empresa}/g, owner.telefono || '');
 
     // --- Build Units Summary ---
-    let totalAmountDue = 0;
     const unitsSummaryLines: string[] = [];
 
     if (units && units.length > 0) {
+        let totalAmountDue = 0;
         units.forEach(unit => {
             const nextPaymentDate = formatDate(unit.fechaSiguientePago);
             const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
@@ -87,21 +89,17 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
 
             unitsSummaryLines.push(`*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`);
         });
-    }
-
-    const finalSummary = unitsSummaryLines.join('\n');
-
-    if (unitsSummaryLines.length > 0) {
-        if (unitsSummaryLines.length > 1) {
-            message = message.replace(/{resumen_unidades}/g, `${finalSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`);
-        } else {
-            message = message.replace(/{resumen_unidades}/g, finalSummary);
+        
+        const finalSummary = unitsSummaryLines.join('\n');
+        
+        if (unitsSummaryLines.length > 0) {
+            const totalLine = unitsSummaryLines.length > 1 ? `\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*` : '';
+            message = message.replace(/{resumen_unidades}/g, `${finalSummary}${totalLine}`);
         }
-    } else {
-        // If there's no summary, remove the placeholder
-        message = message.replace(/{resumen_unidades}/g, '');
     }
     
+    // Clean up any remaining placeholders if they were not replaced
+    message = message.replace(/{resumen_unidades}/g, '');
     const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
     singleUnitPlaceholders.forEach(placeholder => {
         message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
@@ -123,51 +121,43 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     units: Unit[]
 ): Promise<{ success: boolean; message: string }> {
     try {
-        // --- 1. PRE-FLIGHT VALIDATIONS ---
+        // --- 1. Fetch all necessary data ---
         if (!units || units.length === 0) {
             return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
         }
 
-        const clientDocRef = doc(db, 'clients', clientId);
-        const clientDoc = await getDoc(clientDocRef);
-        if (!clientDoc.exists()) {
-            return { success: false, message: `Error crítico: Cliente ${clientId} no encontrado.` };
-        }
-        const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
-        
-        if (!clientData.telefono) {
-            return { success: true, message: `Operación completada. No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un número de teléfono.` };
-        }
-        
-        if (!clientData.ownerId) {
-             return { success: true, message: `Operación completada. No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un propietario asignado.` };
-        }
-        
-        const ownerDocRef = doc(db, 'users', clientData.ownerId);
-        const ownerDoc = await getDoc(ownerDocRef);
-        if (!ownerDoc.exists()) {
-            return { success: true, message: `Operación completada. No se envió notificación: No se pudo encontrar al propietario (ID: ${clientData.ownerId}).` };
-        }
-        const ownerData = ownerDoc.data() as User;
-        
-        if (!ownerData.empresa) {
-            return { success: true, message: `Operación completada. No se envió notificación: El propietario ${ownerData.nombre} no tiene configurado el nombre de la empresa en su perfil.`};
-        }
+        const clientDoc = await getDoc(doc(db, 'clients', clientId));
+        const clientData = clientDoc.exists() ? { id: clientDoc.id, ...clientDoc.data() } as Client : null;
 
-        const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-        if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
-            return { success: true, message: `Operación completada. No se envió notificación: El propietario ${ownerData.nombre} no tiene configurada la integración de Qyvoo.` };
-        }
+        const ownerId = clientData?.ownerId;
+        const ownerDoc = ownerId ? await getDoc(doc(db, 'users', ownerId)) : null;
+        const ownerData = ownerDoc?.exists() ? ownerDoc.data() as User : null;
         
-        const allTemplates = await getMessageTemplatesForUser(clientData.ownerId);
+        const qyvooSettings = ownerId ? await getQyvooSettingsForUser(ownerId) : null;
+        const allTemplates = ownerId ? await getMessageTemplatesForUser(ownerId) : [];
         const template = allTemplates.find(t => t.eventType === eventType);
 
+        // --- 2. Validate all data before proceeding ---
+        if (!clientData) {
+            return { success: true, message: `Operación completada. Cliente ${clientId} no encontrado.` };
+        }
+        if (!clientData.telefono) {
+            return { success: true, message: `Operación completada. Cliente ${clientData.nomSujeto} no tiene teléfono.` };
+        }
+        if (!ownerData) {
+            return { success: true, message: `Operación completada. Cliente ${clientData.nomSujeto} no tiene propietario válido.` };
+        }
+        if (!ownerData.empresa) {
+            return { success: true, message: `Operación completada. Propietario ${ownerData.nombre} no tiene nombre de empresa configurado.`};
+        }
+        if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
+            return { success: true, message: `Operación completada. Propietario ${ownerData.nombre} no tiene Qyvoo configurado.` };
+        }
         if (!template?.content) {
             return { success: true, message: `Operación completada. No hay plantilla válida para el evento '${eventType}'.` };
         }
 
-        // --- 2. MESSAGE FORMATTING AND SENDING ---
-        
+        // --- 3. Format and send the message ---
         const messageToSend = formatMessage(template.content, clientData, units, ownerData);
         
         if (!messageToSend.trim()) {
@@ -175,7 +165,7 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         }
         
         const logMetadata = { 
-            ownerId: clientData.ownerId, 
+            ownerId: ownerId!, 
             clientId: clientData.id!, 
             clientName: clientData.nomSujeto 
         };
