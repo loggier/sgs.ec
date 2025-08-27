@@ -160,8 +160,6 @@ export async function registerPayment(
     
     console.log('[SERVER] [PASO 7] Transacción completada con éxito.');
 
-    // He comentado la notificación para aislar el problema, como solicitaste.
-    // console.log('[SERVER] Omitiendo notificación para depuración.');
     /*
     try {
         if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
