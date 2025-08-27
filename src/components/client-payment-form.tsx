@@ -80,7 +80,7 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   const mesesPagados = form.watch('mesesPagados');
 
   React.useEffect(() => {
-    if (unitIds.length === 0) {
+    if (unitIds.length === 0 || units.length === 0) {
       form.setValue('monto', 0);
       return;
     }
