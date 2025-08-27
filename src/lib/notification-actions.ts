@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { getMessageTemplatesForUser, getQyvooSettingsForUser } from './settings-actions';
@@ -84,9 +85,12 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         units.forEach(unit => {
             if (!unit) return; // Skip if a unit is somehow null/undefined
             const nextPaymentDate = formatDate(unit.fechaSiguientePago);
-            const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
+            
+            // Securely calculate cutoff date
+            const cutoffDate = (unit.diasCorte !== undefined && unit.diasCorte !== null && unit.fechaSiguientePago)
                 ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
                 : '[N/A]';
+
             const overdueAmount = calculateOverdueAmount(unit);
             const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
             totalAmountDue += amountToPay;

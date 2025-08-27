@@ -129,6 +129,7 @@ export async function registerPayment(
             const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
             transaction.set(paymentDocRef, newPayment);
             
+            // Construct the full, updated unit object for notifications
             updatedUnitsForNotification.push({ ...unitDataFromDB, ...unitUpdateData });
             processedCount++;
         }
@@ -258,7 +259,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const otherPayments = allPaymentsSnapshot.docs.filter(doc => doc.id !== paymentId);
 
             unitUpdate.ultimoPago = otherPayments.length > 0
-                ? (otherPayments[0].data().fechaPago as Timestamp)
+                ? (otherPayments[0].data().fechaPago as Timestamp).toDate()
                 : null;
 
 
