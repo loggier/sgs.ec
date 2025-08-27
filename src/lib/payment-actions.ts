@@ -247,16 +247,19 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const otherPaymentsQuery = query(
                 paymentsCollectionRef, 
-                where('__name__', '!=', paymentId), 
-                orderBy('__name__'), // We need another orderBy if we use !=
+                where('__name__', '!=', paymentId),
                 orderBy('fechaPago', 'desc'),
                 limit(1)
             );
-            const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
+            // This needs to be done outside the transaction's read phase, but we can do it before.
+            // Let's adjust the logic. We will read all payments first.
+            
+            const allPaymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
+            const otherPayments = allPaymentsSnapshot.docs.filter(doc => doc.id !== paymentId);
 
-            unitUpdate.ultimoPago = otherPaymentsSnapshot.empty 
-                ? null 
-                : (otherPaymentsSnapshot.docs[0].data().fechaPago as Timestamp);
+            unitUpdate.ultimoPago = otherPayments.length > 0
+                ? (otherPayments[0].data().fechaPago as Timestamp)
+                : null;
 
 
             transaction.update(unitDocRef, unitUpdate);

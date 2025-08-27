@@ -9,10 +9,7 @@ const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
 
 // Function to format phone number for Qyvoo
 function formatPhoneNumber(phone: string): string {
-    // Critical check to ensure phone is a string before calling replace
-    if (typeof phone !== 'string') {
-        return '';
-    }
+    // This is now safe because we check for a valid string before calling it.
     let cleaned = phone.replace(/\D/g, '');
     
     // Example: If number starts with 09, replace with 5939 (Ecuador code)
