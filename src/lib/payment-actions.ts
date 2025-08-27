@@ -141,13 +141,25 @@ export async function registerPayment(
         }
     });
     
-    // Comentado para depuración
+    // --- DEBUGGING ---
+    // He comentado temporalmente la notificación para aislar el error.
     /*
-    if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
-        const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-        if (qyvooSettings?.apiKey && qyvooSettings.userId) {
-            await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+    try {
+        if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
+            const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+            if (qyvooSettings?.apiKey && qyvooSettings.userId) {
+                await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+            }
         }
+    } catch (notificationError) {
+        console.error("Error en el bloque de notificación:", notificationError);
+        // Devolvemos éxito en el pago, pero avisamos del fallo en la notificación.
+        revalidatePaths(clientId);
+        return { 
+            success: true, 
+            message: `Pago registrado, pero la notificación falló: ${notificationError instanceof Error ? notificationError.message : 'Error desconocido'}.`,
+            units: updatedUnitsForNotification
+        };
     }
     */
     
@@ -165,7 +177,6 @@ export async function registerPayment(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     console.error("Error detallado en registerPayment:", error);
-    // Devolvemos un mensaje de error más específico para la depuración en el frontend.
     return { 
         success: false, 
         message: `Error al registrar el pago: ${errorMessage}` 
@@ -256,7 +267,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
-            // Correctly find the previous payment to set as the new 'ultimoPago'
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const q = query(
                 paymentsCollectionRef, 
