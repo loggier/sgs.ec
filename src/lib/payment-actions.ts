@@ -140,13 +140,16 @@ export async function registerPayment(
             processedCount++;
         }
     });
-
+    
+    // Comentado para depuración
+    /*
     if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
         if (qyvooSettings?.apiKey && qyvooSettings.userId) {
             await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
         }
     }
+    */
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -162,6 +165,7 @@ export async function registerPayment(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     console.error("Error detallado en registerPayment:", error);
+    // Devolvemos un mensaje de error más específico para la depuración en el frontend.
     return { 
         success: false, 
         message: `Error al registrar el pago: ${errorMessage}` 
