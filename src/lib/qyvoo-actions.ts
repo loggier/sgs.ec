@@ -8,7 +8,10 @@ const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
 
 // Function to format phone number for Qyvoo
 function formatPhoneNumber(phone: string): string {
-    // Remove non-digit characters
+    // Critical check to ensure phone is a string before calling replace
+    if (typeof phone !== 'string') {
+        return '';
+    }
     let cleaned = phone.replace(/\D/g, '');
     
     // Example: If number starts with 09, replace with 5939 (Ecuador code)
@@ -30,7 +33,10 @@ export async function sendQyvooMessage(
 
     // --- CRITICAL VALIDATION ---
     if (!phoneNumber || typeof phoneNumber !== 'string' || phoneNumber.trim() === '') {
-        return { success: true, message: 'Operación omitida: No se proporcionó un número de teléfono válido.' };
+        // This operation is considered "successful" from a business logic standpoint
+        // as it prevents the parent process (like payment registration) from failing.
+        // The message indicates that the notification was skipped intentionally.
+        return { success: true, message: 'Operación omitida: No se proporcionó un número de teléfono válido para la notificación.' };
     }
     
     const formattedNumber = formatPhoneNumber(phoneNumber);
@@ -47,7 +53,8 @@ export async function sendQyvooMessage(
         if (!settings?.apiKey || !settings?.userId) {
             const errorMsg = 'La integración con Qyvoo no está configurada (Falta API Key o User ID).';
             await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage: errorMsg });
-            return { success: false, message: errorMsg };
+            // Return success:true so the main process doesn't fail.
+            return { success: true, message: `Notificación omitida: ${errorMsg}` };
         }
 
         const response = await fetch(QYVOO_API_URL, {
