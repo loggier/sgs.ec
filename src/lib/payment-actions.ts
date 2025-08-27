@@ -89,15 +89,15 @@ export async function registerPayment(
         }
         
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
-            const nextPaymentDateCandidate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
-            let baseNextPaymentDate = isValid(nextPaymentDateCandidate) ? nextPaymentDateCandidate : new Date();
+            const nextPaymentDateCandidate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : null;
+            let baseNextPaymentDate = (nextPaymentDateCandidate && isValid(nextPaymentDateCandidate)) ? nextPaymentDateCandidate : new Date();
             
             if (isBefore(baseNextPaymentDate, startOfDay(new Date()))) {
                 baseNextPaymentDate = new Date();
             }
 
-            const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
-            let baseExpirationDate = isValid(expirationDateCandidate) ? expirationDateCandidate : new Date();
+            const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
+            let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
 
             let newNextPaymentDate = baseNextPaymentDate;
             let newExpirationDate = baseExpirationDate;
@@ -141,6 +141,7 @@ export async function registerPayment(
         }
     });
 
+    // // Comentado para depuración
     // if (clientData.ownerId) {
     //     const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
     //     if (qyvooSettings?.apiKey && qyvooSettings.userId) {
@@ -248,7 +249,8 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             }
             
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const allPaymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), where('__name__', '!=', paymentId)));
+            const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), where('__name__', '!=', paymentId));
+            const allPaymentsSnapshot = await getDocs(q);
 
             unitUpdate.ultimoPago = allPaymentsSnapshot.docs.length > 0
                 ? (allPaymentsSnapshot.docs[0].data().fechaPago as Timestamp).toDate()
