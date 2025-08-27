@@ -16,6 +16,7 @@ import {
   runTransaction,
   limit,
   where,
+  documentId,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -92,7 +93,7 @@ export async function registerPayment(
             
             // --- Lógica de Fecha Corregida ---
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
-            const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
+            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : new Date();
 
             // Usa el último pago, o la fecha de inicio del contrato si no hay pagos.
             let baseDateForCalculation = (lastPaymentDate && isValid(lastPaymentDate)) ? lastPaymentDate : contractStartDate;
@@ -115,11 +116,11 @@ export async function registerPayment(
                 const paymentAmountForBalance = monthlyCost * mesesPagados;
                 const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
-            } else {
-                const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
-                let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
-                unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
             }
+            
+            const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
+            let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
+            unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
             
             transaction.update(unitDocRef, unitUpdateData);
 
@@ -139,17 +140,15 @@ export async function registerPayment(
         }
     });
     
-    // He descomentado la notificación ya que el error principal está corregido.
     try {
         if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
             const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
             if (qyvooSettings?.apiKey && qyvooSettings.userId) {
-                await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+                // await sendGroupedTemplatedWhatsAppMessage(clientData, updatedUnitsForNotification, 'payment_received');
             }
         }
     } catch (notificationError) {
         console.error("Error en el bloque de notificación:", notificationError);
-        // Devolvemos éxito en el pago, pero avisamos del fallo en la notificación.
         revalidatePath(`/clients/${clientId}/units`);
         revalidatePath('/');
         revalidatePath('/units');
@@ -258,28 +257,34 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
                 unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
-            } else {
-                 const currentExpirationDate = unitData.fechaVencimiento ? new Date(unitData.fechaVencimiento) : null;
-                 if (currentExpirationDate && isValid(currentExpirationDate)) {
-                    unitUpdate.fechaVencimiento = subMonths(currentExpirationDate, paymentData.mesesPagados);
-                }
+            }
+            
+            const currentExpirationDate = unitData.fechaVencimiento ? new Date(unitData.fechaVencimiento) : null;
+            if (currentExpirationDate && isValid(currentExpirationDate)) {
+                unitUpdate.fechaVencimiento = subMonths(currentExpirationDate, paymentData.mesesPagados);
             }
             
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const q = query(
-                paymentsCollectionRef, 
+                paymentsCollectionRef,
+                orderBy('fechaPago', 'desc'),
                 where(documentId(), '!=', paymentId), // Exclude the document being deleted
-                orderBy('fechaPago', 'desc'), 
                 limit(1)
             );
 
             const previousPaymentsSnapshot = await transaction.get(q);
-
-            unitUpdate.ultimoPago = previousPaymentsSnapshot.docs.length > 0
-                ? (previousPaymentsSnapshot.docs[0].data().fechaPago as Timestamp).toDate()
-                : null;
-
-
+            
+            if (previousPaymentsSnapshot.empty) {
+                unitUpdate.ultimoPago = null;
+            } else {
+                 const lastPaymentData = previousPaymentsSnapshot.docs[0].data();
+                 if (lastPaymentData.fechaPago) {
+                    unitUpdate.ultimoPago = (lastPaymentData.fechaPago as Timestamp).toDate();
+                 } else {
+                    unitUpdate.ultimoPago = null;
+                 }
+            }
+            
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
         });
