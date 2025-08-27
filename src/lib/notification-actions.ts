@@ -13,20 +13,7 @@ import type { User } from './user-schema';
 import { getAllUnits } from './unit-actions';
 import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date-fns';
 
-/**
- * Replaces placeholders in a template string with actual data defensively.
- * This function checks for the existence of each piece of data before using it.
- * @param template The template string with placeholders.
- * @param client The client object.
- * @param units An array of unit objects.
- * @param owner The user object of the owner/company.
- * @returns The formatted message string, or an empty string if the template is invalid.
- */
 function formatMessage(template: string, client: Client, units: Unit[], owner: User): string {
-    if (typeof template !== 'string' || !template) {
-        return '';
-    }
-
     let message = template;
 
     const formatDate = (dateInput: any): string => {
@@ -72,21 +59,17 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
       return monthsOverdue * monthlyRate;
     };
     
-    // --- Defensive General Replacements ---
     message = message.replace(/{nombre_cliente}/g, client?.nomSujeto || '[Cliente no disponible]');
     message = message.replace(/{nombre_empresa}/g, owner?.empresa || '[Su Proveedor]');
     message = message.replace(/{telefono_empresa}/g, owner?.telefono || '[Contacto no disponible]');
 
-
-    // --- Build Units Summary ---
     const unitsSummaryLines: string[] = [];
     if (units && units.length > 0) {
         let totalAmountDue = 0;
         units.forEach(unit => {
-            if (!unit) return; // Skip if a unit is somehow null/undefined
+            if (!unit) return;
             const nextPaymentDate = formatDate(unit.fechaSiguientePago);
             
-            // Securely calculate cutoff date
             const cutoffDate = (unit.diasCorte !== undefined && unit.diasCorte !== null && unit.fechaSiguientePago)
                 ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
                 : '[N/A]';
@@ -107,7 +90,6 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         }
     }
     
-    // Clean up any remaining placeholders to avoid sending them to the user.
     message = message.replace(/{resumen_unidades}/g, '[No hay detalles de unidades disponibles]');
     const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
     singleUnitPlaceholders.forEach(placeholder => {
@@ -117,37 +99,22 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
     return message;
 }
 
-
-/**
- * Finds the appropriate template, formats it for a group of units, and sends a single WhatsApp message.
- * This function is now heavily fortified with pre-checks to prevent runtime errors.
- * @param eventType The type of event triggering the notification.
- * @param clientId The ID of the client.
- * @param units An array of unit objects to include in the notification.
- */
 export async function sendGroupedTemplatedWhatsAppMessage(
     eventType: TemplateEventType,
-    clientId: string,
+    client: Client,
     units: Unit[]
 ): Promise<{ success: boolean; message: string }> {
     
-    // --- 1. Fetch all necessary data ---
-    const clientDoc = await getDoc(doc(db, 'clients', clientId)).catch(() => null);
-    
-    // --- 2. Validate all data before proceeding ---
-    if (!clientDoc || !clientDoc.exists()) {
-        return { success: true, message: `Operación omitida: Cliente ${clientId} no encontrado.` };
-    }
-    const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
-
-    if (!clientData.telefono) {
-        return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene teléfono.` };
+    // --- 1. Validate all data before proceeding ---
+    if (!client.telefono) {
+        return { success: true, message: `Operación omitida: Cliente ${client.nomSujeto} no tiene teléfono.` };
     }
     
-    const ownerId = clientData.ownerId;
+    const ownerId = client.ownerId;
     if (!ownerId) {
-        return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene propietario.` };
+        return { success: true, message: `Operación omitida: Cliente ${client.nomSujeto} no tiene propietario.` };
     }
+
     const ownerDoc = await getDoc(doc(db, 'users', ownerId)).catch(() => null);
      if (!ownerDoc || !ownerDoc.exists()) {
         return { success: true, message: `Operación omitida: Propietario ${ownerId} no encontrado.` };
@@ -173,9 +140,8 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
     }
 
-
-    // --- 3. Format and send the message ---
-    const messageToSend = formatMessage(template.content, clientData, units, ownerData);
+    // --- 2. Format and send the message ---
+    const messageToSend = formatMessage(template.content, client, units, ownerData);
     
     if (!messageToSend.trim()) {
         return { success: true, message: `El mensaje para '${eventType}' resultó vacío después de formatear. No se envió.` };
@@ -183,11 +149,11 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     
     const logMetadata = { 
         ownerId: ownerId!, 
-        clientId: clientData.id!, 
-        clientName: clientData.nomSujeto 
+        clientId: client.id!, 
+        clientName: client.nomSujeto 
     };
 
-    return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings, logMetadata);
+    return await sendQyvooMessage(client.telefono, messageToSend, qyvooSettings, logMetadata);
 }
 
 
@@ -231,26 +197,29 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             return unitsToNotify;
         };
         
-        const unitsToNotify = groupUnits(allUnits);
+        const unitsByClient = groupUnits(allUnits);
         
         let sentCount = 0;
         let errorCount = 0;
 
-        for (const clientId in unitsToNotify) {
-            const groups = unitsToNotify[clientId];
+        for (const clientId in unitsByClient) {
+            const groups = unitsByClient[clientId];
+            const clientDoc = await getDoc(doc(db, 'clients', clientId));
+            if (!clientDoc.exists()) continue;
+            const clientData = {id: clientDoc.id, ...clientDoc.data()} as Client;
             
             if (groups.dueInThreeDays.length > 0) {
-                const result = await sendGroupedTemplatedWhatsAppMessage('payment_reminder', clientId, groups.dueInThreeDays);
+                const result = await sendGroupedTemplatedWhatsAppMessage('payment_reminder', clientData, groups.dueInThreeDays);
                 if (result.success) sentCount++; else errorCount++;
             }
 
             if (groups.dueToday.length > 0) {
-                const result = await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientId, groups.dueToday);
+                const result = await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientData, groups.dueToday);
                 if (result.success) sentCount++; else errorCount++;
             }
 
             if (groups.overdue.length > 0) {
-                const result = await sendGroupedTemplatedWhatsAppMessage('payment_overdue', clientId, groups.overdue);
+                const result = await sendGroupedTemplatedWhatsAppMessage('payment_overdue', clientData, groups.overdue);
                 if (result.success) sentCount++; else errorCount++;
             }
         }

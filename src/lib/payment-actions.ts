@@ -65,6 +65,12 @@ export async function registerPayment(
     const { fechaPago, mesesPagados, ...paymentData } = validation.data;
     const updatedUnitsForNotification: Unit[] = [];
     let processedCount = 0;
+    
+    const clientDoc = await getDoc(doc(db, 'clients', clientId));
+    if (!clientDoc.exists()) {
+        return { success: false, message: 'El cliente especificado no existe.' };
+    }
+    const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
     await runTransaction(db, async (transaction) => {
         const unitsFromDB: { id: string; ref: any; data: Unit; }[] = [];
@@ -83,7 +89,6 @@ export async function registerPayment(
         }
         
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
-            // --- CRITICAL DATE VALIDATION ---
             const nextPaymentDateCandidate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
             let baseNextPaymentDate = isValid(nextPaymentDateCandidate) ? nextPaymentDateCandidate : new Date();
             
@@ -93,7 +98,6 @@ export async function registerPayment(
 
             const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
             let baseExpirationDate = isValid(expirationDateCandidate) ? expirationDateCandidate : new Date();
-            // --- END VALIDATION ---
 
             let newNextPaymentDate = baseNextPaymentDate;
             let newExpirationDate = baseExpirationDate;
@@ -137,14 +141,10 @@ export async function registerPayment(
         }
     });
 
-    const clientDoc = await getDoc(doc(db, 'clients', clientId));
-    if (clientDoc.exists()) {
-        const clientData = clientDoc.data() as Client;
-        if (clientData.ownerId) {
-            const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-            if (qyvooSettings?.apiKey && qyvooSettings.userId && clientData.telefono) {
-                await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnitsForNotification);
-            }
+    if (clientData.ownerId) {
+        const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+        if (qyvooSettings?.apiKey && qyvooSettings.userId) {
+            await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
         }
     }
     
@@ -173,7 +173,6 @@ export async function getAllPayments(
   if (!currentUser) return [];
 
   try {
-    // This call now correctly uses the user's role and creatorId to get the right clients.
     const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
     
     const usersSnapshot = await getDocs(collection(db, 'users'));
@@ -234,7 +233,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
             const unitUpdate: Partial<Record<keyof Unit, any>> = {};
 
-            // Safely revert the next payment date
             if (unitData.fechaSiguientePago && isValid(new Date(unitData.fechaSiguientePago))) {
                  unitUpdate.fechaSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
             }
@@ -244,18 +242,16 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
                 unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
             } else {
-                // Safely revert expiration date only if it exists
                 if (unitData.fechaVencimiento && isValid(new Date(unitData.fechaVencimiento))) {
                     unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
                 }
             }
             
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const allPaymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
-            const otherPayments = allPaymentsSnapshot.docs.filter(doc => doc.id !== paymentId);
+            const allPaymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), where('__name__', '!=', paymentId)));
 
-            unitUpdate.ultimoPago = otherPayments.length > 0
-                ? (otherPayments[0].data().fechaPago as Timestamp).toDate()
+            unitUpdate.ultimoPago = allPaymentsSnapshot.docs.length > 0
+                ? (allPaymentsSnapshot.docs[0].data().fechaPago as Timestamp).toDate()
                 : null;
 
 
