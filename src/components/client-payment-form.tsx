@@ -103,7 +103,7 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   
   const unitOptions = units.map(unit => ({
     value: unit.id,
-    label: `${unit.placa} - ${unit.modelo}`,
+    label: unit.modelo ? `${unit.placa} - ${unit.modelo}` : unit.placa,
   }));
   
   async function onSubmit(values: BatchPaymentFormInput) {
