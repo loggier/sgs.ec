@@ -91,12 +91,19 @@ export async function registerPayment(
         
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
             
-            // --- Lógica de Fecha Corregida ---
+            // --- Lógica de Fecha Robusta ---
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
-            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : new Date();
+            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
+            
+            let baseDateForCalculation: Date;
 
-            // Usa el último pago, o la fecha de inicio del contrato si no hay pagos.
-            let baseDateForCalculation = (lastPaymentDate && isValid(lastPaymentDate)) ? lastPaymentDate : contractStartDate;
+            if (lastPaymentDate && isValid(lastPaymentDate)) {
+                baseDateForCalculation = lastPaymentDate;
+            } else if (contractStartDate && isValid(contractStartDate)) {
+                baseDateForCalculation = contractStartDate;
+            } else {
+                baseDateForCalculation = new Date(); // Fallback seguro
+            }
 
             // Si la fecha base está en el pasado, empezar a contar desde hoy para evitar fechas de pago pasadas.
             if (isBefore(baseDateForCalculation, startOfDay(new Date()))) {
@@ -104,7 +111,7 @@ export async function registerPayment(
             }
 
             const newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
-            // --- Fin de la Lógica de Fecha Corregida ---
+            // --- Fin de la Lógica de Fecha Robusta ---
 
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                 ultimoPago: fechaPago,
@@ -302,3 +309,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
