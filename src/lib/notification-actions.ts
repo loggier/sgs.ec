@@ -23,7 +23,7 @@ import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date
  * @returns The formatted message string.
  */
 function formatMessage(template: string, client: Client, units: Unit[], owner: User | null): string {
-    let message = template;
+    let message = template || '';
 
     // --- Helper functions ---
     const formatDate = (dateInput: any): string => {
@@ -82,24 +82,30 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
 
     // --- Build Units Summary ---
     let totalAmountDue = 0;
-    const unitsSummary = units.map(unit => {
-        const nextPaymentDate = formatDate(unit.fechaSiguientePago);
-        const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
-            ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
-            : 'N/A';
-        const overdueAmount = calculateOverdueAmount(unit);
-        const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
-        totalAmountDue += amountToPay;
+    const unitsSummaryLines: string[] = [];
 
-        return `*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`;
-    }).join('\n');
+    if (units && units.length > 0) {
+        units.forEach(unit => {
+            const nextPaymentDate = formatDate(unit.fechaSiguientePago);
+            const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
+                ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
+                : 'N/A';
+            const overdueAmount = calculateOverdueAmount(unit);
+            const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
+            totalAmountDue += amountToPay;
 
-    let finalSummary = unitsSummary;
-    if (units.length > 1) {
+            unitsSummaryLines.push(`*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`);
+        });
+    }
+
+    let finalSummary = unitsSummaryLines.join('\n');
+
+    if (unitsSummaryLines.length > 1) {
         finalSummary += `\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
     }
     
-    message = message.replace(/{resumen_unidades}/g, finalSummary);
+    // Replace the summary placeholder safely
+    message = message.replace(/{resumen_unidades}/g, finalSummary || '');
     
     // Clear individual placeholders that are now part of the summary
     const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
@@ -148,11 +154,12 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         const ownerDocRef = doc(db, 'users', clientData.ownerId);
         const ownerDoc = await getDoc(ownerDocRef);
         
+        const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
+        
         // Validation: Does the owner exist?
-        if (!ownerDoc.exists()) {
+        if (!ownerData) {
             return { success: true, message: `No se envió notificación: No se pudo encontrar al propietario del cliente.` };
         }
-        const ownerData = ownerDoc.data() as User;
         
         // Validation: Does the owner have Qyvoo settings?
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
