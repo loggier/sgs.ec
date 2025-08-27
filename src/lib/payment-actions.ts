@@ -89,25 +89,21 @@ export async function registerPayment(
         }
         
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
-            const nextPaymentDateCandidate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : null;
-            let baseNextPaymentDate = (nextPaymentDateCandidate && isValid(nextPaymentDateCandidate)) ? nextPaymentDateCandidate : new Date();
             
-            if (isBefore(baseNextPaymentDate, startOfDay(new Date()))) {
-                baseNextPaymentDate = new Date();
+            // --- Lógica de Fecha Corregida ---
+            const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
+            const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
+
+            // Usa el último pago, o la fecha de inicio del contrato si no hay pagos.
+            let baseDateForCalculation = (lastPaymentDate && isValid(lastPaymentDate)) ? lastPaymentDate : contractStartDate;
+
+            // Si la fecha base está en el pasado, empezar a contar desde hoy para evitar fechas de pago pasadas.
+            if (isBefore(baseDateForCalculation, startOfDay(new Date()))) {
+                baseDateForCalculation = new Date();
             }
 
-            const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
-            let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
-
-            let newNextPaymentDate = baseNextPaymentDate;
-            let newExpirationDate = baseExpirationDate;
-
-            for (let i = 0; i < mesesPagados; i++) {
-                newNextPaymentDate = addMonths(newNextPaymentDate, 1);
-                if (unitDataFromDB.tipoContrato !== 'con_contrato') {
-                    newExpirationDate = addMonths(newExpirationDate, 1);
-                }
-            }
+            const newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
+            // --- Fin de la Lógica de Fecha Corregida ---
 
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                 ultimoPago: fechaPago,
@@ -120,7 +116,9 @@ export async function registerPayment(
                 const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
             } else {
-                unitUpdateData.fechaVencimiento = newExpirationDate;
+                const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
+                let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
+                unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
             }
             
             transaction.update(unitDocRef, unitUpdateData);
@@ -141,9 +139,7 @@ export async function registerPayment(
         }
     });
     
-    // --- DEBUGGING ---
-    // He comentado temporalmente la notificación para aislar el error.
-    /*
+    // He descomentado la notificación ya que el error principal está corregido.
     try {
         if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
             const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
@@ -154,14 +150,16 @@ export async function registerPayment(
     } catch (notificationError) {
         console.error("Error en el bloque de notificación:", notificationError);
         // Devolvemos éxito en el pago, pero avisamos del fallo en la notificación.
-        revalidatePaths(clientId);
+        revalidatePath(`/clients/${clientId}/units`);
+        revalidatePath('/');
+        revalidatePath('/units');
+        revalidatePath('/payments');
         return { 
             success: true, 
             message: `Pago registrado, pero la notificación falló: ${notificationError instanceof Error ? notificationError.message : 'Error desconocido'}.`,
             units: updatedUnitsForNotification
         };
     }
-    */
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -270,11 +268,12 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const q = query(
                 paymentsCollectionRef, 
-                where('fechaPago', '<', paymentData.fechaPago),
+                where(documentId(), '!=', paymentId), // Exclude the document being deleted
                 orderBy('fechaPago', 'desc'), 
                 limit(1)
             );
-            const previousPaymentsSnapshot = await getDocs(q);
+
+            const previousPaymentsSnapshot = await transaction.get(q);
 
             unitUpdate.ultimoPago = previousPaymentsSnapshot.docs.length > 0
                 ? (previousPaymentsSnapshot.docs[0].data().fechaPago as Timestamp).toDate()
