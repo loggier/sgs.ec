@@ -69,12 +69,12 @@ const contractTypeDisplayNames: Record<z.infer<typeof UnitFormSchema>['tipoContr
 const unitCategoryOptions = UnitCategory.options;
 
 
-function ContractUploader({ unit, name }: { unit: Unit | null, name: string }) {
+function ContractUploader({ unit }: { unit: Unit }) {
   const { control, setValue } = useFormContext<UnitFormInput>();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState(0);
-  const urlContrato = useWatch({ control, name });
+  const urlContrato = useWatch({ control, name: 'urlContrato' });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,7 +99,7 @@ function ContractUploader({ unit, name }: { unit: Unit | null, name: string }) {
         });
 
         if (result.success && result.url) {
-            setValue(name, result.url, { shouldValidate: true });
+            setValue('urlContrato', result.url, { shouldValidate: true });
             toast({ title: 'Éxito', description: 'Contrato subido correctamente.' });
 
             // If we are editing an existing unit, save the URL immediately.
@@ -129,7 +129,7 @@ function ContractUploader({ unit, name }: { unit: Unit | null, name: string }) {
   };
 
   const handleRemoveContract = async () => {
-      setValue(name, '', { shouldValidate: true });
+      setValue('urlContrato', '', { shouldValidate: true });
        if (unit && unit.id && unit.clientId) {
           const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, '');
            if (!saveUrlResult.success) {
@@ -159,7 +159,7 @@ function ContractUploader({ unit, name }: { unit: Unit | null, name: string }) {
                     type="button"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading || (!!unit && !unit.id)} // Disable if creating a new unit
+                    disabled={isUploading}
                 >
                     <Upload className="mr-2 h-4 w-4" />
                     Subir Contrato (PDF)
@@ -184,11 +184,6 @@ function ContractUploader({ unit, name }: { unit: Unit | null, name: string }) {
                         <span className="sr-only">Quitar contrato</span>
                     </Button>
                 </div>
-            )}
-            {!!unit && !unit.id && (
-                <p className="text-xs text-muted-foreground mt-1">
-                    Guarde la unidad primero para poder subir un contrato.
-                </p>
             )}
         </div>
       </FormControl>
@@ -576,11 +571,21 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
               </FormItem>
             )}
           />
-           <FormField
-            control={control}
-            name="urlContrato"
-            render={({ field }) => <ContractUploader unit={unit} name="urlContrato" />}
-          />
+          {unit && unit.id && (
+             <FormField
+                control={control}
+                name="urlContrato"
+                render={({ field }) => <ContractUploader unit={unit} />}
+             />
+          )}
+          {!unit && (
+              <FormItem>
+                <FormLabel>Archivo del Contrato</FormLabel>
+                <p className="text-sm text-muted-foreground pt-2">
+                    Guarde la unidad primero para poder subir un contrato.
+                </p>
+              </FormItem>
+          )}
         </div>
       )}
 
