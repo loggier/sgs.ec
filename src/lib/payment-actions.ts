@@ -27,7 +27,7 @@ import { getCurrentUser } from './auth';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any): any => {
-    if (!docData) return docData;
+    if (!docData) return docData; // Return if data is null or undefined
     const data: { [key: string]: any } = {};
     for (const key in docData) {
         if (Object.prototype.hasOwnProperty.call(docData, key)) {
@@ -61,7 +61,7 @@ export async function registerPayment(
   
   try {
     const { fechaPago, mesesPagados, ...paymentData } = validation.data;
-    const updatedUnits: Unit[] = [];
+    const updatedUnitsForNotification: Unit[] = [];
     let processedCount = 0;
 
     await runTransaction(db, async (transaction) => {
@@ -83,11 +83,21 @@ export async function registerPayment(
         
         // 2. PHASE: CALCULATE AND WRITE ALL CHANGES
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
-            const currentNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
+            // Use current date as a fallback if fechaSiguientePago is missing
+            let newNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
+            let newExpirationDate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
+
+            // Calculate new dates by adding one month at a time
+            for (let i = 0; i < mesesPagados; i++) {
+                newNextPaymentDate = addMonths(newNextPaymentDate, 1);
+                if (unitDataFromDB.tipoContrato !== 'con_contrato') {
+                    newExpirationDate = addMonths(newExpirationDate, 1);
+                }
+            }
 
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                 ultimoPago: fechaPago,
-                fechaSiguientePago: addMonths(currentNextPaymentDate, mesesPagados),
+                fechaSiguientePago: newNextPaymentDate,
             };
             
             if (unitDataFromDB.tipoContrato === 'con_contrato') {
@@ -96,8 +106,7 @@ export async function registerPayment(
                 const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
             } else {
-                 const currentExpirationDate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
-                unitUpdateData.fechaVencimiento = addMonths(currentExpirationDate, mesesPagados);
+                unitUpdateData.fechaVencimiento = newExpirationDate;
             }
             
             transaction.update(unitDocRef, unitUpdateData);
@@ -112,13 +121,13 @@ export async function registerPayment(
             const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
             transaction.set(paymentDocRef, newPayment);
             
-            updatedUnits.push({ ...unitDataFromDB, ...unitUpdateData });
+            updatedUnitsForNotification.push({ ...unitDataFromDB, ...unitUpdateData });
             processedCount++;
         }
     });
 
     // Send a single grouped notification after the transaction is successful
-    await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnits);
+    await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnitsForNotification);
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -128,7 +137,7 @@ export async function registerPayment(
     return { 
         success: true, 
         message: `${processedCount} pago(s) registrado(s) con éxito. Se envió la notificación.`, 
-        units: updatedUnits 
+        units: updatedUnitsForNotification
     };
 
   } catch (error) {
