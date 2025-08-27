@@ -75,7 +75,8 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         '{telefono_empresa}': owner?.telefono || '',
     };
     for (const [key, value] of Object.entries(generalReplacements)) {
-        message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value));
+        // Ensure value is a string to prevent errors with .replace
+        message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value ?? ''));
     }
 
     // --- Build Units Summary ---
@@ -133,26 +134,36 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         }
         const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
         
+        // Validation: Does the client have a phone number?
+        if (!clientData.telefono) {
+            return { success: true, message: `No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un número de teléfono.` };
+        }
+        
+        // Validation: Does the client have an owner?
         if (!clientData.ownerId) {
-             return { success: false, message: 'El cliente no tiene un propietario asignado.' };
+             return { success: true, message: `No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un propietario asignado.` };
         }
         
         const ownerDocRef = doc(db, 'users', clientData.ownerId);
         const ownerDoc = await getDoc(ownerDocRef);
         
-        const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
+        // Validation: Does the owner exist?
+        if (!ownerDoc.exists()) {
+            return { success: true, message: `No se envió notificación: No se pudo encontrar al propietario del cliente.` };
+        }
+        const ownerData = ownerDoc.data() as User;
         
+        // Validation: Does the owner have Qyvoo settings?
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-
+        if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
+            return { success: true, message: `No se envió notificación: El propietario ${ownerData.nombre} no tiene configurada la integración de Qyvoo.` };
+        }
+        
         const allTemplates = await getMessageTemplatesForUser(clientData.ownerId);
         const template = allTemplates.find(t => t.eventType === eventType);
 
         if (!template) {
-            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}' para el propietario del cliente. No se envió mensaje.` };
-        }
-        
-        if (!clientData.telefono) {
-            return { success: false, message: 'El cliente no tiene un número de teléfono para notificar.' };
+            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}'. No se envió mensaje.` };
         }
 
         const messageToSend = formatMessage(template.content, clientData, units, ownerData);
