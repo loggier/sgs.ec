@@ -27,13 +27,16 @@ import { getCurrentUser } from './auth';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any): any => {
+    if (!docData) return docData;
     const data: { [key: string]: any } = {};
     for (const key in docData) {
-        if (docData[key] instanceof Timestamp) {
-            // Convert Timestamp to ISO string for serialization
-            data[key] = data[key].toDate().toISOString();
-        } else {
-            data[key] = docData[key];
+        if (Object.prototype.hasOwnProperty.call(docData, key)) {
+            const value = docData[key];
+            if (value instanceof Timestamp) {
+                data[key] = value.toDate().toISOString();
+            } else {
+                data[key] = value;
+            }
         }
     }
     return data;
@@ -80,9 +83,11 @@ export async function registerPayment(
         
         // 2. PHASE: CALCULATE AND WRITE ALL CHANGES
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
+            const currentNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
+
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                 ultimoPago: fechaPago,
-                fechaSiguientePago: addMonths(new Date(unitDataFromDB.fechaSiguientePago), mesesPagados),
+                fechaSiguientePago: addMonths(currentNextPaymentDate, mesesPagados),
             };
             
             if (unitDataFromDB.tipoContrato === 'con_contrato') {
@@ -91,7 +96,8 @@ export async function registerPayment(
                 const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
             } else {
-                unitUpdateData.fechaVencimiento = addMonths(new Date(unitDataFromDB.fechaVencimiento), mesesPagados);
+                 const currentExpirationDate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
+                unitUpdateData.fechaVencimiento = addMonths(currentExpirationDate, mesesPagados);
             }
             
             transaction.update(unitDocRef, unitUpdateData);
