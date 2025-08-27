@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { getMessageTemplatesForUser, getQyvooSettingsForUser } from './settings-actions';
@@ -15,20 +14,14 @@ import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date
 
 /**
  * Replaces placeholders in a template string with actual data.
- * Handles both single-unit and multi-unit (grouped) scenarios.
+ * This function assumes all data passed to it is valid and non-null.
  * @param template The template string with placeholders.
  * @param client The client object.
  * @param units An array of unit objects.
  * @param owner The user object of the owner/company.
  * @returns The formatted message string.
  */
-function formatMessage(template: string, client: Client, units: Unit[], owner: User | null): string {
-    // --- SAFETY CHECK ---
-    // If the template content itself is not a valid string, exit immediately.
-    if (typeof template !== 'string' || !template) {
-        return '';
-    }
-
+function formatMessage(template: string, client: Client, units: Unit[], owner: User): string {
     let message = template;
 
     // --- Helper functions ---
@@ -69,22 +62,14 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
       
       if (monthlyRate === 0) return 0;
 
-      // Calculate how many full 30-day periods have passed
       const monthsOverdue = Math.floor(daysOverdue / 30) + 1;
-      
       return monthsOverdue * monthlyRate;
     };
     
     // --- General Replacements ---
-    const generalReplacements = {
-        '{nombre_cliente}': client.nomSujeto,
-        '{nombre_empresa}': owner?.empresa || 'Su Proveedor de Servicios GPS',
-        '{telefono_empresa}': owner?.telefono || '',
-    };
-    for (const [key, value] of Object.entries(generalReplacements)) {
-        // Ensure value is a string to prevent errors with .replace
-        message = message.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), String(value ?? ''));
-    }
+    message = message.replace(/{nombre_cliente}/g, client.nomSujeto);
+    message = message.replace(/{nombre_empresa}/g, owner.empresa || 'Su Proveedor GPS');
+    message = message.replace(/{telefono_empresa}/g, owner.telefono || '');
 
     // --- Build Units Summary ---
     let totalAmountDue = 0;
@@ -106,13 +91,17 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
 
     const finalSummary = unitsSummaryLines.join('\n');
 
-    if (unitsSummaryLines.length > 1) {
-        message = message.replace(/{resumen_unidades}/g, `${finalSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`);
+    if (unitsSummaryLines.length > 0) {
+        if (unitsSummaryLines.length > 1) {
+            message = message.replace(/{resumen_unidades}/g, `${finalSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`);
+        } else {
+            message = message.replace(/{resumen_unidades}/g, finalSummary);
+        }
     } else {
-        message = message.replace(/{resumen_unidades}/g, finalSummary);
+        // If there's no summary, remove the placeholder
+        message = message.replace(/{resumen_unidades}/g, '');
     }
     
-    // Clear individual placeholders that are now part of the summary
     const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
     singleUnitPlaceholders.forEach(placeholder => {
         message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
@@ -134,53 +123,54 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     units: Unit[]
 ): Promise<{ success: boolean; message: string }> {
     try {
+        // --- 1. PRE-FLIGHT VALIDATIONS ---
         if (!units || units.length === 0) {
-            return { success: false, message: 'No hay unidades para notificar.' };
+            return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
         }
 
         const clientDocRef = doc(db, 'clients', clientId);
         const clientDoc = await getDoc(clientDocRef);
-
         if (!clientDoc.exists()) {
-            return { success: false, message: 'No se pudo encontrar el cliente.' };
+            return { success: false, message: `Error crítico: Cliente ${clientId} no encontrado.` };
         }
         const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
         
         if (!clientData.telefono) {
-            return { success: true, message: `No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un número de teléfono.` };
+            return { success: true, message: `Operación completada. No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un número de teléfono.` };
         }
         
         if (!clientData.ownerId) {
-             return { success: true, message: `No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un propietario asignado.` };
+             return { success: true, message: `Operación completada. No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un propietario asignado.` };
         }
         
         const ownerDocRef = doc(db, 'users', clientData.ownerId);
         const ownerDoc = await getDoc(ownerDocRef);
-        
-        const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
-        
-        if (!ownerData) {
-            return { success: true, message: `No se envió notificación: No se pudo encontrar al propietario del cliente.` };
+        if (!ownerDoc.exists()) {
+            return { success: true, message: `Operación completada. No se envió notificación: No se pudo encontrar al propietario (ID: ${clientData.ownerId}).` };
         }
+        const ownerData = ownerDoc.data() as User;
         
+        if (!ownerData.empresa) {
+            return { success: true, message: `Operación completada. No se envió notificación: El propietario ${ownerData.nombre} no tiene configurado el nombre de la empresa en su perfil.`};
+        }
+
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
         if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
-            return { success: true, message: `No se envió notificación: El propietario ${ownerData.nombre} no tiene configurada la integración de Qyvoo.` };
+            return { success: true, message: `Operación completada. No se envió notificación: El propietario ${ownerData.nombre} no tiene configurada la integración de Qyvoo.` };
         }
         
         const allTemplates = await getMessageTemplatesForUser(clientData.ownerId);
         const template = allTemplates.find(t => t.eventType === eventType);
 
         if (!template?.content) {
-            return { success: true, message: `No hay plantilla válida o con contenido para el evento '${eventType}'. No se envió mensaje.` };
+            return { success: true, message: `Operación completada. No hay plantilla válida para el evento '${eventType}'.` };
         }
 
-        // --- DEBUG LOGGING ---
-        console.log(`[Notification Debug] Event: ${eventType} | ClientID: ${clientId} | Units: ${units.length} | Template: "${template.name}"`);
-
+        // --- 2. MESSAGE FORMATTING AND SENDING ---
+        
         const messageToSend = formatMessage(template.content, clientData, units, ownerData);
         
-        if (!messageToSend) {
+        if (!messageToSend.trim()) {
             return { success: true, message: `El mensaje para '${eventType}' resultó vacío después de formatear. No se envió.` };
         }
         
