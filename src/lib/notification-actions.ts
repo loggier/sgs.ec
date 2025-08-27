@@ -22,14 +22,12 @@ import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date
  * @returns The formatted message string, or an empty string if the template is invalid.
  */
 function formatMessage(template: string, client: Client, units: Unit[], owner: User): string {
-    // --- CRITICAL VALIDATION: Ensure template is a valid string ---
     if (typeof template !== 'string' || !template) {
         return '';
     }
 
     let message = template;
 
-    // --- Helper functions with built-in safety checks ---
     const formatDate = (dateInput: any): string => {
         if (!dateInput) return '[Fecha no disponible]';
         try {
@@ -74,9 +72,10 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
     };
     
     // --- Defensive General Replacements ---
-    message = message.replace(/{nombre_cliente}/g, client?.nomSujeto || '[Cliente]');
+    message = message.replace(/{nombre_cliente}/g, client?.nomSujeto || '[Cliente no disponible]');
     message = message.replace(/{nombre_empresa}/g, owner?.empresa || '[Su Proveedor]');
     message = message.replace(/{telefono_empresa}/g, owner?.telefono || '[Contacto no disponible]');
+
 
     // --- Build Units Summary ---
     const unitsSummaryLines: string[] = [];
@@ -91,8 +90,10 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
             const overdueAmount = calculateOverdueAmount(unit);
             const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
             totalAmountDue += amountToPay;
-
-            unitsSummaryLines.push(`*Placa:* ${unit.placa || '[Placa no disp.]'} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`);
+            
+            const placa = unit.placa || '[Placa no disp.]';
+            const monto = formatCurrency(amountToPay);
+            unitsSummaryLines.push(`*Placa:* ${placa} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${monto}`);
         });
         
         if (unitsSummaryLines.length > 0) {
@@ -125,43 +126,49 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     clientId: string,
     units: Unit[]
 ): Promise<{ success: boolean; message: string }> {
+    
     // --- 1. Fetch all necessary data ---
     const clientDoc = await getDoc(doc(db, 'clients', clientId)).catch(() => null);
+    
+    // --- 2. Validate all data before proceeding ---
     if (!clientDoc || !clientDoc.exists()) {
         return { success: true, message: `Operación omitida: Cliente ${clientId} no encontrado.` };
     }
     const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
+    if (!clientData.telefono) {
+        return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene teléfono.` };
+    }
+    
     const ownerId = clientData.ownerId;
     if (!ownerId) {
         return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene propietario.` };
     }
     const ownerDoc = await getDoc(doc(db, 'users', ownerId)).catch(() => null);
-    if (!ownerDoc || !ownerDoc.exists()) {
+     if (!ownerDoc || !ownerDoc.exists()) {
         return { success: true, message: `Operación omitida: Propietario ${ownerId} no encontrado.` };
     }
     const ownerData = ownerDoc.data() as User;
-
-    const qyvooSettings = await getQyvooSettingsForUser(ownerId);
-    const allTemplates = await getMessageTemplatesForUser(ownerId);
-    const template = allTemplates.find(t => t.eventType === eventType);
-
-    // --- 2. Validate all data before proceeding ---
-    if (!units || units.length === 0) {
-        return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
-    }
-    if (!clientData.telefono) {
-        return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene teléfono.` };
-    }
+    
     if (!ownerData.empresa) {
         return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene nombre de empresa.`};
     }
+    
+    const qyvooSettings = await getQyvooSettingsForUser(ownerId);
     if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
         return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene Qyvoo configurado.` };
     }
+    
+    const allTemplates = await getMessageTemplatesForUser(ownerId);
+    const template = allTemplates.find(t => t.eventType === eventType);
     if (!template?.content) {
         return { success: true, message: `Operación omitida: No hay plantilla válida para el evento '${eventType}'.` };
     }
+
+    if (!units || units.length === 0) {
+        return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
+    }
+
 
     // --- 3. Format and send the message ---
     const messageToSend = formatMessage(template.content, clientData, units, ownerData);

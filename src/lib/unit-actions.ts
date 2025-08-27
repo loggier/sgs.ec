@@ -378,7 +378,7 @@ export async function getAllUnits(currentUser: User): Promise<(Unit)[]> {
 
         const allUnitsPromises = userClients.map(async (client) => {
             const unitsSnapshot = await getDocs(collection(db, 'clients', client.id, 'units'));
-            const owner = usersMap.get(client.ownerId);
+            const owner = usersMap.get(client.ownerId!);
 
             const clientUnitsPromises = unitsSnapshot.docs.map(async (unitDoc) => {
                 const data = convertTimestamps(unitDoc.data());
@@ -622,5 +622,3 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
-
-    
