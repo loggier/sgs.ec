@@ -161,9 +161,12 @@ export async function registerPayment(
     };
 
   } catch (error) {
-    console.error("Error registering payment:", error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    return { success: false, message: `Error al registrar el pago: ${errorMessage}` };
+    console.error("Error detallado en registerPayment:", error);
+    return { 
+        success: false, 
+        message: `Error al registrar el pago: ${errorMessage}` 
+    };
   }
 }
 
