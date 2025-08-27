@@ -139,10 +139,8 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         
         const ownerDocRef = doc(db, 'users', clientData.ownerId);
         const ownerDoc = await getDoc(ownerDocRef);
-        if (!ownerDoc.exists()) {
-            return { success: false, message: 'El propietario del cliente no fue encontrado.' };
-        }
-        const ownerData = ownerDoc.data() as User;
+        
+        const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
         
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
 
@@ -150,7 +148,7 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         const template = allTemplates.find(t => t.eventType === eventType);
 
         if (!template) {
-            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}' para ${ownerData.nombre}. No se envió mensaje.` };
+            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}' para el propietario del cliente. No se envió mensaje.` };
         }
         
         if (!clientData.telefono) {
