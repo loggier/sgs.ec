@@ -145,7 +145,7 @@ export async function registerPayment(
     // if (clientData.ownerId) {
     //     const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
     //     if (qyvooSettings?.apiKey && qyvooSettings.userId) {
-    //         await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+    //         await sendGroupedTemplatedWhatsAppMessage(clientData, updatedUnitsForNotification);
     //     }
     // }
     
@@ -243,13 +243,13 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
                 unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
             } else {
-                if (unitData.fechaVencimiento && isValid(new Date(unitData.fechaVencimiento))) {
+                 if (unitData.fechaVencimiento && isValid(new Date(unitData.fechaVencimiento))) {
                     unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
                 }
             }
             
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), where('__name__', '!=', paymentId));
+            const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), where('__name__', '!=', paymentId), limit(1));
             const allPaymentsSnapshot = await getDocs(q);
 
             unitUpdate.ultimoPago = allPaymentsSnapshot.docs.length > 0
