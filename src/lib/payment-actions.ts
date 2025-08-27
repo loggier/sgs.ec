@@ -141,12 +141,12 @@ export async function registerPayment(
         }
     });
 
-    if (clientData.ownerId) {
-        const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-        if (qyvooSettings?.apiKey && qyvooSettings.userId) {
-            await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
-        }
-    }
+    // if (clientData.ownerId) {
+    //     const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+    //     if (qyvooSettings?.apiKey && qyvooSettings.userId) {
+    //         await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+    //     }
+    // }
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
