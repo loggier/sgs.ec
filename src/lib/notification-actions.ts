@@ -23,7 +23,13 @@ import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date
  * @returns The formatted message string.
  */
 function formatMessage(template: string, client: Client, units: Unit[], owner: User | null): string {
-    let message = template || '';
+    // --- SAFETY CHECK ---
+    // If the template content itself is not a valid string, exit immediately.
+    if (typeof template !== 'string' || !template) {
+        return '';
+    }
+
+    let message = template;
 
     // --- Helper functions ---
     const formatDate = (dateInput: any): string => {
@@ -98,14 +104,13 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
         });
     }
 
-    let finalSummary = unitsSummaryLines.join('\n');
+    const finalSummary = unitsSummaryLines.join('\n');
 
     if (unitsSummaryLines.length > 1) {
-        finalSummary += `\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`;
+        message = message.replace(/{resumen_unidades}/g, `${finalSummary}\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*`);
+    } else {
+        message = message.replace(/{resumen_unidades}/g, finalSummary);
     }
-    
-    // Replace the summary placeholder safely
-    message = message.replace(/{resumen_unidades}/g, finalSummary || '');
     
     // Clear individual placeholders that are now part of the summary
     const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
@@ -141,12 +146,10 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         }
         const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
         
-        // Validation: Does the client have a phone number?
         if (!clientData.telefono) {
             return { success: true, message: `No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un número de teléfono.` };
         }
         
-        // Validation: Does the client have an owner?
         if (!clientData.ownerId) {
              return { success: true, message: `No se envió notificación: El cliente ${clientData.nomSujeto} no tiene un propietario asignado.` };
         }
@@ -156,12 +159,10 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         
         const ownerData = ownerDoc.exists() ? ownerDoc.data() as User : null;
         
-        // Validation: Does the owner exist?
         if (!ownerData) {
             return { success: true, message: `No se envió notificación: No se pudo encontrar al propietario del cliente.` };
         }
         
-        // Validation: Does the owner have Qyvoo settings?
         const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
         if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
             return { success: true, message: `No se envió notificación: El propietario ${ownerData.nombre} no tiene configurada la integración de Qyvoo.` };
@@ -170,11 +171,18 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         const allTemplates = await getMessageTemplatesForUser(clientData.ownerId);
         const template = allTemplates.find(t => t.eventType === eventType);
 
-        if (!template) {
-            return { success: true, message: `No hay plantilla configurada para el evento '${eventType}'. No se envió mensaje.` };
+        if (!template?.content) {
+            return { success: true, message: `No hay plantilla válida o con contenido para el evento '${eventType}'. No se envió mensaje.` };
         }
 
+        // --- DEBUG LOGGING ---
+        console.log(`[Notification Debug] Event: ${eventType} | ClientID: ${clientId} | Units: ${units.length} | Template: "${template.name}"`);
+
         const messageToSend = formatMessage(template.content, clientData, units, ownerData);
+        
+        if (!messageToSend) {
+            return { success: true, message: `El mensaje para '${eventType}' resultó vacío después de formatear. No se envió.` };
+        }
         
         const logMetadata = { 
             ownerId: clientData.ownerId, 
