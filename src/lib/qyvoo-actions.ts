@@ -6,8 +6,7 @@ import { createMessageLog } from './log-actions';
 
 const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
 
-// Function to format phone number for Qyvoo (e.g., add country code if missing)
-// This is a basic example, might need adjustment based on your data format.
+// Function to format phone number for Qyvoo
 function formatPhoneNumber(phone: string): string {
     // Remove non-digit characters
     let cleaned = phone.replace(/\D/g, '');
@@ -19,8 +18,6 @@ function formatPhoneNumber(phone: string): string {
         cleaned = '593' + cleaned;
     }
     
-    // Qyvoo might not need the '+' symbol, just the digits.
-    // Adjust as per Qyvoo's specific requirements.
     return cleaned;
 }
 
@@ -32,15 +29,10 @@ export async function sendQyvooMessage(
 ): Promise<{ success: boolean; message: string }> {
 
     // --- CRITICAL VALIDATION ---
-    // This is the root cause fix. Ensure phoneNumber is a valid string before proceeding.
     if (!phoneNumber || typeof phoneNumber !== 'string' || phoneNumber.trim() === '') {
-        // Don't log this as an error, as it's an expected condition (client has no phone)
-        // The calling function (`sendGroupedTemplatedWhatsAppMessage`) already handles logging/messaging for this.
         return { success: true, message: 'Operación omitida: No se proporcionó un número de teléfono válido.' };
     }
-    // --- END CRITICAL VALIDATION ---
-
-
+    
     const formattedNumber = formatPhoneNumber(phoneNumber);
     const logPayloadBase = {
         ownerId: logMetadata.ownerId,

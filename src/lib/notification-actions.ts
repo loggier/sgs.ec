@@ -13,28 +13,31 @@ import { getAllUnits } from './unit-actions';
 import { startOfDay, addDays, isSameDay, isBefore, differenceInDays } from 'date-fns';
 
 /**
- * Replaces placeholders in a template string with actual data.
- * This function assumes all data passed to it is valid and non-null.
+ * Replaces placeholders in a template string with actual data defensively.
+ * This function checks for the existence of each piece of data before using it.
  * @param template The template string with placeholders.
  * @param client The client object.
  * @param units An array of unit objects.
  * @param owner The user object of the owner/company.
- * @returns The formatted message string.
+ * @returns The formatted message string, or an empty string if the template is invalid.
  */
 function formatMessage(template: string, client: Client, units: Unit[], owner: User): string {
-    if (!template) return ''; // Safety check
+    // --- CRITICAL VALIDATION: Ensure template is a valid string ---
+    if (typeof template !== 'string' || !template) {
+        return '';
+    }
 
     let message = template;
 
-    // --- Helper functions ---
+    // --- Helper functions with built-in safety checks ---
     const formatDate = (dateInput: any): string => {
-        if (!dateInput) return 'N/A';
+        if (!dateInput) return '[Fecha no disponible]';
         try {
             const date = dateInput instanceof Timestamp ? dateInput.toDate() : new Date(dateInput);
-            if (isNaN(date.getTime())) return 'N/A';
+            if (isNaN(date.getTime())) return '[Fecha inválida]';
             return date.toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
         } catch (e) {
-            return 'Fecha Inválida';
+            return '[Error de fecha]';
         }
     };
     
@@ -44,6 +47,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
     };
 
     const getMonthlyCost = (unit: Unit): number => {
+        if (!unit) return 0;
         if (unit.tipoContrato === 'con_contrato') {
             return (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
         }
@@ -51,12 +55,13 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
     };
 
     const calculateOverdueAmount = (unit: Unit): number => {
+      if (!unit) return 0;
       const today = startOfDay(new Date());
       if (!unit.fechaSiguientePago) return 0;
       const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
       if (isBefore(today, nextPaymentDate)) {
-          return 0; // Not overdue yet
+          return 0;
       }
       
       const daysOverdue = differenceInDays(today, nextPaymentDate);
@@ -68,38 +73,37 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
       return monthsOverdue * monthlyRate;
     };
     
-    // --- General Replacements ---
-    message = message.replace(/{nombre_cliente}/g, client.nomSujeto || 'Cliente');
-    message = message.replace(/{nombre_empresa}/g, owner.empresa || 'Su Proveedor GPS');
-    message = message.replace(/{telefono_empresa}/g, owner.telefono || '');
+    // --- Defensive General Replacements ---
+    message = message.replace(/{nombre_cliente}/g, client?.nomSujeto || '[Cliente]');
+    message = message.replace(/{nombre_empresa}/g, owner?.empresa || '[Su Proveedor]');
+    message = message.replace(/{telefono_empresa}/g, owner?.telefono || '[Contacto no disponible]');
 
     // --- Build Units Summary ---
     const unitsSummaryLines: string[] = [];
-
     if (units && units.length > 0) {
         let totalAmountDue = 0;
         units.forEach(unit => {
+            if (!unit) return; // Skip if a unit is somehow null/undefined
             const nextPaymentDate = formatDate(unit.fechaSiguientePago);
             const cutoffDate = unit.diasCorte !== undefined && unit.fechaSiguientePago
                 ? formatDate(addDays(new Date(unit.fechaSiguientePago), unit.diasCorte))
-                : 'N/A';
+                : '[N/A]';
             const overdueAmount = calculateOverdueAmount(unit);
             const amountToPay = overdueAmount > 0 ? overdueAmount : getMonthlyCost(unit);
             totalAmountDue += amountToPay;
 
-            unitsSummaryLines.push(`*Placa:* ${unit.placa} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`);
+            unitsSummaryLines.push(`*Placa:* ${unit.placa || '[Placa no disp.]'} | *F. Vence:* ${nextPaymentDate} | *F. Corte:* ${cutoffDate} | *Monto:* ${formatCurrency(amountToPay)}`);
         });
         
-        const finalSummary = unitsSummaryLines.join('\n');
-        
         if (unitsSummaryLines.length > 0) {
+            const finalSummary = unitsSummaryLines.join('\n');
             const totalLine = unitsSummaryLines.length > 1 ? `\n\n*TOTAL A PAGAR: ${formatCurrency(totalAmountDue)}*` : '';
             message = message.replace(/{resumen_unidades}/g, `${finalSummary}${totalLine}`);
         }
     }
     
-    // Clean up any remaining placeholders if they were not replaced
-    message = message.replace(/{resumen_unidades}/g, '');
+    // Clean up any remaining placeholders to avoid sending them to the user.
+    message = message.replace(/{resumen_unidades}/g, '[No hay detalles de unidades disponibles]');
     const singleUnitPlaceholders = ['{placa}', '{imei}', '{modelo_unidad}', '{fecha_vencimiento}', '{fecha_corte}', '{monto_a_pagar}'];
     singleUnitPlaceholders.forEach(placeholder => {
         message = message.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), '');
@@ -111,6 +115,7 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
 
 /**
  * Finds the appropriate template, formats it for a group of units, and sends a single WhatsApp message.
+ * This function is now heavily fortified with pre-checks to prevent runtime errors.
  * @param eventType The type of event triggering the notification.
  * @param clientId The ID of the client.
  * @param units An array of unit objects to include in the notification.
@@ -120,62 +125,58 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     clientId: string,
     units: Unit[]
 ): Promise<{ success: boolean; message: string }> {
-    try {
-        // --- 1. Fetch all necessary data ---
-        if (!units || units.length === 0) {
-            return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
-        }
-
-        const clientDoc = await getDoc(doc(db, 'clients', clientId));
-        const clientData = clientDoc.exists() ? { id: clientDoc.id, ...clientDoc.data() } as Client : null;
-
-        const ownerId = clientData?.ownerId;
-        const ownerDoc = ownerId ? await getDoc(doc(db, 'users', ownerId)) : null;
-        const ownerData = ownerDoc?.exists() ? ownerDoc.data() as User : null;
-        
-        const qyvooSettings = ownerId ? await getQyvooSettingsForUser(ownerId) : null;
-        const allTemplates = ownerId ? await getMessageTemplatesForUser(ownerId) : [];
-        const template = allTemplates.find(t => t.eventType === eventType);
-
-        // --- 2. Validate all data before proceeding ---
-        if (!clientData) {
-            return { success: true, message: `Operación completada. Cliente ${clientId} no encontrado.` };
-        }
-        if (!clientData.telefono) {
-            return { success: true, message: `Operación completada. Cliente ${clientData.nomSujeto} no tiene teléfono.` };
-        }
-        if (!ownerData) {
-            return { success: true, message: `Operación completada. Cliente ${clientData.nomSujeto} no tiene propietario válido.` };
-        }
-        if (!ownerData.empresa) {
-            return { success: true, message: `Operación completada. Propietario ${ownerData.nombre} no tiene nombre de empresa configurado.`};
-        }
-        if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
-            return { success: true, message: `Operación completada. Propietario ${ownerData.nombre} no tiene Qyvoo configurado.` };
-        }
-        if (!template?.content) {
-            return { success: true, message: `Operación completada. No hay plantilla válida para el evento '${eventType}'.` };
-        }
-
-        // --- 3. Format and send the message ---
-        const messageToSend = formatMessage(template.content, clientData, units, ownerData);
-        
-        if (!messageToSend.trim()) {
-            return { success: true, message: `El mensaje para '${eventType}' resultó vacío después de formatear. No se envió.` };
-        }
-        
-        const logMetadata = { 
-            ownerId: ownerId!, 
-            clientId: clientData.id!, 
-            clientName: clientData.nomSujeto 
-        };
-
-        return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings, logMetadata);
-
-    } catch (error) {
-        console.error(`Error sending grouped templated message for event ${eventType}:`, error);
-        return { success: false, message: 'Error interno al procesar la notificación agrupada.' };
+    // --- 1. Fetch all necessary data ---
+    const clientDoc = await getDoc(doc(db, 'clients', clientId)).catch(() => null);
+    if (!clientDoc || !clientDoc.exists()) {
+        return { success: true, message: `Operación omitida: Cliente ${clientId} no encontrado.` };
     }
+    const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
+
+    const ownerId = clientData.ownerId;
+    if (!ownerId) {
+        return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene propietario.` };
+    }
+    const ownerDoc = await getDoc(doc(db, 'users', ownerId)).catch(() => null);
+    if (!ownerDoc || !ownerDoc.exists()) {
+        return { success: true, message: `Operación omitida: Propietario ${ownerId} no encontrado.` };
+    }
+    const ownerData = ownerDoc.data() as User;
+
+    const qyvooSettings = await getQyvooSettingsForUser(ownerId);
+    const allTemplates = await getMessageTemplatesForUser(ownerId);
+    const template = allTemplates.find(t => t.eventType === eventType);
+
+    // --- 2. Validate all data before proceeding ---
+    if (!units || units.length === 0) {
+        return { success: true, message: 'Operación completada. No hay unidades para notificar.' };
+    }
+    if (!clientData.telefono) {
+        return { success: true, message: `Operación omitida: Cliente ${clientData.nomSujeto} no tiene teléfono.` };
+    }
+    if (!ownerData.empresa) {
+        return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene nombre de empresa.`};
+    }
+    if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
+        return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene Qyvoo configurado.` };
+    }
+    if (!template?.content) {
+        return { success: true, message: `Operación omitida: No hay plantilla válida para el evento '${eventType}'.` };
+    }
+
+    // --- 3. Format and send the message ---
+    const messageToSend = formatMessage(template.content, clientData, units, ownerData);
+    
+    if (!messageToSend.trim()) {
+        return { success: true, message: `El mensaje para '${eventType}' resultó vacío después de formatear. No se envió.` };
+    }
+    
+    const logMetadata = { 
+        ownerId: ownerId!, 
+        clientId: clientData.id!, 
+        clientName: clientData.nomSujeto 
+    };
+
+    return await sendQyvooMessage(clientData.telefono, messageToSend, qyvooSettings, logMetadata);
 }
 
 
