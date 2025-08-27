@@ -94,7 +94,7 @@ export async function registerPayment(
 
             // --- Lógica de Fecha Robusta ---
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
-            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : new Date();
+            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
             console.log(`[SERVER] [BUCLE] Fechas leídas: ultimoPago=${lastPaymentDate}, fechaInicioContrato=${contractStartDate}`);
 
             let baseDateForCalculation: Date;
