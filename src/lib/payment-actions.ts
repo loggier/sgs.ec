@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -30,7 +31,7 @@ const convertTimestamps = (docData: any): any => {
     for (const key in docData) {
         if (docData[key] instanceof Timestamp) {
             // Convert Timestamp to ISO string for serialization
-            data[key] = docData[key].toDate().toISOString();
+            data[key] = data[key].toDate().toISOString();
         } else {
             data[key] = docData[key];
         }
@@ -61,16 +62,24 @@ export async function registerPayment(
     let processedCount = 0;
 
     await runTransaction(db, async (transaction) => {
+        const unitsFromDB: { id: string; ref: any; data: Unit; }[] = [];
+
+        // 1. PHASE: READ ALL DOCUMENTS FIRST
         for (const unitId of unitIds) {
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
-
             if (!unitSnapshot.exists()) {
                 throw new Error(`Unidad con ID ${unitId} no encontrada.`);
             }
-
-            const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
-            
+            unitsFromDB.push({ 
+                id: unitId,
+                ref: unitDocRef,
+                data: convertTimestamps(unitSnapshot.data()) as Unit,
+            });
+        }
+        
+        // 2. PHASE: CALCULATE AND WRITE ALL CHANGES
+        for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                 ultimoPago: fechaPago,
                 fechaSiguientePago: addMonths(new Date(unitDataFromDB.fechaSiguientePago), mesesPagados),
@@ -88,13 +97,13 @@ export async function registerPayment(
             transaction.update(unitDocRef, unitUpdateData);
 
             const newPayment: Omit<Payment, 'id'> = {
-                unitId,
+                unitId: unitDataFromDB.id,
                 clientId,
                 fechaPago,
                 mesesPagados,
                 ...paymentData,
             };
-            const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitId, 'payments'));
+            const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
             transaction.set(paymentDocRef, newPayment);
             
             updatedUnits.push({ ...unitDataFromDB, ...unitUpdateData });
