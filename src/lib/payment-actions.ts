@@ -25,9 +25,11 @@ import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 import { getCurrentUser } from './auth';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
+import { getQyvooSettingsForUser } from './settings-actions';
+import type { Client } from './schema';
 
 const convertTimestamps = (docData: any): any => {
-    if (!docData) return docData; // Return if data is null or undefined
+    if (!docData) return docData;
     const data: { [key: string]: any } = {};
     for (const key in docData) {
         if (Object.prototype.hasOwnProperty.call(docData, key)) {
@@ -126,8 +128,18 @@ export async function registerPayment(
         }
     });
 
-    // Send a single grouped notification after the transaction is successful
-    await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnitsForNotification);
+    // Post-transaction logic: Send notification only if possible
+    const clientDoc = await getDoc(doc(db, 'clients', clientId));
+    if (clientDoc.exists()) {
+        const clientData = clientDoc.data() as Client;
+        if (clientData.ownerId) {
+            const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+            // Only attempt to send if settings and phone number exist.
+            if (qyvooSettings?.apiKey && qyvooSettings.userId && clientData.telefono) {
+                await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnitsForNotification);
+            }
+        }
+    }
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -136,7 +148,7 @@ export async function registerPayment(
 
     return { 
         success: true, 
-        message: `${processedCount} pago(s) registrado(s) con éxito. Se envió la notificación.`, 
+        message: `${processedCount} pago(s) registrado(s) con éxito.`, 
         units: updatedUnitsForNotification
     };
 
