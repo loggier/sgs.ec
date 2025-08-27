@@ -53,12 +53,11 @@ export async function registerPayment(
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
-    console.error('[SERVER] [ERROR] Falla de validación de Zod:', validation.error.flatten());
     return { success: false, message: 'Datos de pago no válidos.' };
   }
   
-  if (!unitIds || unitIds.length === 0) {
-    return { success: false, message: 'No se seleccionó ninguna unidad.' };
+  if (!unitIds || !Array.isArray(unitIds) || unitIds.length === 0) {
+    return { success: false, message: 'No se seleccionó ninguna unidad válida.' };
   }
   
   try {
@@ -161,7 +160,6 @@ export async function registerPayment(
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-    console.error("[SERVER] [ERROR CATCH] Error detallado en registerPayment:", error);
     return { 
         success: false, 
         message: `Error al registrar el pago. Detalles: ${errorMessage}` 

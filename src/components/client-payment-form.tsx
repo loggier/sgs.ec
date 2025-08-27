@@ -107,13 +107,11 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   }));
   
   async function onSubmit(values: BatchPaymentFormInput) {
-    console.log('[CLIENT] Clic en "Registrar Pagos". Valores del formulario:', values);
     setIsSubmitting(true);
     try {
       // The action now handles an array of unitIds
       const result = await registerPayment(values, values.unitIds, clientId);
-      console.log('[CLIENT] Respuesta recibida del servidor:', result);
-
+      
       if (result.success) {
         toast({
           title: 'Éxito',
