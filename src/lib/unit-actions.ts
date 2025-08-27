@@ -1,8 +1,9 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths } from 'date-fns';
+import { addMonths, isBefore } from 'date-fns';
 import {
   collection,
   getDocs,
@@ -215,7 +216,12 @@ export async function saveUnit(
       // Reset payment cycle and balance if start date changes
       if (newStartDate.getTime() !== oldStartDate.getTime() || tipoContrato !== currentUnitData.tipoContrato) {
         unitDataForFirestore.ultimoPago = null;
-        unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
+        
+        let nextPayment = addMonths(newStartDate, 1);
+        if (isBefore(nextPayment, new Date())) {
+            nextPayment = addMonths(new Date(), 1);
+        }
+        unitDataForFirestore.fechaSiguientePago = nextPayment;
         
         if (tipoContrato === 'con_contrato') {
             unitDataForFirestore.saldoContrato = costoTotalContrato;

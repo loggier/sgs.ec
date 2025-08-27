@@ -87,6 +87,12 @@ export async function registerPayment(
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
             // Use current date as a fallback if fechaSiguientePago is missing
             let newNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
+            
+            // If the next payment date is in the past, start calculating from today
+            if(isBefore(newNextPaymentDate, new Date())) {
+                newNextPaymentDate = new Date();
+            }
+
             let newExpirationDate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
 
             // Calculate new dates by adding one month at a time
@@ -182,7 +188,7 @@ export async function getAllPayments(
 
         paymentsSnapshot.forEach(paymentDoc => {
           const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-          const owner = userMap.get(client.ownerId!);
+          const owner = client.ownerId ? userMap.get(client.ownerId) : null;
 
           allPayments.push({
             ...paymentData,
@@ -239,14 +245,19 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             
             // Correctly find the new "ultimoPago" by querying all other payments for the unit
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const otherPaymentsQuery = query(paymentsCollectionRef, where('__name__', '!=', paymentId));
+            const otherPaymentsQuery = query(
+                paymentsCollectionRef, 
+                where('__name__', '!=', paymentId), 
+                orderBy('__name__'), // We need another orderBy if we use !=
+                orderBy('fechaPago', 'desc'),
+                limit(1)
+            );
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
 
-            const otherPayments = otherPaymentsSnapshot.docs
-                .map(doc => convertTimestamps(doc.data()) as Payment)
-                .sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
+            unitUpdate.ultimoPago = otherPaymentsSnapshot.empty 
+                ? null 
+                : (otherPaymentsSnapshot.docs[0].data().fechaPago as Timestamp);
 
-            unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
 
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);

@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
-import { format, addMonths, formatDistanceToNow, parseISO, addDays } from 'date-fns';
+import { format, addMonths, formatDistanceToNow, parseISO, addDays, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink, FileText, Upload, X } from 'lucide-react';
 
@@ -358,7 +359,12 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
       if (originalStartDate && currentStartDate !== originalStartDate) {
         setShowWarning(true);
         const newStartDate = new Date(fechaInicioContrato);
-        setValue('fechaSiguientePago', addMonths(newStartDate, 1));
+        let nextPayment = addMonths(newStartDate, 1);
+        // If next payment would be in the past, set it to today plus one month
+        if (isBefore(nextPayment, new Date())) {
+            nextPayment = addMonths(new Date(), 1);
+        }
+        setValue('fechaSiguientePago', nextPayment);
       } else {
         setShowWarning(false);
       }
@@ -368,6 +374,11 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
     }
   }, [fechaInicioContrato, mesesContrato, tipoContrato, isEditing, setValue]);
   
+  const formatDateSafe = (date: Date | null | undefined): string => {
+      if (!date || !(date instanceof Date)) return 'N/A';
+      return format(date, 'PPP', { locale: es });
+  }
+
   return (
     <div className="space-y-4 py-4">
       {unit?.pgpsDeviceId && <PgpsInfoDisplay pgpsDeviceId={unit.pgpsDeviceId} />}
@@ -693,7 +704,7 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
                   <FormControl>
                     <Input
                       readOnly
-                      value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                      value={formatDateSafe(field.value)}
                       className="bg-muted cursor-default"
                     />
                   </FormControl>
@@ -710,7 +721,7 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
                   <FormControl>
                     <Input
                       readOnly
-                      value={field.value instanceof Date ? format(field.value, 'PPP', { locale: es }) : 'N/A'}
+                      value={formatDateSafe(field.value)}
                       className="bg-muted cursor-default"
                     />
                   </FormControl>
