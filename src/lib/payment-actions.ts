@@ -50,7 +50,6 @@ export async function registerPayment(
   unitIds: string[],
   clientId: string
 ): Promise<{ success: boolean; message: string; units?: Unit[] }> {
-  console.log('[SERVER] Se llamó a registerPayment con:', { data, unitIds, clientId });
   const validation = PaymentFormSchema.safeParse(data);
 
   if (!validation.success) {
@@ -74,9 +73,7 @@ export async function registerPayment(
     const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
     await runTransaction(db, async (transaction) => {
-        console.log('[SERVER] [TRANSACCIÓN] Iniciando transacción en la base de datos.');
         for (const unitId of unitIds) {
-            console.log(`[SERVER] [TRANSACCIÓN] Procesando unidad con ID: ${unitId}`);
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
 
@@ -85,7 +82,6 @@ export async function registerPayment(
             }
 
             const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
-            console.log('[SERVER] [TRANSACCIÓN] Datos crudos de la unidad desde DB:', unitDataFromDB);
 
             // --- Lógica de Fecha Robusta ---
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
@@ -95,21 +91,16 @@ export async function registerPayment(
 
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
-                console.log(`[SERVER] [TRANSACCIÓN] Usando 'ultimoPago' como fecha base:`, baseDateForCalculation);
             } else if (contractStartDate && isValid(contractStartDate)) {
                 baseDateForCalculation = contractStartDate;
-                console.log(`[SERVER] [TRANSACCIÓN] 'ultimoPago' no es válido. Usando 'fechaInicioContrato' como fecha base:`, baseDateForCalculation);
             } else {
                 baseDateForCalculation = new Date(); // Fallback seguro
-                console.warn(`[SERVER] [TRANSACCIÓN] 'ultimoPago' y 'fechaInicioContrato' no son válidos. Usando fecha actual como fallback:`, baseDateForCalculation);
             }
 
             let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
-            console.log(`[SERVER] [TRANSACCIÓN] Siguiente fecha de pago calculada (antes del chequeo de pasado):`, newNextPaymentDate);
             
             if (isBefore(newNextPaymentDate, new Date())) {
                 newNextPaymentDate = addMonths(new Date(), mesesPagados);
-                console.warn(`[SERVER] [TRANSACCIÓN] La fecha calculada estaba en el pasado. Ajustada a:`, newNextPaymentDate);
             }
             // --- Fin de la Lógica de Fecha Robusta ---
 
@@ -129,7 +120,6 @@ export async function registerPayment(
             let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
             unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
             
-            console.log('[SERVER] [TRANSACCIÓN] Objeto de actualización para la unidad:', unitUpdateData);
             transaction.update(unitDocRef, unitUpdateData);
 
             const newPayment: Omit<Payment, 'id'> = {
@@ -140,7 +130,6 @@ export async function registerPayment(
                 ...paymentData,
             };
             const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
-            console.log('[SERVER] [TRANSACCIÓN] Objeto de nuevo pago a crear:', newPayment);
             transaction.set(paymentDocRef, newPayment);
             
             const fullUpdatedUnit = { ...unitDataFromDB, ...unitUpdateData };
@@ -149,8 +138,6 @@ export async function registerPayment(
         }
     });
     
-    console.log('[SERVER] Transacción completada con éxito.');
-
     /*
     try {
         if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
