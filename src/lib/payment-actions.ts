@@ -47,17 +47,38 @@ const convertTimestamps = (docData: any): any => {
 
 export async function registerPayment(
   data: PaymentFormInput,
-  unitIds: string[],
-  clientId: string
+  unitIds: unknown,
+  clientId: unknown
 ): Promise<{ success: boolean; message: string; units?: Unit[] }> {
+  // 1) Validar input del formulario
   const validation = PaymentFormSchema.safeParse(data);
-
   if (!validation.success) {
     return { success: false, message: 'Datos de pago no válidos.' };
   }
-  
-  if (!unitIds || !Array.isArray(unitIds) || unitIds.length === 0) {
-    return { success: false, message: 'No se seleccionó ninguna unidad válida.' };
+
+  // 2) Validar clientId
+  const safeClientId = typeof clientId === 'string' ? clientId.trim() : '';
+  if (!safeClientId) {
+    return { success: false, message: 'ID de cliente inválido o ausente.' };
+  }
+
+  // 3) Normalizar y validar unitIds
+  const arrayUnitIds = Array.isArray(unitIds) ? unitIds : [];
+  const cleanedUnitIds = arrayUnitIds
+    .map(u => (typeof u === 'string' ? u.trim() : ''))
+    .filter(u => u.length > 0);
+
+  // Opcional: detectar inválidos para mejor diagnóstico
+  const invalids = arrayUnitIds.filter(u => typeof u !== 'string' || !String(u).trim());
+  if (invalids.length > 0) {
+    console.error('[registerPayment] Se encontraron unitIds inválidos que fueron filtrados:', invalids);
+  }
+
+  // Quitar duplicados
+  const uniqueUnitIds = Array.from(new Set(cleanedUnitIds));
+
+  if (uniqueUnitIds.length === 0) {
+    return { success: false, message: 'No se seleccionó ninguna unidad válida para procesar.' };
   }
   
   try {
@@ -65,15 +86,19 @@ export async function registerPayment(
     const updatedUnitsForNotification: Unit[] = [];
     let processedCount = 0;
     
-    const clientDoc = await getDoc(doc(db, 'clients', clientId));
+    const clientDoc = await getDoc(doc(db, 'clients', safeClientId));
     if (!clientDoc.exists()) {
         return { success: false, message: 'El cliente especificado no existe.' };
     }
     const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
 
     await runTransaction(db, async (transaction) => {
-        for (const unitId of unitIds) {
-            const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
+        for (const unitId of uniqueUnitIds) {
+            if (!unitId) {
+              throw new Error('Encontrado unitId vacío durante la transacción.');
+            }
+
+            const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
 
             if (!unitSnapshot.exists()) {
@@ -123,12 +148,12 @@ export async function registerPayment(
 
             const newPayment: Omit<Payment, 'id'> = {
                 unitId: unitDataFromDB.id,
-                clientId,
+                clientId: safeClientId,
                 fechaPago,
                 mesesPagados,
                 ...paymentData,
             };
-            const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
+            const paymentDocRef = doc(collection(db, 'clients', safeClientId, 'units', unitDataFromDB.id, 'payments'));
             transaction.set(paymentDocRef, newPayment);
             
             const fullUpdatedUnit = { ...unitDataFromDB, ...unitUpdateData };
@@ -147,7 +172,7 @@ export async function registerPayment(
     }
     */
     
-    revalidatePath(`/clients/${clientId}/units`);
+    revalidatePath(`/clients/${safeClientId}/units`);
     revalidatePath('/');
     revalidatePath('/units');
     revalidatePath('/payments');
@@ -159,6 +184,7 @@ export async function registerPayment(
     };
 
   } catch (error) {
+    console.error('[registerPayment] Error en la transacción:', error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return { 
         success: false, 
