@@ -232,27 +232,25 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             }
             
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
-            const unitUpdate: Partial<Record<keyof Unit, any>> = {
-                fechaSiguientePago: subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados)
-            };
+            const unitUpdate: Partial<Record<keyof Unit, any>> = {};
+
+            // Safely revert the next payment date
+            if (unitData.fechaSiguientePago && isValid(new Date(unitData.fechaSiguientePago))) {
+                 unitUpdate.fechaSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
+            }
 
             if (unitData.tipoContrato === 'con_contrato') {
                 const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
                 unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
             } else {
-                unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
+                // Safely revert expiration date only if it exists
+                if (unitData.fechaVencimiento && isValid(new Date(unitData.fechaVencimiento))) {
+                    unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
+                }
             }
             
-            // Correctly find the new "ultimoPago" by querying all other payments for the unit
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const otherPaymentsQuery = query(
-                paymentsCollectionRef, 
-                where('__name__', '!=', paymentId),
-                orderBy('fechaPago', 'desc'),
-                limit(1)
-            );
-            
             const allPaymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
             const otherPayments = allPaymentsSnapshot.docs.filter(doc => doc.id !== paymentId);
 
@@ -278,5 +276,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
