@@ -141,13 +141,12 @@ export async function registerPayment(
         }
     });
 
-    // // Comentado para depuración
-    // if (clientData.ownerId) {
-    //     const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-    //     if (qyvooSettings?.apiKey && qyvooSettings.userId) {
-    //         await sendGroupedTemplatedWhatsAppMessage(clientData, updatedUnitsForNotification);
-    //     }
-    // }
+    if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
+        const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
+        if (qyvooSettings?.apiKey && qyvooSettings.userId) {
+            await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+        }
+    }
     
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/');
@@ -236,9 +235,10 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
             const unitUpdate: Partial<Record<keyof Unit, any>> = {};
-
-            if (unitData.fechaSiguientePago && isValid(new Date(unitData.fechaSiguientePago))) {
-                 unitUpdate.fechaSiguientePago = subMonths(new Date(unitData.fechaSiguientePago), paymentData.mesesPagados);
+            
+            const currentNextPaymentDate = unitData.fechaSiguientePago ? new Date(unitData.fechaSiguientePago) : null;
+            if (currentNextPaymentDate && isValid(currentNextPaymentDate)) {
+                 unitUpdate.fechaSiguientePago = subMonths(currentNextPaymentDate, paymentData.mesesPagados);
             }
 
             if (unitData.tipoContrato === 'con_contrato') {
@@ -246,17 +246,24 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
                 unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
             } else {
-                 if (unitData.fechaVencimiento && isValid(new Date(unitData.fechaVencimiento))) {
-                    unitUpdate.fechaVencimiento = subMonths(new Date(unitData.fechaVencimiento), paymentData.mesesPagados);
+                 const currentExpirationDate = unitData.fechaVencimiento ? new Date(unitData.fechaVencimiento) : null;
+                 if (currentExpirationDate && isValid(currentExpirationDate)) {
+                    unitUpdate.fechaVencimiento = subMonths(currentExpirationDate, paymentData.mesesPagados);
                 }
             }
             
+            // Correctly find the previous payment to set as the new 'ultimoPago'
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), where('__name__', '!=', paymentId), limit(1));
-            const allPaymentsSnapshot = await getDocs(q);
+            const q = query(
+                paymentsCollectionRef, 
+                where('fechaPago', '<', paymentData.fechaPago),
+                orderBy('fechaPago', 'desc'), 
+                limit(1)
+            );
+            const previousPaymentsSnapshot = await getDocs(q);
 
-            unitUpdate.ultimoPago = allPaymentsSnapshot.docs.length > 0
-                ? (allPaymentsSnapshot.docs[0].data().fechaPago as Timestamp).toDate()
+            unitUpdate.ultimoPago = previousPaymentsSnapshot.docs.length > 0
+                ? (previousPaymentsSnapshot.docs[0].data().fechaPago as Timestamp).toDate()
                 : null;
 
 
