@@ -30,6 +30,17 @@ export async function sendQyvooMessage(
     settings: QyvooSettings | null,
     logMetadata: { ownerId: string; clientId: string; clientName: string; }
 ): Promise<{ success: boolean; message: string }> {
+
+    // --- CRITICAL VALIDATION ---
+    // This is the root cause fix. Ensure phoneNumber is a valid string before proceeding.
+    if (!phoneNumber || typeof phoneNumber !== 'string' || phoneNumber.trim() === '') {
+        // Don't log this as an error, as it's an expected condition (client has no phone)
+        // The calling function (`sendGroupedTemplatedWhatsAppMessage`) already handles logging/messaging for this.
+        return { success: true, message: 'Operación omitida: No se proporcionó un número de teléfono válido.' };
+    }
+    // --- END CRITICAL VALIDATION ---
+
+
     const formattedNumber = formatPhoneNumber(phoneNumber);
     const logPayloadBase = {
         ownerId: logMetadata.ownerId,
