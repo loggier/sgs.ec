@@ -3,7 +3,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
+import { addMonths, subMonths, isBefore, startOfDay, isValid } from 'date-fns';
 import {
   collection,
   doc,
@@ -69,7 +69,6 @@ export async function registerPayment(
     await runTransaction(db, async (transaction) => {
         const unitsFromDB: { id: string; ref: any; data: Unit; }[] = [];
 
-        // 1. PHASE: READ ALL DOCUMENTS FIRST
         for (const unitId of unitIds) {
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
@@ -83,19 +82,22 @@ export async function registerPayment(
             });
         }
         
-        // 2. PHASE: CALCULATE AND WRITE ALL CHANGES
         for (const { ref: unitDocRef, data: unitDataFromDB } of unitsFromDB) {
-            // Use current date as a fallback if fechaSiguientePago is missing
-            let newNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
+            // --- CRITICAL DATE VALIDATION ---
+            const nextPaymentDateCandidate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : new Date();
+            let baseNextPaymentDate = isValid(nextPaymentDateCandidate) ? nextPaymentDateCandidate : new Date();
             
-            // If the next payment date is in the past, start calculating from today
-            if(isBefore(newNextPaymentDate, new Date())) {
-                newNextPaymentDate = new Date();
+            if (isBefore(baseNextPaymentDate, startOfDay(new Date()))) {
+                baseNextPaymentDate = new Date();
             }
 
-            let newExpirationDate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
+            const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : new Date();
+            let baseExpirationDate = isValid(expirationDateCandidate) ? expirationDateCandidate : new Date();
+            // --- END VALIDATION ---
 
-            // Calculate new dates by adding one month at a time
+            let newNextPaymentDate = baseNextPaymentDate;
+            let newExpirationDate = baseExpirationDate;
+
             for (let i = 0; i < mesesPagados; i++) {
                 newNextPaymentDate = addMonths(newNextPaymentDate, 1);
                 if (unitDataFromDB.tipoContrato !== 'con_contrato') {
@@ -129,19 +131,17 @@ export async function registerPayment(
             const paymentDocRef = doc(collection(db, 'clients', clientId, 'units', unitDataFromDB.id, 'payments'));
             transaction.set(paymentDocRef, newPayment);
             
-            // Construct the full, updated unit object for notifications
-            updatedUnitsForNotification.push({ ...unitDataFromDB, ...unitUpdateData });
+            const fullUpdatedUnit = { ...unitDataFromDB, ...unitUpdateData };
+            updatedUnitsForNotification.push(fullUpdatedUnit);
             processedCount++;
         }
     });
 
-    // Post-transaction logic: Send notification only if possible
     const clientDoc = await getDoc(doc(db, 'clients', clientId));
     if (clientDoc.exists()) {
         const clientData = clientDoc.data() as Client;
         if (clientData.ownerId) {
             const qyvooSettings = await getQyvooSettingsForUser(clientData.ownerId);
-            // Only attempt to send if settings and phone number exist.
             if (qyvooSettings?.apiKey && qyvooSettings.userId && clientData.telefono) {
                 await sendGroupedTemplatedWhatsAppMessage('payment_received', clientId, updatedUnitsForNotification);
             }
@@ -252,8 +252,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 orderBy('fechaPago', 'desc'),
                 limit(1)
             );
-            // This needs to be done outside the transaction's read phase, but we can do it before.
-            // Let's adjust the logic. We will read all payments first.
             
             const allPaymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
             const otherPayments = allPaymentsSnapshot.docs.filter(doc => doc.id !== paymentId);
@@ -280,3 +278,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
