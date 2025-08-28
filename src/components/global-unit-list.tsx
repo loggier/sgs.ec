@@ -448,6 +448,7 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
               {selectedUnit && (
                   <PaymentForm 
                       unit={selectedUnit}
+                      clientId={selectedUnit.clientId}
                       onSave={handleSuccess}
                       onCancel={() => setIsPaymentDialogOpen(false)}
                   />

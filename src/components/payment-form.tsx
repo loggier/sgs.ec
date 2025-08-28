@@ -35,11 +35,12 @@ import { Calendar } from '@/components/ui/calendar';
 
 type PaymentFormProps = {
   unit: Unit;
+  clientId: string;
   onSave: () => void;
   onCancel: () => void;
 };
 
-export default function PaymentForm({ unit, onSave, onCancel }: PaymentFormProps) {
+export default function PaymentForm({ unit, clientId, onSave, onCancel }: PaymentFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -71,8 +72,7 @@ export default function PaymentForm({ unit, onSave, onCancel }: PaymentFormProps
   async function onSubmit(values: PaymentFormInput) {
     setIsSubmitting(true);
     try {
-      // registerPayment now accepts an array of unit IDs
-      const result = await registerPayment(values, [unit.id], unit.clientId);
+      const result = await registerPayment(values, [unit.id], clientId);
       if (result.success && result.units?.length) {
         toast({
           title: 'Éxito',

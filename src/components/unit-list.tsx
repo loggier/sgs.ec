@@ -493,6 +493,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               {selectedUnit && (
                   <PaymentForm 
                       unit={selectedUnit}
+                      clientId={clientId}
                       onSave={handleSuccess}
                       onCancel={() => setIsPaymentDialogOpen(false)}
                   />
