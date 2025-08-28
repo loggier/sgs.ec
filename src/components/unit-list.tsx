@@ -401,7 +401,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                         </div>
                     </TableCell>
                     <TableCell>
-                        {unit.fechaSuspension ? formatDateSafe(unit.fechaSuspension) : 'N/A'}
+                        {unit.estaSuspendido ? formatDateSafe(unit.fechaSuspension) : 'N/A'}
                     </TableCell>
                     <TableCell>
                        <div className="font-medium capitalize">{planDisplayNames[unit.tipoPlan]}</div>
