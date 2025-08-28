@@ -109,9 +109,10 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   
   async function onSubmit(values: BatchPaymentFormInput) {
     setIsSubmitting(true);
+    console.log(values.unitIds, clientId);
     try {
       const result = await registerPayment(values, values.unitIds, clientId);
-      
+      console.log(result  );
       if (result.success) {
         toast({
           title: 'Éxito',

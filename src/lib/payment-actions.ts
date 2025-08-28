@@ -47,13 +47,14 @@ const convertTimestamps = (docData: any): any => {
 
 export async function registerPayment(
   data: PaymentFormInput,
-  unitIds: unknown,
-  clientId: unknown
+  unitIds: string[],
+  clientId: string
 ): Promise<{ success: boolean; message: string; units?: Unit[] }> {
   // 1) Validar input del formulario
   const validation = PaymentFormSchema.safeParse(data);
   if (!validation.success) {
     const firstError = validation.error.errors[0]?.message || 'Datos de pago no válidos.';
+    console.error('[DIAGNOSTICO] Falló la validación de PaymentFormSchema:', validation.error.flatten());
     return { success: false, message: firstError };
   }
 
@@ -61,7 +62,7 @@ export async function registerPayment(
   const safeClientId = typeof clientId === 'string' ? clientId.trim() : '';
   if (!safeClientId) {
     console.error('[DIAGNOSTICO] registerPayment falló porque safeClientId está vacío. clientId recibido:', clientId);
-    return { success: false, message: "Error Crítico: El 'clientId' es undefined o vacío. No se puede continuar." };
+    throw new Error("Error Crítico: El 'clientId' es undefined o vacío. No se puede continuar.");
   }
 
   // 3) Normalizar y validar unitIds de forma agresiva
@@ -73,127 +74,113 @@ export async function registerPayment(
   const uniqueUnitIds = Array.from(new Set(cleanedUnitIds));
 
   if (uniqueUnitIds.length === 0) {
+    console.error('[DIAGNOSTICO] No se seleccionó ninguna unidad válida. unitIds recibidos:', unitIds);
     return { success: false, message: 'No se seleccionó ninguna unidad válida para procesar el pago.' };
   }
   
-  try {
-    const { fechaPago, mesesPagados, ...paymentData } = validation.data;
-    const updatedUnitsForNotification: Unit[] = [];
-    let processedCount = 0;
-    
-    const clientDocRef = doc(db, 'clients', safeClientId);
-    const clientDoc = await getDoc(clientDocRef);
-    if (!clientDoc.exists()) {
-        return { success: false, message: 'El cliente especificado no existe.' };
-    }
-    const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
-
-    await runTransaction(db, async (transaction) => {
-        for (const unitId of uniqueUnitIds) {
-            // Guarda defensiva final
-            if (!unitId) {
-                console.error('[DIAGNOSTICO] registerPayment falló porque un unitId está vacío. unitIds recibidos:', uniqueUnitIds);
-                throw new Error("Error Crítico: Una de las 'unitId' es undefined o vacía. No se puede continuar.");
-            }
-
-            const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
-            const unitSnapshot = await transaction.get(unitDocRef);
-
-            if (!unitSnapshot.exists()) {
-                throw new Error(`La unidad con ID ${unitId} no fue encontrada. La operación fue cancelada.`);
-            }
-
-            const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
-
-            // --- Lógica de Fecha Blindada ---
-            const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
-            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
-            
-            let baseDateForCalculation: Date;
-
-            if (lastPaymentDate && isValid(lastPaymentDate)) {
-                baseDateForCalculation = lastPaymentDate;
-            } else if (contractStartDate && isValid(contractStartDate)) {
-                baseDateForCalculation = contractStartDate; 
-            } else {
-                 throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
-            }
-
-            let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
-            
-            // If calculated next payment is still in the past, calculate from today
-            if (isBefore(newNextPaymentDate, startOfDay(new Date()))) {
-                newNextPaymentDate = addMonths(new Date(), mesesPagados);
-            }
-            // --- Fin de la Lógica de Fecha Blindada ---
-
-            const unitUpdateData: Partial<Record<keyof Unit, any>> = {
-                ultimoPago: fechaPago,
-                fechaSiguientePago: newNextPaymentDate,
-            };
-            
-            if (unitDataFromDB.tipoContrato === 'con_contrato') {
-                const monthlyCost = (unitDataFromDB.costoTotalContrato ?? 0) / (unitDataFromDB.mesesContrato ?? 1);
-                const paymentAmountForBalance = monthlyCost * mesesPagados;
-                const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
-                unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
-            }
-            
-            const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
-            let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
-            if (isBefore(baseExpirationDate, startOfDay(new Date()))) {
-                baseExpirationDate = new Date();
-            }
-            unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
-            
-            transaction.update(unitDocRef, unitUpdateData);
-
-            const newPayment: Omit<Payment, 'id'> = {
-                unitId: unitDataFromDB.id,
-                clientId: safeClientId,
-                fechaPago,
-                mesesPagados,
-                ...paymentData,
-            };
-            const paymentDocRef = doc(collection(db, 'clients', safeClientId, 'units', unitDataFromDB.id, 'payments'));
-            transaction.set(paymentDocRef, newPayment);
-            
-            const fullUpdatedUnit = { ...unitDataFromDB, ...unitUpdateData };
-            updatedUnitsForNotification.push(fullUpdatedUnit);
-            processedCount++;
-        }
-    });
-    
-    // The notification block is commented out as requested in previous steps.
-    /*
-    try {
-        if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
-            await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
-        }
-    } catch (notificationError) {
-        console.error("[SERVER] Error en el bloque de notificación (se ignora para no afectar al usuario):", notificationError);
-    }
-    */
-    
-    revalidatePath(`/clients/${safeClientId}/units`);
-    revalidatePath('/');
-    revalidatePath('/units');
-    revalidatePath('/payments');
-
-    return { 
-        success: true, 
-        message: `${processedCount} pago(s) registrado(s) con éxito.`, 
-        units: updatedUnitsForNotification
-    };
-
-  } catch (error) {
-    console.error('[registerPayment] Error en la transacción:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido al procesar el pago.';
-    return { 
-        success: false, 
-        message: `Error al registrar el pago: ${errorMessage}` 
-    };
+  const { fechaPago, mesesPagados, ...paymentData } = validation.data;
+  const updatedUnitsForNotification: Unit[] = [];
+  let processedCount = 0;
+  
+  const clientDocRef = doc(db, 'clients', safeClientId);
+  const clientDoc = await getDoc(clientDocRef);
+  if (!clientDoc.exists()) {
+      return { success: false, message: 'El cliente especificado no existe.' };
   }
+  const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
+
+  await runTransaction(db, async (transaction) => {
+      for (const unitId of uniqueUnitIds) {
+          if (!unitId) {
+              throw new Error("Error Crítico: Una de las 'unitId' es undefined o vacía. No se puede continuar.");
+          }
+
+          const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
+          const unitSnapshot = await transaction.get(unitDocRef);
+
+          if (!unitSnapshot.exists()) {
+              throw new Error(`La unidad con ID ${unitId} no fue encontrada. La operación fue cancelada.`);
+          }
+
+          const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
+
+          const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
+          const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
+          
+          let baseDateForCalculation: Date;
+
+          if (lastPaymentDate && isValid(lastPaymentDate)) {
+              baseDateForCalculation = lastPaymentDate;
+          } else if (contractStartDate && isValid(contractStartDate)) {
+              baseDateForCalculation = contractStartDate; 
+          } else {
+               throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
+          }
+
+          let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
+          
+          if (isBefore(newNextPaymentDate, startOfDay(new Date()))) {
+              newNextPaymentDate = addMonths(new Date(), mesesPagados);
+          }
+
+          const unitUpdateData: Partial<Record<keyof Unit, any>> = {
+              ultimoPago: fechaPago,
+              fechaSiguientePago: newNextPaymentDate,
+          };
+          
+          if (unitDataFromDB.tipoContrato === 'con_contrato') {
+              const monthlyCost = (unitDataFromDB.costoTotalContrato ?? 0) / (unitDataFromDB.mesesContrato ?? 1);
+              const paymentAmountForBalance = monthlyCost * mesesPagados;
+              const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
+              unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
+          }
+          
+          const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
+          let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
+          if (isBefore(baseExpirationDate, startOfDay(new Date()))) {
+              baseExpirationDate = new Date();
+          }
+          unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
+          
+          transaction.update(unitDocRef, unitUpdateData);
+
+          const newPayment: Omit<Payment, 'id'> = {
+              unitId: unitDataFromDB.id,
+              clientId: safeClientId,
+              fechaPago,
+              mesesPagados,
+              ...paymentData,
+          };
+          const paymentDocRef = doc(collection(db, 'clients', safeClientId, 'units', unitDataFromDB.id, 'payments'));
+          transaction.set(paymentDocRef, newPayment);
+          
+          const fullUpdatedUnit = { ...unitDataFromDB, ...unitUpdateData };
+          updatedUnitsForNotification.push(fullUpdatedUnit);
+          processedCount++;
+      }
+  });
+  
+  // El bloque de notificación está comentado para aislar el problema
+  /*
+  try {
+      if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
+          await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+      }
+  } catch (notificationError) {
+      console.error("[SERVER] Error en el bloque de notificación (se ignora para no afectar al usuario):", notificationError);
+  }
+  */
+  
+  revalidatePath(`/clients/${safeClientId}/units`);
+  revalidatePath('/');
+  revalidatePath('/units');
+  revalidatePath('/payments');
+
+  return { 
+      success: true, 
+      message: `${processedCount} pago(s) registrado(s) con éxito.`, 
+      units: updatedUnitsForNotification
+  };
 }
 
 

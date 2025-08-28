@@ -72,6 +72,7 @@ export default function PaymentForm({ unit, clientId, onSave, onCancel }: Paymen
 
   async function onSubmit(values: PaymentFormInput) {
     setIsSubmitting(true);
+    console.log(clientId);
     try {
       // Pass the explicit clientId prop instead of unit.clientId
       const result = await registerPayment(values, [unit.id], clientId);
@@ -89,6 +90,7 @@ export default function PaymentForm({ unit, clientId, onSave, onCancel }: Paymen
         });
       }
     } catch (error) {
+      console.log(error);
       toast({
         title: 'Error Inesperado',
         description: 'Ocurrió un error inesperado al registrar el pago.',
