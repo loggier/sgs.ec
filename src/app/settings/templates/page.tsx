@@ -115,6 +115,14 @@ function MessageTemplatesPageContent() {
     setIsDeleteDialogOpen(false);
     setSelectedTemplate(null);
   };
+  
+  const canManageTemplate = (template: MessageTemplate) => {
+      if (!user) return false;
+      if (template.isGlobal) {
+          return user.role === 'master';
+      }
+      return true; // Personal templates are always manageable by the owner
+  }
 
   if (authLoading || isLoading) {
     return (
@@ -184,7 +192,7 @@ function MessageTemplatesPageContent() {
                             <p className="line-clamp-2 max-w-sm text-muted-foreground">{template.content}</p>
                         </TableCell>
                         <TableCell>
-                         {!template.isGlobal && (
+                         {canManageTemplate(template) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -196,9 +204,11 @@ function MessageTemplatesPageContent() {
                                 <DropdownMenuItem onClick={() => handleEdit(template)}>
                                   <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDelete(template)} className="text-red-600">
-                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                </DropdownMenuItem>
+                                {!template.isGlobal && (
+                                  <DropdownMenuItem onClick={() => handleDelete(template)} className="text-red-600">
+                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                  </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                          )}

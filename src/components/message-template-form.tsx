@@ -47,9 +47,10 @@ export default function MessageTemplateForm({ template, onSave, onCancel }: Mess
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const isEditingGlobal = template?.isGlobal ?? false;
   
   const form = useForm<MessageTemplateFormInput>({
-    resolver: zodResolver(MessageTemplateSchema.omit({id: true, isGlobal: true})),
+    resolver: zodResolver(MessageTemplateSchema.omit({id: true})),
     defaultValues: template
       ? { ...template }
       : {
@@ -57,6 +58,7 @@ export default function MessageTemplateForm({ template, onSave, onCancel }: Mess
           eventType: 'payment_reminder',
           content: '',
           ownerId: user?.id,
+          isGlobal: false,
         },
   });
 
@@ -94,7 +96,7 @@ export default function MessageTemplateForm({ template, onSave, onCancel }: Mess
                 <FormItem>
                   <FormLabel>Nombre de la Plantilla</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ej. Recordatorio de Pago Amistoso" {...field} />
+                    <Input placeholder="Ej. Recordatorio de Pago Amistoso" {...field} disabled={isEditingGlobal} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -107,7 +109,7 @@ export default function MessageTemplateForm({ template, onSave, onCancel }: Mess
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo de Evento</FormLabel>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isEditingGlobal}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccione un evento" />

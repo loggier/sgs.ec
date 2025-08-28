@@ -125,7 +125,7 @@ async function ensureGlobalTemplatesExist() {
     const globalSnapshot = await getDocs(globalTemplatesQuery);
 
     if (globalSnapshot.empty) {
-        console.log("No global templates found. Creating defaults...");
+        console.log("No global templates found. Creating defaults in DB...");
 
         const batch = writeBatch(db);
         const defaultTemplates: Omit<MessageTemplate, 'id'>[] = [
@@ -143,7 +143,7 @@ async function ensureGlobalTemplatesExist() {
         });
         
         await batch.commit();
-        console.log("Default global templates created.");
+        console.log("Default global templates created in Firestore.");
     }
 }
 
@@ -157,24 +157,43 @@ export async function saveMessageTemplate(
         return { success: false, message: 'No tiene permiso para guardar plantillas.' };
     }
     
-    const validation = MessageTemplateSchema.omit({id: true, isGlobal: true}).safeParse(data);
+    const validation = MessageTemplateSchema.omit({id: true}).safeParse(data);
     if (!validation.success) {
         return { success: false, message: 'Datos de plantilla no válidos.' };
     }
     
-    const dataToSave = { ...validation.data, ownerId: user.id, isGlobal: false };
+    const dataToSave = { ...validation.data };
     
     try {
         if (templateId) {
             const templateDocRef = doc(db, TEMPLATES_COLLECTION, templateId);
+            const templateDoc = await getDoc(templateDocRef);
+            
+            if (!templateDoc.exists()) {
+                return { success: false, message: 'La plantilla que intenta editar no existe.' };
+            }
+            const existingTemplate = templateDoc.data() as MessageTemplate;
+
+            // Permission check: only masters can edit global templates
+            if (existingTemplate.isGlobal && user.role !== 'master') {
+                 return { success: false, message: 'No tiene permiso para editar una plantilla global.' };
+            }
+            
+            // Personal templates can only be edited by their owners.
+            if (!existingTemplate.isGlobal && existingTemplate.ownerId !== user.id) {
+                return { success: false, message: 'No tiene permiso para editar esta plantilla.' };
+            }
+
             await setDoc(templateDocRef, dataToSave, { merge: true });
             revalidatePath('/settings/templates');
             return { success: true, message: 'Plantilla actualizada con éxito.', template: { id: templateId, ...dataToSave } };
         } else {
+             // For new templates, assign owner and set isGlobal to false.
+            const newData = { ...dataToSave, ownerId: user.id, isGlobal: false };
             const templateCollectionRef = collection(db, TEMPLATES_COLLECTION);
-            const newDocRef = await addDoc(templateCollectionRef, dataToSave);
+            const newDocRef = await addDoc(templateCollectionRef, newData);
             revalidatePath('/settings/templates');
-            return { success: true, message: 'Plantilla creada con éxito.', template: { id: newDocRef.id, ...dataToSave } };
+            return { success: true, message: 'Plantilla creada con éxito.', template: { id: newDocRef.id, ...newData } };
         }
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
@@ -222,19 +241,28 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
         const ownerId = (user.role === 'analista' && user.creatorId) ? user.creatorId : userId;
         
         const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
-        const personalTemplatesQuery = query(templatesCollectionRef, where('ownerId', '==', ownerId));
-        let personalSnapshot = await getDocs(personalTemplatesQuery);
-
-        // If the user is a manager/master and has no templates, create them.
-        if (personalSnapshot.empty && ['master', 'manager'].includes(user.role)) {
-            await copyGlobalTemplatesForUser(ownerId);
-            // Re-fetch the personal templates after they've been created.
-            personalSnapshot = await getDocs(personalTemplatesQuery);
+        
+        // Ensure global templates exist in the DB for everyone.
+        await ensureGlobalTemplatesExist();
+        
+        // For managers/masters, ensure they have a personal copy of the templates.
+        if (['master', 'manager'].includes(user.role)) {
+            const personalTemplatesQuery = query(templatesCollectionRef, where('ownerId', '==', ownerId));
+            const personalSnapshot = await getDocs(personalTemplatesQuery);
+            if (personalSnapshot.empty) {
+                await copyGlobalTemplatesForUser(ownerId);
+            }
         }
         
+        // Everyone gets to see the global templates and their own personal templates (or their manager's).
+        const personalTemplatesQuery = query(templatesCollectionRef, where('ownerId', '==', ownerId));
         const globalTemplatesQuery = query(templatesCollectionRef, where('isGlobal', '==', true));
-        const globalSnapshot = await getDocs(globalTemplatesQuery);
-        
+
+        const [personalSnapshot, globalSnapshot] = await Promise.all([
+            getDocs(personalTemplatesQuery),
+            getDocs(globalTemplatesQuery)
+        ]);
+
         const templatesMap = new Map<TemplateEventType, MessageTemplate>();
         
         // Load global templates first as a base

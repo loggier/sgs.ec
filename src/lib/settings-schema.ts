@@ -41,7 +41,7 @@ export const MessageTemplateSchema = z.object({
     isGlobal: z.boolean().optional(), // Flag to mark as a global/default template
 });
 export type MessageTemplate = z.infer<typeof MessageTemplateSchema>;
-export type MessageTemplateFormInput = Omit<MessageTemplate, 'id' | 'isGlobal'>;
+export type MessageTemplateFormInput = Omit<MessageTemplate, 'id'>;
 
 export const templateEventLabels: Record<TemplateEventType, string> = {
     payment_reminder: 'Recordatorio de Pago Próximo',
