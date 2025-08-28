@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -57,19 +58,18 @@ export async function registerPayment(
     return { success: false, message: firstError };
   }
 
-  // 2) Validar clientId
+  // 2) Validar clientId de forma agresiva
   const safeClientId = typeof clientId === 'string' ? clientId.trim() : '';
   if (!safeClientId) {
     return { success: false, message: 'ID de cliente inválido o ausente. No se puede registrar el pago.' };
   }
 
-  // 3) Normalizar y validar unitIds
+  // 3) Normalizar y validar unitIds de forma agresiva
   const arrayUnitIds = Array.isArray(unitIds) ? unitIds : [];
   const cleanedUnitIds = arrayUnitIds
     .map(u => (typeof u === 'string' ? u.trim() : ''))
     .filter(u => u.length > 0);
 
-  // Quitar duplicados
   const uniqueUnitIds = Array.from(new Set(cleanedUnitIds));
 
   if (uniqueUnitIds.length === 0) {
@@ -89,9 +89,9 @@ export async function registerPayment(
 
     await runTransaction(db, async (transaction) => {
         for (const unitId of uniqueUnitIds) {
-            if (!unitId) {
-              // This check is belt-and-suspenders, should be caught by filter above.
-              throw new Error('Se encontró un ID de unidad vacío durante la transacción.');
+            // Guarda defensiva final
+            if (!unitId || typeof unitId !== 'string') {
+              throw new Error(`Se encontró un ID de unidad inválido ("${unitId}") durante la transacción.`);
             }
 
             const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
@@ -103,29 +103,28 @@ export async function registerPayment(
 
             const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
 
-            // --- Lógica de Fecha Robusta (implementando la regla del usuario) ---
-            const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
+            // --- Lógica de Fecha Blindada ---
             const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
+            if (!contractStartDate || !isValid(contractStartDate)) {
+                 throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
+            }
+
+            const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
             
             let baseDateForCalculation: Date;
 
-            // Validate and choose the base date for calculation as per user's logic
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
-            } else if (contractStartDate && isValid(contractStartDate)) {
-                baseDateForCalculation = contractStartDate; // User's rule: if no last payment, use start date.
             } else {
-                // Fail-fast if no valid base date is found.
-                throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
+                baseDateForCalculation = contractStartDate; // Tu lógica: si no hay último pago, usar la fecha de inicio
             }
 
             let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
             
-            // If the calculated next payment date is in the past, base it on today's date instead.
             if (isBefore(newNextPaymentDate, startOfDay(new Date()))) {
                 newNextPaymentDate = addMonths(new Date(), mesesPagados);
             }
-            // --- Fin de la Lógica de Fecha Robusta ---
+            // --- Fin de la Lógica de Fecha Blindada ---
 
             const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                 ultimoPago: fechaPago,
@@ -139,7 +138,6 @@ export async function registerPayment(
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
             }
             
-            // Recalculate expiration date
             const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
             let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
             if (isBefore(baseExpirationDate, startOfDay(new Date()))) {
