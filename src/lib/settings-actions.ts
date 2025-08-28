@@ -186,6 +186,7 @@ export async function saveMessageTemplate(
 
             await setDoc(templateDocRef, dataToSave, { merge: true });
             revalidatePath('/settings/templates');
+            revalidatePath('/settings/templates/global');
             return { success: true, message: 'Plantilla actualizada con éxito.', template: { id: templateId, ...dataToSave } };
         } else {
              // For new templates, assign owner and set isGlobal to false.
@@ -284,6 +285,21 @@ export async function getMessageTemplatesForUser(userId: string): Promise<Messag
         return [];
     }
 }
+
+export async function getGlobalMessageTemplates(): Promise<MessageTemplate[]> {
+    try {
+        await ensureGlobalTemplatesExist();
+        const templatesCollectionRef = collection(db, TEMPLATES_COLLECTION);
+        const q = query(templatesCollectionRef, where('isGlobal', '==', true));
+        const snapshot = await getDocs(q);
+        
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MessageTemplate));
+    } catch(error) {
+        console.error("Error fetching global message templates:", error);
+        return [];
+    }
+}
+
 
 export async function deleteMessageTemplate(templateId: string, user: User): Promise<{ success: boolean; message: string }> {
     if (!['master', 'manager'].includes(user.role)) {

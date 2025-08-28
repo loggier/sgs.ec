@@ -83,17 +83,32 @@ function SettingsPageContent() {
             </div>
           </TabsContent>
           <TabsContent value="templates">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Plantillas de Mensajes de WhatsApp</CardTitle>
-                    <CardDescription>
-                       Gestione sus plantillas personales para las notificaciones automáticas y manuales enviadas a través de Qyvoo.
-                       <Link href="/settings/templates" className="text-primary hover:underline ml-2">
-                            Ir al gestor de plantillas
-                       </Link>
-                    </CardDescription>
-                </CardHeader>
-            </Card>
+             <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Plantillas de Mensajes Personales</CardTitle>
+                        <CardDescription>
+                           Gestione sus plantillas personales para las notificaciones automáticas y manuales enviadas a través de Qyvoo. Si no crea una plantilla personal, se usará la plantilla global por defecto.
+                           <Link href="/settings/templates" className="text-primary hover:underline ml-2">
+                                Ir al gestor de plantillas personales
+                           </Link>
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+                {user.role === 'master' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Plantillas de Mensajes Globales</CardTitle>
+                            <CardDescription>
+                               Edite las plantillas de mensajes que se usarán por defecto en toda la aplicación para los usuarios que no hayan configurado las suyas.
+                               <Link href="/settings/templates/global" className="text-primary hover:underline ml-2">
+                                    Ir al gestor de plantillas globales
+                               </Link>
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                )}
+             </div>
           </TabsContent>
         </Tabs>
       </div>

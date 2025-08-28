@@ -66,7 +66,10 @@ function MessageTemplatesPageContent() {
     setIsLoading(true);
     try {
       const data = await getMessageTemplatesForUser(user.id);
-      setTemplates(data);
+      // For this page, we only care about personal templates or the fallbacks.
+      // We filter out the editable global ones for the master role to avoid confusion.
+      const personalTemplates = data.filter(t => !t.isGlobal || (t.isGlobal && user.role !== 'master'));
+      setTemplates(personalTemplates);
     } catch (error) {
       console.error("Failed to fetch templates:", error);
       toast({ title: "Error", description: "No se pudieron cargar las plantillas.", variant: "destructive" });
@@ -118,10 +121,8 @@ function MessageTemplatesPageContent() {
   
   const canManageTemplate = (template: MessageTemplate) => {
       if (!user) return false;
-      if (template.isGlobal) {
-          return user.role === 'master';
-      }
-      return true; // Personal templates are always manageable by the owner
+      // You can only manage templates that are NOT global on this page
+      return !template.isGlobal;
   }
 
   if (authLoading || isLoading) {
@@ -146,17 +147,17 @@ function MessageTemplatesPageContent() {
 
   return (
     <>
-      <Header title="Plantillas de Mensajes" showBackButton backButtonHref="/settings" />
+      <Header title="Plantillas de Mensajes Personales" showBackButton backButtonHref="/settings" />
        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Gestor de Plantillas</CardTitle>
+                  <CardTitle>Gestor de Plantillas Personales</CardTitle>
                   <CardDescription>Cree y edite sus plantillas para notificaciones. Las plantillas globales se usarán si no existe una personal.</CardDescription>
                 </div>
                   <Button onClick={handleAdd} size="sm">
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Nueva Plantilla
+                      Nueva Plantilla Personal
                   </Button>
             </div>
           </CardHeader>
@@ -180,9 +181,18 @@ function MessageTemplatesPageContent() {
                         <TableCell className="font-medium flex items-center gap-2">
                             {template.name}
                             {template.isGlobal && (
-                                <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                                    <Globe className="mr-1 h-3 w-3"/> Global
-                                </Badge>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                                                <Globe className="mr-1 h-3 w-3"/> Global (Por defecto)
+                                            </Badge>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Esta es una plantilla global y se usa porque no has creado una personal.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             )}
                         </TableCell>
                         <TableCell>
@@ -204,11 +214,9 @@ function MessageTemplatesPageContent() {
                                 <DropdownMenuItem onClick={() => handleEdit(template)}>
                                   <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
-                                {!template.isGlobal && (
                                   <DropdownMenuItem onClick={() => handleDelete(template)} className="text-red-600">
                                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                                   </DropdownMenuItem>
-                                )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                          )}
@@ -231,7 +239,7 @@ function MessageTemplatesPageContent() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-2xl w-full">
           <SheetHeader>
-            <SheetTitle>{selectedTemplate ? 'Editar Plantilla' : 'Nueva Plantilla'}</SheetTitle>
+            <SheetTitle>{selectedTemplate ? 'Editar Plantilla Personal' : 'Nueva Plantilla Personal'}</SheetTitle>
           </SheetHeader>
           <MessageTemplateForm
             template={selectedTemplate}
