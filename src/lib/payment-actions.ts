@@ -108,7 +108,7 @@ export async function registerPayment(
 
             const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
 
-            // --- Lógica de Fecha Robusta ---
+            // --- Lógica de Fecha Robusta (implementando la regla del usuario) ---
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
             const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
             
@@ -117,13 +117,14 @@ export async function registerPayment(
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
             } else if (contractStartDate && isValid(contractStartDate)) {
-                baseDateForCalculation = contractStartDate;
+                baseDateForCalculation = contractStartDate; // Regla del usuario: si no hay último pago, usar la fecha de inicio.
             } else {
-                baseDateForCalculation = new Date(); // Fallback seguro
+                baseDateForCalculation = new Date(); // Fallback de seguridad definitivo.
             }
 
             let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
             
+            // Si la nueva fecha de pago calculada ya pasó, basarla en la fecha de hoy.
             if (isBefore(newNextPaymentDate, new Date())) {
                 newNextPaymentDate = addMonths(new Date(), mesesPagados);
             }
@@ -318,5 +319,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
