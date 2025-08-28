@@ -526,7 +526,7 @@ export async function updateUnitStatus(
 
     // Send notification
     const eventType = suspend ? 'service_suspended' : 'service_reactivated';
-    await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, [{ id: unitId, ...unitData, ...updateData } as Unit]);
+    // await sendGroupedTemplatedWhatsAppMessage(eventType, clientData, [{ id: unitId, ...unitData, ...updateData } as Unit]);
 
     // Revalidate paths to refresh data on the client
     revalidatePath(`/clients/${clientId}/units`);
@@ -576,8 +576,11 @@ export async function bulkUpdateUnitPgpsStatus(
             }
             const unitDoc = await getDoc(unitDocRef);
             if (unitDoc.exists()) {
-                const fullUnitData = { id: unitId, clientId, ...unitDoc.data(), ...updateData } as Unit;
-                unitsByClient[clientId].push(fullUnitData);
+                 const clientDoc = await getDoc(doc(db, 'clients', clientId)); // Fetch client for notification
+                 if (clientDoc.exists()) {
+                    const fullUnitData = { id: unitId, clientId, ...unitDoc.data(), ...updateData } as Unit;
+                    unitsByClient[clientId].push(fullUnitData);
+                 }
             }
 
             successCount++;
@@ -597,7 +600,10 @@ export async function bulkUpdateUnitPgpsStatus(
         // Send grouped notifications after successful batch commit
         for(const clientId in unitsByClient) {
             if (unitsByClient[clientId].length > 0) {
-                 await sendGroupedTemplatedWhatsAppMessage(eventType, clientId, unitsByClient[clientId]);
+                 const clientDoc = await getDoc(doc(db, 'clients', clientId));
+                 if (clientDoc.exists()) {
+                    // await sendGroupedTemplatedWhatsAppMessage(eventType, clientDoc.data() as Client, unitsByClient[clientId]);
+                 }
             }
         }
 
