@@ -3,7 +3,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths, isBefore } from 'date-fns';
+import { addMonths, isBefore, isValid } from 'date-fns';
 import {
   collection,
   getDocs,
@@ -29,11 +29,16 @@ import axios from 'axios';
 const convertTimestamps = (docData: any) => {
   const data: { [key: string]: any } = {};
   for (const key in docData) {
-      if (docData[key] instanceof Timestamp) {
-          // Convert Timestamp to ISO string for serialization
-          data[key] = docData[key].toDate().toISOString();
+      const value = docData[key];
+      if (value instanceof Timestamp) {
+          data[key] = value.toDate().toISOString();
       } else {
-          data[key] = docData[key];
+          // This will handle nested objects, though it's not strictly necessary for the current structure.
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+              data[key] = convertTimestamps(value);
+          } else {
+              data[key] = value;
+          }
       }
   }
   return data;
@@ -98,6 +103,11 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
       const data = convertTimestamps(doc.data());
       let unit: Unit = { id: doc.id, clientId, ...data } as Unit;
 
+      // Ensure fechaSuspension is a string if it exists
+      if (data.fechaSuspension) {
+          unit.fechaSuspension = data.fechaSuspension;
+      }
+      
       // Enrich with P. GPS device status if linked
       if (unit.pgpsDeviceId) {
         const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
@@ -122,6 +132,11 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
 
     const data = convertTimestamps(unitDoc.data());
     let unit: Unit = { id: unitDoc.id, clientId, ...data } as Unit;
+
+     // Ensure fechaSuspension is a string if it exists
+    if (data.fechaSuspension) {
+        unit.fechaSuspension = data.fechaSuspension;
+    }
 
     // Enrich with P. GPS device status if linked
     if (unit.pgpsDeviceId) {
@@ -634,3 +649,5 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
+
+    
