@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -77,40 +78,31 @@ export async function registerPayment(
         const updatedUnitsForNotification: Unit[] = [];
         let processedCount = 0;
 
-        // The transaction logic is now split into a "read" phase and a "write" phase.
         await runTransaction(db, async (transaction) => {
             // --- READ PHASE ---
-            // First, read all necessary documents.
-            const unitSnapshots = await Promise.all(
-                uniqueUnitIds.map(unitId => {
-                    if (!unitId) { // Defensive check
-                        throw new Error('Se encontró un unitId vacío o inválido antes de la lectura.');
-                    }
-                    const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
-                    return transaction.get(unitDocRef);
-                })
-            );
-
-            const unitsData = [];
-            for (let i = 0; i < unitSnapshots.length; i++) {
-                const unitSnapshot = unitSnapshots[i];
-                if (!unitSnapshot.exists()) {
-                    throw new Error(`La unidad con ID ${uniqueUnitIds[i]} no fue encontrada.`);
+            const unitsToProcess: { ref: any, data: Unit }[] = [];
+            for (const unitId of uniqueUnitIds) {
+                 if (!unitId) { // Defensive check
+                    throw new Error('Se encontró un unitId vacío o inválido antes de la lectura.');
                 }
-                const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
+                const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
+                const unitSnapshot = await transaction.get(unitDocRef);
                 
-                // Validate critical date field before proceeding
+                if (!unitSnapshot.exists()) {
+                    throw new Error(`La unidad con ID ${unitId} no fue encontrada.`);
+                }
+                
+                const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
+
                 if (!unitDataFromDB.fechaInicioContrato || !isValid(new Date(unitDataFromDB.fechaInicioContrato))) {
                      throw new Error(`La unidad con placa ${unitDataFromDB.placa} tiene una fecha de inicio de contrato inválida.`);
                 }
                 
-                unitsData.push({ ref: unitSnapshot.ref, data: unitDataFromDB });
+                unitsToProcess.push({ ref: unitSnapshot.ref, data: unitDataFromDB });
             }
 
             // --- WRITE PHASE ---
-            // Now that all reads are done, perform all writes.
-            for (const { ref, data: unitDataFromDB } of unitsData) {
-                // Robust date calculation logic
+            for (const { ref, data: unitDataFromDB } of unitsToProcess) {
                 const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
                 const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
 
@@ -125,11 +117,19 @@ export async function registerPayment(
                     fechaSiguientePago: newNextPaymentDate,
                 };
                 
+                const getMonthlyCost = (unit: Unit): number => {
+                    if (unit.tipoContrato === 'con_contrato') {
+                        return (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
+                    }
+                    return unit.costoMensual ?? 0;
+                };
+                
+                const individualMonthlyCost = getMonthlyCost(unitDataFromDB);
+                const individualPaymentAmount = individualMonthlyCost * mesesPagados;
+
                 if (unitDataFromDB.tipoContrato === 'con_contrato') {
-                    const monthlyCost = (unitDataFromDB.costoTotalContrato ?? 0) / (unitDataFromDB.mesesContrato ?? 1);
-                    const paymentAmountForBalance = monthlyCost * mesesPagados;
                     const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
-                    unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
+                    unitUpdateData.saldoContrato = currentBalance - individualPaymentAmount;
                 } else {
                     const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
                     const baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : baseDateForCalculation;
@@ -143,7 +143,9 @@ export async function registerPayment(
                     clientId: safeClientId,
                     fechaPago,
                     mesesPagados,
-                    ...paymentData,
+                    monto: individualPaymentAmount, // Use individual calculated amount
+                    formaPago: paymentData.formaPago,
+                    numeroFactura: paymentData.numeroFactura,
                 };
                 const paymentDocRef = doc(collection(ref, 'payments'));
                 transaction.set(paymentDocRef, newPayment);
@@ -152,14 +154,6 @@ export async function registerPayment(
                 processedCount++;
             }
         });
-
-        // The notification is commented out as requested previously for debugging.
-        // if (updatedUnitsForNotification.length > 0) {
-        //   const clientDoc = await getDoc(doc(db, 'clients', safeClientId));
-        //   if (clientDoc.exists()) {
-        //     await sendGroupedTemplatedWhatsAppMessage('payment_received', {id: clientDoc.id, ...clientDoc.data()} as Client, updatedUnitsForNotification);
-        //   }
-        // }
 
         revalidatePath(`/clients/${safeClientId}/units`);
         revalidatePath('/');
@@ -292,5 +286,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
