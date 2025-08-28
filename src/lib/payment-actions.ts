@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -61,7 +60,8 @@ export async function registerPayment(
   // 2) Validar clientId de forma agresiva
   const safeClientId = typeof clientId === 'string' ? clientId.trim() : '';
   if (!safeClientId) {
-    return { success: false, message: 'ID de cliente inválido o ausente. No se puede registrar el pago.' };
+    console.error('[DIAGNOSTICO] registerPayment falló porque safeClientId está vacío. clientId recibido:', clientId);
+    return { success: false, message: "Error Crítico: El 'clientId' es undefined o vacío. No se puede continuar." };
   }
 
   // 3) Normalizar y validar unitIds de forma agresiva
@@ -81,7 +81,8 @@ export async function registerPayment(
     const updatedUnitsForNotification: Unit[] = [];
     let processedCount = 0;
     
-    const clientDoc = await getDoc(doc(db, 'clients', safeClientId));
+    const clientDocRef = doc(db, 'clients', safeClientId);
+    const clientDoc = await getDoc(clientDocRef);
     if (!clientDoc.exists()) {
         return { success: false, message: 'El cliente especificado no existe.' };
     }
@@ -90,8 +91,9 @@ export async function registerPayment(
     await runTransaction(db, async (transaction) => {
         for (const unitId of uniqueUnitIds) {
             // Guarda defensiva final
-            if (!unitId || typeof unitId !== 'string') {
-              throw new Error(`Se encontró un ID de unidad inválido ("${unitId}") durante la transacción.`);
+            if (!unitId) {
+                console.error('[DIAGNOSTICO] registerPayment falló porque un unitId está vacío. unitIds recibidos:', uniqueUnitIds);
+                throw new Error("Error Crítico: Una de las 'unitId' es undefined o vacía. No se puede continuar.");
             }
 
             const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
@@ -104,23 +106,22 @@ export async function registerPayment(
             const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
 
             // --- Lógica de Fecha Blindada ---
-            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
-            if (!contractStartDate || !isValid(contractStartDate)) {
-                 throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
-            }
-
             const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
+            const contractStartDate = unitDataFromDB.fechaInicioContrato ? new Date(unitDataFromDB.fechaInicioContrato) : null;
             
             let baseDateForCalculation: Date;
 
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
+            } else if (contractStartDate && isValid(contractStartDate)) {
+                baseDateForCalculation = contractStartDate; 
             } else {
-                baseDateForCalculation = contractStartDate; // Tu lógica: si no hay último pago, usar la fecha de inicio
+                 throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
             }
 
             let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
             
+            // If calculated next payment is still in the past, calculate from today
             if (isBefore(newNextPaymentDate, startOfDay(new Date()))) {
                 newNextPaymentDate = addMonths(new Date(), mesesPagados);
             }

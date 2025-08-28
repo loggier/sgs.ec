@@ -73,6 +73,7 @@ export default function PaymentForm({ unit, clientId, onSave, onCancel }: Paymen
   async function onSubmit(values: PaymentFormInput) {
     setIsSubmitting(true);
     try {
+      // Pass the explicit clientId prop instead of unit.clientId
       const result = await registerPayment(values, [unit.id], clientId);
       if (result.success && result.units?.length) {
         toast({
