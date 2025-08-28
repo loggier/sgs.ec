@@ -14,7 +14,7 @@ export const PaymentSchema = z.object({
     unitId: z.string(),
     clientId: z.string(),
     fechaPago: dateOrTimestamp.refine(val => val !== null, 'Fecha de pago es requerida.'),
-    numeroFactura: z.string().min(1, 'El número de factura es requerido.'),
+    numeroFactura: z.string().trim().min(1, 'El número de factura es requerido.'),
     monto: z.coerce.number().positive('El monto debe ser un número positivo.'),
     formaPago: PaymentMethod,
     mesesPagados: z.coerce.number().int().min(1, 'La cantidad de meses debe ser al menos 1.'),

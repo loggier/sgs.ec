@@ -24,7 +24,6 @@ import type { User } from './user-schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 import { getCurrentUser } from './auth';
-import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 import type { Client } from './schema';
 
 const convertTimestamps = (docData: any): any => {
@@ -54,13 +53,14 @@ export async function registerPayment(
   // 1) Validar input del formulario
   const validation = PaymentFormSchema.safeParse(data);
   if (!validation.success) {
-    return { success: false, message: 'Datos de pago no válidos.' };
+    const firstError = validation.error.errors[0]?.message || 'Datos de pago no válidos.';
+    return { success: false, message: firstError };
   }
 
   // 2) Validar clientId
   const safeClientId = typeof clientId === 'string' ? clientId.trim() : '';
   if (!safeClientId) {
-    return { success: false, message: 'ID de cliente inválido o ausente.' };
+    return { success: false, message: 'ID de cliente inválido o ausente. No se puede registrar el pago.' };
   }
 
   // 3) Normalizar y validar unitIds
@@ -69,17 +69,11 @@ export async function registerPayment(
     .map(u => (typeof u === 'string' ? u.trim() : ''))
     .filter(u => u.length > 0);
 
-  // Opcional: detectar inválidos para mejor diagnóstico
-  const invalids = arrayUnitIds.filter(u => typeof u !== 'string' || !String(u).trim());
-  if (invalids.length > 0) {
-    console.error('[registerPayment] Se encontraron unitIds inválidos que fueron filtrados:', invalids);
-  }
-
   // Quitar duplicados
   const uniqueUnitIds = Array.from(new Set(cleanedUnitIds));
 
   if (uniqueUnitIds.length === 0) {
-    return { success: false, message: 'No se seleccionó ninguna unidad válida para procesar.' };
+    return { success: false, message: 'No se seleccionó ninguna unidad válida para procesar el pago.' };
   }
   
   try {
@@ -96,14 +90,15 @@ export async function registerPayment(
     await runTransaction(db, async (transaction) => {
         for (const unitId of uniqueUnitIds) {
             if (!unitId) {
-              throw new Error('Encontrado unitId vacío durante la transacción.');
+              // This check is belt-and-suspenders, should be caught by filter above.
+              throw new Error('Se encontró un ID de unidad vacío durante la transacción.');
             }
 
             const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
             const unitSnapshot = await transaction.get(unitDocRef);
 
             if (!unitSnapshot.exists()) {
-                throw new Error(`Unidad con ID ${unitId} no encontrada.`);
+                throw new Error(`La unidad con ID ${unitId} no fue encontrada. La operación fue cancelada.`);
             }
 
             const unitDataFromDB = convertTimestamps(unitSnapshot.data()) as Unit;
@@ -114,18 +109,20 @@ export async function registerPayment(
             
             let baseDateForCalculation: Date;
 
+            // Validate and choose the base date for calculation as per user's logic
             if (lastPaymentDate && isValid(lastPaymentDate)) {
                 baseDateForCalculation = lastPaymentDate;
             } else if (contractStartDate && isValid(contractStartDate)) {
-                baseDateForCalculation = contractStartDate; // Regla del usuario: si no hay último pago, usar la fecha de inicio.
+                baseDateForCalculation = contractStartDate; // User's rule: if no last payment, use start date.
             } else {
-                baseDateForCalculation = new Date(); // Fallback de seguridad definitivo.
+                // Fail-fast if no valid base date is found.
+                throw new Error(`La unidad con placa ${unitDataFromDB.placa} no tiene una fecha de inicio de contrato válida. No se puede registrar el pago.`);
             }
 
             let newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
             
-            // Si la nueva fecha de pago calculada ya pasó, basarla en la fecha de hoy.
-            if (isBefore(newNextPaymentDate, new Date())) {
+            // If the calculated next payment date is in the past, base it on today's date instead.
+            if (isBefore(newNextPaymentDate, startOfDay(new Date()))) {
                 newNextPaymentDate = addMonths(new Date(), mesesPagados);
             }
             // --- Fin de la Lógica de Fecha Robusta ---
@@ -142,8 +139,12 @@ export async function registerPayment(
                 unitUpdateData.saldoContrato = currentBalance - paymentAmountForBalance;
             }
             
+            // Recalculate expiration date
             const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
             let baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : new Date();
+            if (isBefore(baseExpirationDate, startOfDay(new Date()))) {
+                baseExpirationDate = new Date();
+            }
             unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
             
             transaction.update(unitDocRef, unitUpdateData);
@@ -164,6 +165,7 @@ export async function registerPayment(
         }
     });
     
+    // The notification block is commented out as requested in previous steps.
     /*
     try {
         if (clientData.ownerId && updatedUnitsForNotification.length > 0) {
@@ -187,10 +189,10 @@ export async function registerPayment(
 
   } catch (error) {
     console.error('[registerPayment] Error en la transacción:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido al procesar el pago.';
     return { 
         success: false, 
-        message: `Error al registrar el pago. Detalles: ${errorMessage}` 
+        message: `Error al registrar el pago: ${errorMessage}` 
     };
   }
 }
@@ -247,7 +249,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const paymentDoc = await transaction.get(paymentDocRef);
 
             if (!paymentDoc.exists()) {
-                throw new Error('Pago no encontrado.');
+                throw new Error('Pago no encontrado. No se puede revertir.');
             }
             
             const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
@@ -256,7 +258,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const unitDoc = await transaction.get(unitDocRef);
 
             if (!unitDoc.exists()) {
-                throw new Error('No se pudo encontrar la unidad asociada.');
+                throw new Error('No se pudo encontrar la unidad asociada para revertir el estado.');
             }
             
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
@@ -267,7 +269,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             if (currentNextPaymentDate && isValid(currentNextPaymentDate)) {
                  unitUpdate.fechaSiguientePago = subMonths(currentNextPaymentDate, paymentData.mesesPagados);
             }
-            // Si la fecha actual es inválida, no la tocamos para evitar corrupción.
 
             if (unitData.tipoContrato === 'con_contrato') {
                 const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
@@ -292,12 +293,15 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const previousPaymentsSnapshot = await getDocs(q);
             
             if (previousPaymentsSnapshot.empty) {
+                // If no payments are left, set last payment to null.
                 unitUpdate.ultimoPago = null;
             } else {
                  const lastPaymentData = previousPaymentsSnapshot.docs[0].data();
+                 // Ensure the 'fechaPago' from the previous document is valid before setting it.
                  if (lastPaymentData.fechaPago && lastPaymentData.fechaPago instanceof Timestamp) {
                     unitUpdate.ultimoPago = lastPaymentData.fechaPago.toDate();
                  } else {
+                    // This case should be rare, but as a fallback, we nullify it.
                     unitUpdate.ultimoPago = null;
                  }
             }

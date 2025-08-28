@@ -88,7 +88,7 @@ export default function PaymentForm({ unit, clientId, onSave, onCancel }: Paymen
       }
     } catch (error) {
       toast({
-        title: 'Error',
+        title: 'Error Inesperado',
         description: 'Ocurrió un error inesperado al registrar el pago.',
         variant: 'destructive',
       });

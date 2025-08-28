@@ -109,7 +109,6 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   async function onSubmit(values: BatchPaymentFormInput) {
     setIsSubmitting(true);
     try {
-      // The action now handles an array of unitIds
       const result = await registerPayment(values, values.unitIds, clientId);
       
       if (result.success) {
@@ -120,7 +119,7 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
         onSave();
       } else {
         toast({
-          title: 'Error',
+          title: 'Error al Registrar Pago',
           description: result.message,
           variant: 'destructive',
         });
@@ -128,7 +127,7 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
     } catch (error) {
        console.error('[CLIENT] Error al llamar a registerPayment:', error);
       toast({
-        title: 'Error',
+        title: 'Error Inesperado',
         description: 'Ocurrió un error inesperado al registrar los pagos.',
         variant: 'destructive',
       });
