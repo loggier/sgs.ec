@@ -352,10 +352,8 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
 
       if (!originalStartDate || newStartDate.getTime() !== originalStartDate.getTime()) {
         setShowWarning(true);
-        let nextPayment = addMonths(newStartDate, 1);
-        if (isBefore(nextPayment, new Date())) {
-            nextPayment = addMonths(new Date(), 1);
-        }
+        // On start date change, always reset the payment cycle relative to the new start date.
+        const nextPayment = addMonths(newStartDate, 1);
         setValue('fechaSiguientePago', nextPayment);
       } else {
         setShowWarning(false);
@@ -896,7 +894,3 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
-
-    
-
-    
