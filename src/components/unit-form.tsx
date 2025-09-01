@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -334,28 +333,26 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
       setValue('costoMensual', undefined);
     }
   }, [tipoContrato, setValue, isEditing]);
-
+  
   React.useEffect(() => {
     if (!fechaInicioContrato || !(fechaInicioContrato instanceof Date)) return;
 
+    const newStartDate = new Date(fechaInicioContrato);
     let newVencimiento;
     if (tipoContrato === 'con_contrato' && mesesContrato && mesesContrato > 0) {
-      newVencimiento = addMonths(fechaInicioContrato, mesesContrato);
+      newVencimiento = addMonths(newStartDate, mesesContrato);
     } else {
-      newVencimiento = addMonths(fechaInicioContrato, 1);
+      newVencimiento = addMonths(newStartDate, 1);
     }
     setValue('fechaVencimiento', newVencimiento);
 
     if (isEditing) {
-      const currentStartDate = fechaInicioContrato.getTime();
       const originalStartDateValue = initialStartDate.current;
-      const originalStartDate = originalStartDateValue instanceof Date ? originalStartDateValue.getTime() : null;
+      const originalStartDate = originalStartDateValue instanceof Date ? originalStartDateValue : null;
 
-      if (originalStartDate && currentStartDate !== originalStartDate) {
+      if (!originalStartDate || newStartDate.getTime() !== originalStartDate.getTime()) {
         setShowWarning(true);
-        const newStartDate = new Date(fechaInicioContrato);
         let nextPayment = addMonths(newStartDate, 1);
-        // If next payment would be in the past, set it to today plus one month
         if (isBefore(nextPayment, new Date())) {
             nextPayment = addMonths(new Date(), 1);
         }
@@ -364,8 +361,8 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
         setShowWarning(false);
       }
     } else {
-      // For new units, also set the next payment date
-      setValue('fechaSiguientePago', addMonths(fechaInicioContrato, 1));
+      // For new units, always set the next payment date based on the start date.
+      setValue('fechaSiguientePago', addMonths(newStartDate, 1));
     }
   }, [fechaInicioContrato, mesesContrato, tipoContrato, isEditing, setValue]);
   
@@ -899,5 +896,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
+
+    
 
     
