@@ -184,28 +184,18 @@ export async function saveUnit(
   }
   
   try {
-    const { fechaInicioContrato, tipoContrato, mesesContrato, costoTotalContrato, imei, ...restOfData } = validation.data;
+    const { ...unitDataForFirestore } = validation.data;
     
-    const unitDataForFirestore: { [key: string]: any } = {
-      ...restOfData,
-      imei,
-      fechaInicioContrato: new Date(fechaInicioContrato),
-      tipoContrato,
-      mesesContrato,
-      costoTotalContrato,
-      estaSuspendido: data.estaSuspendido ?? false, // Default to active
-    };
-
     // Auto-link with P. GPS device based on IMEI
-    if (clientData.pgpsId && imei) {
+    if (clientData.pgpsId && unitDataForFirestore.imei) {
         const { devices: pgpsDevices } = await getPgpsDevicesByClientId(clientData.pgpsId);
-        const matchedDevice = pgpsDevices.find(d => d.imei === imei);
+        const matchedDevice = pgpsDevices.find(d => d.imei === unitDataForFirestore.imei);
         unitDataForFirestore.pgpsDeviceId = matchedDevice ? String(matchedDevice.id) : undefined;
     } else {
         unitDataForFirestore.pgpsDeviceId = undefined;
     }
     
-    if (tipoContrato === 'sin_contrato') {
+    if (unitDataForFirestore.tipoContrato === 'sin_contrato') {
       unitDataForFirestore.costoTotalContrato = undefined;
       unitDataForFirestore.mesesContrato = undefined;
       unitDataForFirestore.saldoContrato = undefined;
@@ -214,71 +204,30 @@ export async function saveUnit(
       unitDataForFirestore.costoMensual = undefined;
     }
 
+    // When creating a new unit, set the balance and initial dates.
+    if (!unitId) {
+        unitDataForFirestore.ultimoPago = null;
+        if(unitDataForFirestore.tipoContrato === 'con_contrato') {
+            unitDataForFirestore.saldoContrato = unitDataForFirestore.costoTotalContrato;
+        }
+    }
+    
     const unitsCollectionRef = collection(db, 'clients', clientId, 'units');
     let savedUnitId = unitId;
 
-    if (unitId) { // Editing existing unit
-      const unitDocRef = doc(unitsCollectionRef, unitId);
-      const currentUnitDoc = await getDoc(unitDocRef);
-      if (!currentUnitDoc.exists()) {
-          return { success: false, message: 'Unidad no encontrada.' };
-      }
-      const currentUnitData = convertTimestamps(currentUnitDoc.data()) as Unit;
-
-      const newStartDate = new Date(fechaInicioContrato);
-      const oldStartDate = new Date(currentUnitData.fechaInicioContrato);
-
-      // Reset payment cycle and balance if start date changes
-      if (newStartDate.getTime() !== oldStartDate.getTime() || tipoContrato !== currentUnitData.tipoContrato) {
-        unitDataForFirestore.ultimoPago = null;
-        
-        let nextPayment = addMonths(newStartDate, 1);
-        if (isBefore(nextPayment, new Date())) {
-            nextPayment = addMonths(new Date(), 1);
-        }
-        unitDataForFirestore.fechaSiguientePago = nextPayment;
-        
-        if (tipoContrato === 'con_contrato') {
-            unitDataForFirestore.saldoContrato = costoTotalContrato;
-            if (mesesContrato) {
-              unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
-            }
-        } else {
-          unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
-        }
-      }
-      
-      if (tipoContrato === 'con_contrato' && (unitDataForFirestore.saldoContrato === undefined || unitDataForFirestore.saldoContrato === null)) {
-         unitDataForFirestore.saldoContrato = costoTotalContrato;
-      }
-
-    } else { // Creating new unit
-      const newStartDate = new Date(fechaInicioContrato);
-      unitDataForFirestore.ultimoPago = null;
-      unitDataForFirestore.fechaSiguientePago = addMonths(newStartDate, 1);
-      
-      if (tipoContrato === 'con_contrato') {
-        unitDataForFirestore.saldoContrato = costoTotalContrato;
-        if (mesesContrato) {
-          unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, mesesContrato);
-        }
-      } else {
-        unitDataForFirestore.fechaVencimiento = addMonths(newStartDate, 1);
-      }
-    }
-    
     // Clean up undefined/null/empty values before saving
-    Object.keys(unitDataForFirestore).forEach(key => {
-      const k = key as keyof typeof unitDataForFirestore;
-      if (unitDataForFirestore[k] === undefined || unitDataForFirestore[k] === null || unitDataForFirestore[k] === '') {
-        delete unitDataForFirestore[k];
-      }
-    });
+    const cleanedData = Object.entries(unitDataForFirestore).reduce((acc, [key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            (acc as any)[key] = value;
+        }
+        return acc;
+    }, {});
+
 
     if (savedUnitId) {
-        await updateDoc(doc(unitsCollectionRef, savedUnitId), unitDataForFirestore);
+        await updateDoc(doc(unitsCollectionRef, savedUnitId), cleanedData);
     } else {
-        const newUnitRef = await addDoc(unitsCollectionRef, unitDataForFirestore);
+        const newUnitRef = await addDoc(unitsCollectionRef, cleanedData);
         savedUnitId = newUnitRef.id;
     }
 
@@ -649,5 +598,3 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
-
-    
