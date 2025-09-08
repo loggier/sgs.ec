@@ -163,7 +163,7 @@ export async function saveUser(
     } else {
       // Create new user
       const hashedPassword = await hashPassword(password);
-      const newUser: Omit<User, 'id'> = { 
+      const newUser: Omit<User, 'id'| 'password'> & {password: string} = { 
           username, 
           password: hashedPassword, 
           role, 
