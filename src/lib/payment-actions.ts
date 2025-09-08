@@ -103,11 +103,12 @@ export async function registerPayment(
 
             // --- WRITE PHASE ---
             for (const { ref, data: unitDataFromDB } of unitsToProcess) {
-                const lastPaymentDate = unitDataFromDB.ultimoPago ? new Date(unitDataFromDB.ultimoPago) : null;
+                // Correct base date for advancing the payment cycle. Should be the *current* next payment date.
+                const currentNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : null;
                 const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
-
-                const baseDateForCalculation = (lastPaymentDate && isValid(lastPaymentDate))
-                    ? lastPaymentDate
+                
+                const baseDateForCalculation = (currentNextPaymentDate && isValid(currentNextPaymentDate))
+                    ? currentNextPaymentDate
                     : contractStartDate;
                 
                 const newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
@@ -131,6 +132,7 @@ export async function registerPayment(
                     const currentBalance = unitDataFromDB.saldoContrato ?? unitDataFromDB.costoTotalContrato ?? 0;
                     unitUpdateData.saldoContrato = currentBalance - individualPaymentAmount;
                 } else {
+                    // For plans without a contract, the expiration date should also be advanced
                     const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
                     const baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : baseDateForCalculation;
                     unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
@@ -143,7 +145,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     fechaPago,
                     mesesPagados,
-                    monto: individualPaymentAmount, // Use individual calculated amount
+                    monto: individualPaymentAmount,
                     formaPago: paymentData.formaPago,
                     numeroFactura: paymentData.numeroFactura,
                 };
@@ -286,3 +288,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
