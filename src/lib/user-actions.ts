@@ -163,6 +163,7 @@ export async function saveUser(
     } else {
       // Create new user
       const hashedPassword = await hashPassword(password);
+      
       const newUser: Omit<User, 'id'| 'password'> & {password: string} = { 
           username, 
           password: hashedPassword, 
@@ -172,8 +173,11 @@ export async function saveUser(
           telefono, 
           empresa, 
           nota,
-          creatorId: currentUser.role === 'manager' ? currentUser.id : undefined,
       };
+
+      if (currentUser.role === 'manager') {
+        newUser.creatorId = currentUser.id;
+      }
       
       const newUserRef = await addDoc(usersCollection, newUser);
 
