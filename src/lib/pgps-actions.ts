@@ -154,7 +154,8 @@ export async function getPgpsDevicesByClientId(pgpsClientId: string): Promise<{ 
         const numericId = pgpsClientId.replace('pgps-', '');
         const apiUrl = new URL(`/api/admin/client/${numericId}/devices`, settings.url);
         apiUrl.searchParams.append('user_api_hash', settings.apiKey);
-        
+        apiUrl.searchParams.append('limit', '10000'); 
+
         const response = await fetch(apiUrl.toString());
 
         if (!response.ok) {
