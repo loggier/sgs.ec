@@ -127,7 +127,7 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     
     const qyvooSettings = await getQyvooSettingsForUser(ownerId);
     if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
-        return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene Qyvoo configurado.` };
+        return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene QV configurado.` };
     }
     
     const allTemplates = await getMessageTemplatesForUser(ownerId);
@@ -161,7 +161,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
     try {
         const qyvooSettings = await getQyvooSettingsForUser(user.id);
         if (!qyvooSettings?.apiKey) {
-            return { success: false, message: "La integración de Qyvoo no está configurada para su usuario. Vaya a Configuración para añadir su API key." };
+            return { success: false, message: "La integración de QV no está configurada para su usuario. Vaya a Configuración para añadir su API key." };
         }
 
         const allUnits = await getAllUnits(user);

@@ -11,7 +11,7 @@ export const WoxSettingsSchema = z.object({
 export type WoxSettings = z.infer<typeof WoxSettingsSchema>;
 export type WoxSettingsFormInput = WoxSettings;
 
-// --- Qyvoo Integration Settings ---
+// --- QV Integration Settings ---
 export const QyvooSettingsSchema = z.object({
   apiKey: z.string().min(1, 'La API Key es requerida.'),
   userId: z.string().min(1, 'El User ID es requerido.'),

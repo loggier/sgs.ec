@@ -206,7 +206,7 @@ export default function LogList() {
                     <TableHead>Estado</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Número</TableHead>
-                    <TableHead>Enviado por (Qyvoo ID)</TableHead>
+                    <TableHead>Enviado por (QV ID)</TableHead>
                     <TableHead>Mensaje</TableHead>
                   </TableRow>
                 </TableHeader>

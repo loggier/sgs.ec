@@ -72,9 +72,9 @@ function SettingsPageContent() {
                 )}
                  <Card>
                     <CardHeader>
-                        <CardTitle>Integración Qyvoo (Personal)</CardTitle>
+                        <CardTitle>Integración QV (Personal)</CardTitle>
                         <CardDescription>
-                            Configure sus credenciales para la integración de notificaciones con Qyvoo.
+                            Configure sus credenciales para la integración de notificaciones con QV.
                             Estas credenciales se usarán para enviar mensajes a sus clientes.
                         </CardDescription>
                     </CardHeader>
@@ -88,7 +88,7 @@ function SettingsPageContent() {
                     <CardHeader>
                         <CardTitle>Plantillas de Mensajes Personales</CardTitle>
                         <CardDescription>
-                           Gestione sus plantillas personales para las notificaciones automáticas y manuales enviadas a través de Qyvoo. Si no crea una plantilla personal, se usará la plantilla global por defecto.
+                           Gestione sus plantillas personales para las notificaciones automáticas y manuales enviadas a través de QV. Si no crea una plantilla personal, se usará la plantilla global por defecto.
                            <Link href="/settings/templates" className="text-primary hover:underline ml-2">
                                 Ir al gestor de plantillas personales
                            </Link>

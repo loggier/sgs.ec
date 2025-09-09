@@ -7,7 +7,7 @@ import { createMessageLog } from './log-actions';
 
 const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
 
-// Function to format phone number for Qyvoo
+// Function to format phone number for QV
 function formatPhoneNumber(phone: string): string {
     // This is now safe because we check for a valid string before calling it.
     let cleaned = phone.replace(/\D/g, '');
@@ -49,7 +49,7 @@ export async function sendQyvooMessage(
     
     try {
         if (!settings?.apiKey || !settings?.userId) {
-            const errorMsg = 'La integración con Qyvoo no está configurada (Falta API Key o User ID).';
+            const errorMsg = 'La integración con QV no está configurada (Falta API Key o User ID).';
             await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage: errorMsg });
             // Return success:true so the main process doesn't fail.
             return { success: true, message: `Notificación omitida: ${errorMsg}` };
@@ -71,8 +71,8 @@ export async function sendQyvooMessage(
         const responseBody = await response.json();
 
         if (!response.ok || !responseBody.success) {
-            const errorMessage = responseBody.message || `Error de la API de Qyvoo: ${response.statusText}`;
-            console.error(`Error sending message via Qyvoo API: ${response.status} ${errorMessage}`, responseBody);
+            const errorMessage = responseBody.message || `Error de la API de QV: ${response.statusText}`;
+            console.error(`Error sending message via QV API: ${response.status} ${errorMessage}`, responseBody);
             await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage });
             return { success: false, message: `No se pudo enviar el mensaje: ${errorMessage}` };
         }
@@ -81,7 +81,7 @@ export async function sendQyvooMessage(
         return { success: true, message: responseBody.message };
 
     } catch (error) {
-        console.error("Failed to send Qyvoo message:", error);
+        console.error("Failed to send QV message:", error);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido.';
         await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage });
         return { success: false, message: `Error inesperado: ${errorMessage}` };

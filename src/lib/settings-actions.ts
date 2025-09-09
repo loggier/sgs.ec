@@ -52,7 +52,7 @@ export async function getPgpsSettings(): Promise<WoxSettings | null> {
   }
 }
 
-// --- Qyvoo Settings ---
+// --- QV Settings ---
 
 export async function saveQyvooSettings(
   userId: string,
@@ -78,10 +78,10 @@ export async function saveQyvooSettings(
     
     const { password, ...user } = { id: updatedUserDoc.id, ...updatedUserDoc.data() } as User;
 
-    return { success: true, message: 'Configuración de Qyvoo guardada con éxito en su perfil.', user: user };
+    return { success: true, message: 'Configuración de QV guardada con éxito en su perfil.', user: user };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-    console.error("Error saving Qyvoo settings:", message);
+    console.error("Error saving QV settings:", message);
     return { success: false, message };
   }
 }
@@ -111,7 +111,7 @@ export async function getQyvooSettingsForUser(userId: string): Promise<QyvooSett
 
         return null;
     } catch(error) {
-        console.error("Error getting Qyvoo settings for user:", error);
+        console.error("Error getting QV settings for user:", error);
         return null;
     }
 }

@@ -62,7 +62,7 @@ export default function QyvooSettingsForm() {
     if (!['master', 'manager'].includes(user.role)) {
       toast({
         title: 'Error de permisos',
-        description: 'Solo los usuarios Master o Manager pueden guardar la configuración de Qyvoo.',
+        description: 'Solo los usuarios Master o Manager pueden guardar la configuración de QV.',
         variant: 'destructive',
       });
       return;
@@ -103,7 +103,7 @@ export default function QyvooSettingsForm() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Función no disponible</AlertTitle>
                 <AlertDescription>
-                    Los usuarios con su rol no gestionan credenciales de Qyvoo.
+                    Los usuarios con su rol no gestionan credenciales de QV.
                     Las notificaciones se enviarán con la configuración de su Manager.
                 </AlertDescription>
             </Alert>
@@ -133,7 +133,7 @@ export default function QyvooSettingsForm() {
               name="apiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Qyvoo API Key</FormLabel>
+                  <FormLabel>QV API Key</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="******" {...field} />
                   </FormControl>
@@ -146,9 +146,9 @@ export default function QyvooSettingsForm() {
               name="userId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Qyvoo User ID</FormLabel>
+                  <FormLabel>QV User ID</FormLabel>
                   <FormControl>
-                    <Input placeholder="ID de usuario de Qyvoo" {...field} />
+                    <Input placeholder="ID de usuario de QV" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -158,7 +158,7 @@ export default function QyvooSettingsForm() {
         <CardFooter className="border-t px-6 py-4">
             <Button type="submit" disabled={isSubmitting || isLoading}>
               {(isSubmitting || isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Guardando...' : 'Guardar Configuración de Qyvoo'}
+              {isSubmitting ? 'Guardando...' : 'Guardar Configuración de QV'}
             </Button>
         </CardFooter>
       </form>
