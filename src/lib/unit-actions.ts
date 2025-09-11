@@ -62,6 +62,8 @@ export async function uploadContract(
                 'Content-Type': 'multipart/form-data',
             },
             onUploadProgress,
+            maxBodyLength: 10 * 1024 * 1024, // 10MB
+            maxContentLength: 10 * 1024 * 1024, // 10MB
         });
 
         if (response.data && response.data.urls && response.data.urls.length > 0) {
