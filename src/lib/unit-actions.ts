@@ -43,42 +43,8 @@ const convertTimestamps = (docData: any) => {
   return data;
 };
 
-export async function uploadContract(
-    formData: FormData
-): Promise<{ success: boolean; message: string; url?: string }> {
-    const file = formData.get('file') as File;
-    if (!file) {
-        return { success: false, message: 'No se encontró ningún archivo.' };
-    }
-
-    try {
-        const uploadFormData = new FormData();
-        uploadFormData.append('files', file);
-
-        const response = await fetch('https://storage.gpsplataforma.net/upload', {
-            method: 'POST',
-            body: uploadFormData,
-        });
-
-        if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({ error: 'Error desconocido en el servidor de subida.' }));
-            throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
-        }
-        
-        const responseData = await response.json();
-
-        if (responseData && responseData.urls && responseData.urls.length > 0) {
-            return { success: true, message: 'Archivo subido con éxito.', url: responseData.urls[0] };
-        } else {
-            return { success: false, message: 'La respuesta del servicio de subida no contenía una URL.' };
-        }
-    } catch (error) {
-        console.error('Error uploading file to external service:', error);
-        const message = error instanceof Error ? error.message : 'Error desconocido al subir el archivo.';
-        return { success: false, message };
-    }
-}
-
+// This action is no longer needed, as the upload is handled client-side.
+// We keep saveContractUrl as it's still used.
 
 export async function saveContractUrl(
     clientId: string,
@@ -602,3 +568,5 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
+
+    

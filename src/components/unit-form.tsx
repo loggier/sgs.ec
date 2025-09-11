@@ -6,13 +6,13 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useWatch, useFormContext } from 'react-hook-form';
 import { z } from 'zod';
-import { format, addMonths, formatDistanceToNow, parseISO, addDays, isBefore } from 'date-fns';
+import { format, addMonths, isBefore, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink, FileText, Upload, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
-import { saveUnit, uploadContract, saveContractUrl } from '@/lib/unit-actions';
+import { saveUnit, saveContractUrl } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +43,7 @@ import { Combobox } from './ui/combobox';
 import { Alert, AlertDescription } from './ui/alert';
 import { Skeleton } from './ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { addDays, formatDistanceToNow, parseISO } from 'date-fns';
 
 type UnitFormProps = {
   unit: Unit | null;
@@ -88,26 +89,37 @@ function ContractUploader({ unit }: { unit: Unit }) {
 
     try {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('files', file);
 
-        const result = await uploadContract(formData);
+        // Upload directly to the storage service, bypassing our Next.js server
+        const response = await fetch('https://storage.gpsplataforma.net/upload', {
+            method: 'POST',
+            body: formData,
+        });
 
-        if (result.success && result.url) {
-            setValue('urlContrato', result.url, { shouldValidate: true });
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: 'Error desconocido en el servidor de subida.' }));
+            throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        
+        if (responseData && responseData.urls && responseData.urls.length > 0) {
+            const newUrl = responseData.urls[0];
+            setValue('urlContrato', newUrl, { shouldValidate: true });
             toast({ title: 'Éxito', description: 'Contrato subido correctamente.' });
 
-            // If we are editing an existing unit, save the URL immediately.
+            // If we are editing an existing unit, save the URL immediately via Server Action.
             if (unit && unit.id && unit.clientId) {
-                const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, result.url);
+                const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, newUrl);
                 if (!saveUrlResult.success) {
                     toast({ title: 'Error al Guardar URL', description: saveUrlResult.message, variant: 'destructive'});
                 } else {
                     toast({ title: 'URL Guardada', description: 'La URL del contrato se guardó en el registro de la unidad.' });
                 }
             }
-
         } else {
-            throw new Error(result.message || 'Error desconocido al subir el archivo.');
+             throw new Error('La respuesta del servicio de subida no contenía una URL.');
         }
 
     } catch (error) {
@@ -888,3 +900,5 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
+
+    
