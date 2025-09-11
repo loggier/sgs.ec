@@ -15,6 +15,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverActions: {
+    bodySizeLimit: '10mb',
+  },
   // Deshabilita completamente el prerenderizado automático de 404
   experimental: {
     disableOptimizedLoading: true,
