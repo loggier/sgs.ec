@@ -25,7 +25,7 @@ import type { Client, ClientDisplay } from './schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 import { getCurrentUser } from './auth';
-// import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
+import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any) => {
     if (!docData) {
@@ -72,6 +72,14 @@ export async function registerPayment(
     if (uniqueUnitIds.length === 0) {
         return { success: false, message: 'No se seleccionó ninguna unidad válida.' };
     }
+    
+    // Get client data for notifications
+    const clientDocRef = doc(db, 'clients', safeClientId);
+    const clientSnapshot = await getDoc(clientDocRef);
+    if (!clientSnapshot.exists()) {
+        return { success: false, message: 'El cliente asociado al pago no fue encontrado.' };
+    }
+    const clientData = { id: clientSnapshot.id, ...clientSnapshot.data() } as Client;
 
     try {
         const { fechaPago, mesesPagados, ...paymentData } = validation.data;
@@ -156,6 +164,8 @@ export async function registerPayment(
                 processedCount++;
             }
         });
+        
+        await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
 
         revalidatePath(`/clients/${safeClientId}/units`);
         revalidatePath('/');
