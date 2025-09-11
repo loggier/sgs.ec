@@ -24,7 +24,6 @@ import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
 import { getPgpsDevicesByClientId, getPgpsDeviceDetails, setPgpsDeviceStatus } from './pgps-actions';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
-import axios from 'axios';
 
 const convertTimestamps = (docData: any) => {
   const data: { [key: string]: any } = {};
@@ -45,8 +44,7 @@ const convertTimestamps = (docData: any) => {
 };
 
 export async function uploadContract(
-    formData: FormData,
-    onUploadProgress: (progressEvent: any) => void
+    formData: FormData
 ): Promise<{ success: boolean; message: string; url?: string }> {
     const file = formData.get('file') as File;
     if (!file) {
@@ -57,26 +55,30 @@ export async function uploadContract(
         const uploadFormData = new FormData();
         uploadFormData.append('files', file);
 
-        const response = await axios.post('https://storage.gpsplataforma.net/upload', uploadFormData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress,
-            maxBodyLength: 10 * 1024 * 1024, // 10MB
-            maxContentLength: 10 * 1024 * 1024, // 10MB
+        const response = await fetch('https://storage.gpsplataforma.net/upload', {
+            method: 'POST',
+            body: uploadFormData,
         });
 
-        if (response.data && response.data.urls && response.data.urls.length > 0) {
-            return { success: true, message: 'Archivo subido con éxito.', url: response.data.urls[0] };
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: 'Error desconocido en el servidor de subida.' }));
+            throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
+        }
+        
+        const responseData = await response.json();
+
+        if (responseData && responseData.urls && responseData.urls.length > 0) {
+            return { success: true, message: 'Archivo subido con éxito.', url: responseData.urls[0] };
         } else {
             return { success: false, message: 'La respuesta del servicio de subida no contenía una URL.' };
         }
     } catch (error) {
         console.error('Error uploading file to external service:', error);
-        const message = axios.isAxiosError(error) ? error.response?.data?.error || error.message : 'Error desconocido al subir el archivo.';
+        const message = error instanceof Error ? error.message : 'Error desconocido al subir el archivo.';
         return { success: false, message };
     }
 }
+
 
 export async function saveContractUrl(
     clientId: string,

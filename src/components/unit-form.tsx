@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -42,7 +43,6 @@ import { Combobox } from './ui/combobox';
 import { Alert, AlertDescription } from './ui/alert';
 import { Skeleton } from './ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Progress } from './ui/progress';
 
 type UnitFormProps = {
   unit: Unit | null;
@@ -72,7 +72,6 @@ function ContractUploader({ unit }: { unit: Unit }) {
   const { control, setValue } = useFormContext<UnitFormInput>();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0);
   const urlContrato = useWatch({ control, name: 'urlContrato' });
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -86,16 +85,12 @@ function ContractUploader({ unit }: { unit: Unit }) {
     }
     
     setIsUploading(true);
-    setUploadProgress(0);
 
     try {
         const formData = new FormData();
         formData.append('file', file);
 
-        const result = await uploadContract(formData, (progressEvent) => {
-            const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total ?? 1));
-            setUploadProgress(percentCompleted);
-        });
+        const result = await uploadContract(formData);
 
         if (result.success && result.url) {
             setValue('urlContrato', result.url, { shouldValidate: true });
@@ -120,7 +115,6 @@ function ContractUploader({ unit }: { unit: Unit }) {
         toast({ title: 'Error de Subida', description: message, variant: 'destructive' });
     } finally {
         setIsUploading(false);
-        setUploadProgress(0);
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
@@ -167,8 +161,8 @@ function ContractUploader({ unit }: { unit: Unit }) {
             
             {isUploading && (
                  <div className="flex items-center gap-2">
-                    <Progress value={uploadProgress} className="w-[60%]" />
-                    <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
+                    <span className="text-sm text-muted-foreground">Subiendo...</span>
                  </div>
             )}
 
