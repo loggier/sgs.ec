@@ -2,8 +2,7 @@
 'use client';
  
 import * as React from 'react';
-import { getClients } from '@/lib/actions';
-import { getAllUnits } from '@/lib/unit-actions';
+import { getDashboardData } from '@/lib/actions';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
 import type { ClientDisplay } from '@/lib/schema';
@@ -16,7 +15,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Pie, PieChar
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
-const planDisplayNames: Record<Unit['tipoPlan'], string> = {
+const planDisplayNames: Record<string, string> = {
   'estandar-sc': 'Estándar SC',
   'avanzado-sc': 'Avanzado SC',
   'total-sc': 'Total SC',
@@ -33,99 +32,48 @@ const statusDisplayNames: Record<ClientDisplay['estado'], string> = {
 
 const COLORS = ['#16a34a', '#facc15', '#dc2626']; // green, yellow, red
 
+type DashboardDataType = {
+  totalClients: number;
+  totalUnits: number;
+  overdueUnits: number;
+  totalMonthlyRevenue: number;
+  unitsByPlan: Record<string, number>;
+  clientsByStatus: Record<string, number>;
+}
+
 function DashboardPageContent() {
   const { user } = useAuth();
-  const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [units, setUnits] = React.useState<UnitWithClient[]>([]);
+  const [data, setData] = React.useState<DashboardDataType | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const fetchData = React.useCallback(async () => {
+  React.useEffect(() => {
     if (user) {
       setIsLoading(true);
-      try {
-        const [internalClients, unitData] = await Promise.all([
-            getClients(user.id, user.role, user.creatorId),
-            getAllUnits(user),
-        ]);
-        
-        setClients(internalClients);
-        setUnits(unitData as UnitWithClient[]);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      getDashboardData(user)
+        .then(setData)
+        .catch(error => console.error("Failed to fetch dashboard data:", error))
+        .finally(() => setIsLoading(false));
     }
   }, [user]);
 
-  React.useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
-  const clientsWithDynamicStatus = React.useMemo(() => {
-    if (isLoading) return [];
+  const chartData = React.useMemo(() => {
+    if (!data) return null;
     
-    const overdueClientIds = new Set(
-      units
-        .filter(unit => {
-          const nextPaymentDateSource = unit.fechaSiguientePago;
-          if (!nextPaymentDateSource) return false;
-          
-          const nextPaymentDate = new Date(nextPaymentDateSource);
-            
-          return nextPaymentDate && nextPaymentDate < new Date();
-        })
-        .map(unit => unit.clientId)
-    );
+    const unitsByPlanChartData = Object.entries(data.unitsByPlan)
+        .map(([name, value]) => ({ name: planDisplayNames[name] || 'Desconocido', total: value }));
 
-    return clients.map(client => {
-      if (overdueClientIds.has(client.id!)) {
-        return { ...client, estado: 'adeuda' };
-      }
-      return client;
-    });
-  }, [clients, units, isLoading]);
-
-  const dashboardData = React.useMemo(() => {
-    const overdueUnits = units.filter(unit => unit.fechaSiguientePago && new Date(unit.fechaSiguientePago) < new Date()).length;
-    
-    const totalMonthlyRevenue = units.reduce((sum, unit) => {
-        if (unit.tipoContrato === 'con_contrato' && unit.mesesContrato) {
-          const monthlyCost = (unit.costoTotalContrato ?? 0) / unit.mesesContrato;
-          return sum + monthlyCost;
-        }
-        return sum + (unit.costoMensual ?? 0);
-    }, 0);
-
-    const unitsByPlan = units.reduce((acc, unit) => {
-        const planName = planDisplayNames[unit.tipoPlan] || 'Desconocido';
-        acc[planName] = (acc[planName] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
-
-    const unitsByPlanChartData = Object.entries(unitsByPlan).map(([name, value]) => ({ name, total: value }));
-
-    const clientsByStatus = clientsWithDynamicStatus.reduce((acc, client) => {
-        const status = client.estado || 'desconocido';
-        acc[status] = (acc[status] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
-    
-    const clientsByStatusChartData = Object.entries(clientsByStatus)
+    const clientsByStatusChartData = Object.entries(data.clientsByStatus)
       .map(([name, value]) => ({ name: statusDisplayNames[name as ClientDisplay['estado']], value }))
-      .filter(item => item.name); // Filter out undefined names
+      .filter(item => item.name);
 
     return {
-      totalClients: clients.length,
-      totalUnits: units.length,
-      overdueUnits,
-      totalMonthlyRevenue,
       unitsByPlanChartData,
       clientsByStatusChartData,
     };
-  }, [clients, units, clientsWithDynamicStatus]);
+  }, [data]);
 
-  if (isLoading) {
+  if (isLoading || !data || !chartData) {
       return (
           <>
               <Header title="Dashboard" />
@@ -154,7 +102,7 @@ function DashboardPageContent() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{dashboardData.totalClients}</div>
+                    <div className="text-2xl font-bold">{data.totalClients}</div>
                 </CardContent>
             </Card>
              <Card>
@@ -163,7 +111,7 @@ function DashboardPageContent() {
                     <Car className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{dashboardData.totalUnits}</div>
+                    <div className="text-2xl font-bold">{data.totalUnits}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -172,7 +120,7 @@ function DashboardPageContent() {
                     <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(dashboardData.totalMonthlyRevenue)}</div>
+                    <div className="text-2xl font-bold">{new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(data.totalMonthlyRevenue)}</div>
                 </CardContent>
             </Card>
             <Card>
@@ -181,7 +129,7 @@ function DashboardPageContent() {
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-destructive">{dashboardData.overdueUnits}</div>
+                    <div className="text-2xl font-bold text-destructive">{data.overdueUnits}</div>
                 </CardContent>
             </Card>
         </div>
@@ -193,7 +141,7 @@ function DashboardPageContent() {
                 </CardHeader>
                 <CardContent className="pl-2">
                     <ResponsiveContainer width="100%" height={350}>
-                        <BarChart data={dashboardData.unitsByPlanChartData}>
+                        <BarChart data={chartData.unitsByPlanChartData}>
                             <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                             <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                             <Tooltip
@@ -223,7 +171,7 @@ function DashboardPageContent() {
                                 }}
                             />
                             <Pie
-                                data={dashboardData.clientsByStatusChartData}
+                                data={chartData.clientsByStatusChartData}
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
@@ -232,7 +180,7 @@ function DashboardPageContent() {
                                 fill="#8884d8"
                                 dataKey="value"
                             >
-                                {dashboardData.clientsByStatusChartData.map((entry, index) => (
+                                {chartData.clientsByStatusChartData.map((entry, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>

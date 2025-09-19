@@ -43,9 +43,6 @@ const convertTimestamps = (docData: any) => {
   return data;
 };
 
-// This action is no longer needed, as the upload is handled client-side.
-// We keep saveContractUrl as it's still used.
-
 export async function saveContractUrl(
     clientId: string,
     unitId: string,
@@ -298,56 +295,53 @@ export async function bulkDeleteUnits(
 }
 
 
-export async function getAllUnits(currentUser: User): Promise<(Unit)[]> {
+export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName?: string; ownerName?: string })[]> {
     if (!currentUser) return [];
 
     try {
-        const clientsSnapshot = await getDocs(collection(db, 'clients'));
-        
-        let ownerIdToFilter = currentUser.id;
-        if (currentUser.role === 'analista' && currentUser.creatorId) {
-            ownerIdToFilter = currentUser.creatorId;
+        const unitsQuery = query(collectionGroup(db, 'units'));
+        const unitsSnapshot = await getDocs(unitsQuery);
+
+        if (unitsSnapshot.empty) {
+            return [];
         }
 
-        const userClients = clientsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as ClientDisplay))
-            .filter(client => currentUser.role === 'master' || client.ownerId === ownerIdToFilter);
+        const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId
+            ? currentUser.creatorId
+            : currentUser.id;
 
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-
-        const allUnitsPromises = userClients.map(async (client) => {
-            const unitsSnapshot = await getDocs(collection(db, 'clients', client.id, 'units'));
-            const owner = client.ownerId ? usersMap.get(client.ownerId) : null;
-
-            const clientUnitsPromises = unitsSnapshot.docs.map(async (unitDoc) => {
-                const data = convertTimestamps(unitDoc.data());
-                
-                const unit: any = {
-                    id: unitDoc.id,
-                    clientId: client.id,
-                    clientName: client.nomSujeto,
-                    ownerId: client.ownerId,
-                    ownerName: owner?.nombre || 'Propietario Desconocido',
-                    ...data,
-                };
-                
-                // Enrich with P. GPS device status if linked
-                if (unit.pgpsDeviceId) {
-                    const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
-                    if (device) {
-                        unit.pgpsDeviceActive = device.active;
-                    }
-                }
-                return unit;
-            });
-            return Promise.all(clientUnitsPromises);
-        });
+        const allClientsSnapshot = await getDocs(collection(db, 'clients'));
+        const clientsMap = new Map(allClientsSnapshot.docs.map(doc => [doc.id, doc.data() as Client]));
         
-        const allUnitsNested = await Promise.all(allUnitsPromises);
-        const allUnits = allUnitsNested.flat();
+        const allUsersSnapshot = await getDocs(collection(db, 'users'));
+        const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-        return allUnits as Unit[];
+        const units = unitsSnapshot.docs
+            .map(doc => {
+                const client = clientsMap.get(doc.ref.parent.parent!.id);
+                if (!client) return null;
+
+                const isMaster = currentUser.role === 'master';
+                const isOwner = client.ownerId === ownerIdToFilter;
+
+                if (!isMaster && !isOwner) {
+                    return null;
+                }
+                
+                const owner = client.ownerId ? usersMap.get(client.ownerId) : null;
+                
+                return {
+                    id: doc.id,
+                    ...convertTimestamps(doc.data()),
+                    clientId: client.id!,
+                    clientName: client.nomSujeto,
+                    ownerName: owner?.nombre,
+                } as Unit & { clientName: string; ownerName?: string };
+            })
+            .filter((unit): unit is Unit & { clientName: string; ownerName?: string } => unit !== null);
+        
+        return units;
+
     } catch (error) {
         console.error("Error getting all units:", error);
         return [];

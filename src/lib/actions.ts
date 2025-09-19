@@ -19,7 +19,7 @@ import {
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientDisplay } from './schema';
 import type { User } from './user-schema';
-import { getPgpsClientDetailsById, getPgpsClients } from './pgps-actions';
+import { getPgpsClients } from './pgps-actions';
 import { getAllUnits } from './unit-actions';
 
 
@@ -121,18 +121,6 @@ export async function getClientById(id: string, user: User): Promise<ClientDispl
       
       let clientData: ClientDisplay = { id: clientDoc.id, ...data };
       
-      // Enrich with P. GPS data if linked
-      if (clientData.pgpsId) {
-        const pgpsDetails = await getPgpsClientDetailsById(clientData.pgpsId);
-        if (pgpsDetails) {
-            clientData = {
-                ...clientData,
-                correo: pgpsDetails.correo,
-                telefono: pgpsDetails.telefono || clientData.telefono,
-            };
-        }
-      }
-
       if (user.role === 'master' && data.ownerId) {
           const ownerDocRef = doc(db, 'users', data.ownerId);
           const ownerDoc = await getDoc(ownerDocRef);
@@ -290,50 +278,36 @@ export async function deleteClient(id: string, user: User): Promise<{ success: b
     }
 }
 
-export async function deleteClientById(id: string, userId: string, userRole: string): Promise<{ success: boolean; message: string }> {
-  if (!userId || !userRole) {
-      return { success: false, message: 'Acción no permitida. Usuario no autenticado.' };
-  }
+export async function getDashboardData(user: User) {
+    const allUnits = await getAllUnits(user);
+    const clients = await getClients(user.id, user.role, user.creatorId);
 
-  try {
-      const clientDocRef = doc(db, 'clients', id);
-      const clientDoc = await getDoc(clientDocRef);
-
-      if (!clientDoc.exists()) {
-          return { success: false, message: 'Cliente no encontrado.' };
-      }
-      
-      const clientData = clientDoc.data();
-      
-      // Permission check: only master or the owner can delete.
-      if (userRole !== 'master' && clientData.ownerId !== userId) {
-          return { success: false, message: 'No tiene permiso para eliminar este cliente.' };
-      }
-
-      // Delete all subcollections (units and their payments) first
-      const unitsCollectionRef = collection(db, 'clients', id, 'units');
-      const unitsSnapshot = await getDocs(unitsCollectionRef);
-      const batch = writeBatch(db);
-
-      for (const unitDoc of unitsSnapshot.docs) {
-          const paymentsCollectionRef = collection(unitDoc.ref, 'payments');
-          const paymentsSnapshot = await getDocs(paymentsCollectionRef);
-          paymentsSnapshot.forEach(paymentDoc => batch.delete(paymentDoc.ref));
-          batch.delete(unitDoc.ref);
-      }
-      
-      // Delete the client itself
-      batch.delete(clientDocRef);
-
-      await batch.commit();
-
-      revalidatePath('/clients');
-      revalidatePath(`/clients/${id}/units`);
-      return { success: true, message: 'Cliente y todos sus datos asociados eliminados con éxito.' };
-  } catch (error) {
-      console.error("Error deleting client by ID:", error);
-      return { success: false, message: 'Error al eliminar el cliente.' };
-  }
-}
-
+    const overdueUnits = allUnits.filter(unit => unit.fechaSiguientePago && new Date(unit.fechaSiguientePago) < new Date()).length;
     
+    const totalMonthlyRevenue = allUnits.reduce((sum, unit) => {
+        if (unit.tipoContrato === 'con_contrato' && unit.mesesContrato) {
+          const monthlyCost = (unit.costoTotalContrato ?? 0) / unit.mesesContrato;
+          return sum + monthlyCost;
+        }
+        return sum + (unit.costoMensual ?? 0);
+    }, 0);
+    
+    return {
+        totalClients: clients.length,
+        totalUnits: allUnits.length,
+        overdueUnits,
+        totalMonthlyRevenue,
+        unitsByPlan: allUnits.reduce((acc, unit) => {
+            const plan = unit.tipoPlan || 'desconocido';
+            acc[plan] = (acc[plan] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>),
+        clientsByStatus: clients.reduce((acc, client) => {
+            const status = client.estado || 'desconocido';
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>),
+    };
+}
+    
+
