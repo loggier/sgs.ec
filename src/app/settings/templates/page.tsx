@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Edit, Trash2, Loader2, AlertTriangle, MoreVertical, Globe, Copy } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, AlertTriangle, MoreVertical } from 'lucide-react';
 import AppContent from '@/components/app-content';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -30,7 +30,6 @@ import MessageTemplateForm from '@/components/message-template-form';
 
 import {
   getMessageTemplatesForUser,
-  getGlobalMessageTemplates,
   deleteMessageTemplate,
 } from '@/lib/settings-actions';
 import {
@@ -49,51 +48,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Separator } from '@/components/ui/separator';
-import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-
-
-function GlobalTemplatesInfo({ onCustomize }: { onCustomize: (template: MessageTemplate) => void }) {
-  const [globalTemplates, setGlobalTemplates] = React.useState<MessageTemplate[]>([]);
-
-  React.useEffect(() => {
-    getGlobalMessageTemplates().then(setGlobalTemplates);
-  }, []);
-
-  if (globalTemplates.length === 0) return null;
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Plantillas Globales por Defecto</CardTitle>
-        <CardDescription>
-          Estas son las plantillas que se usarán para sus notificaciones si no crea una versión personal. Puede personalizarlas para adaptarlas a su estilo.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {globalTemplates.map((template, index) => (
-          <React.Fragment key={template.id}>
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-              <div className="flex-1">
-                <div className="font-semibold flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  {template.name} 
-                  <Badge variant="secondary">{templateEventLabels[template.eventType]}</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{template.content}</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => onCustomize(template)}>
-                <Copy className="mr-2 h-4 w-4" /> Personalizar
-              </Button>
-            </div>
-            {index < globalTemplates.length - 1 && <Separator />}
-          </React.Fragment>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 
 function MessageTemplatesPageContent() {
   const { user, isLoading: authLoading } = useAuth();
@@ -111,8 +65,10 @@ function MessageTemplatesPageContent() {
     if (!user) return;
     setIsLoading(true);
     try {
-      const data = await getMessageTemplatesForUser(user.id);
-      const userPersonalTemplates = data.filter(t => !t.isGlobal);
+      // Fetch all templates available to the user (personal override global ones)
+      const allTemplates = await getMessageTemplatesForUser(user.id);
+      // Filter to show only the ones that are actually personal
+      const userPersonalTemplates = allTemplates.filter(t => !t.isGlobal);
       setPersonalTemplates(userPersonalTemplates);
     } catch (error) {
       console.error("Failed to fetch templates:", error);
@@ -137,16 +93,6 @@ function MessageTemplatesPageContent() {
     setIsSheetOpen(true);
   };
   
-  const handleCustomize = (templateToCopy: MessageTemplate) => {
-    setSelectedTemplate({
-        ...templateToCopy,
-        name: `Copia de ${templateToCopy.name}`,
-        isGlobal: false,
-        ownerId: user?.id ?? null,
-    });
-    setIsSheetOpen(true);
-  };
-
   const handleEdit = (template: MessageTemplate) => {
     setSelectedTemplate(template);
     setIsSheetOpen(true);
@@ -197,9 +143,7 @@ function MessageTemplatesPageContent() {
     <>
       <Header title="Plantillas de Mensajes Personales" showBackButton backButtonHref="/settings" />
       
-      {user.role === 'manager' && <div className="mb-6"><GlobalTemplatesInfo onCustomize={handleCustomize} /></div>}
-
-       <Card>
+       <Card className="mt-6">
           <CardHeader>
             <div className="flex items-center justify-between">
                 <div>
@@ -261,7 +205,7 @@ function MessageTemplatesPageContent() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center h-24">
-                        No ha creado ninguna plantilla personal todavía.
+                        No ha creado ninguna plantilla personal todavía. Si no crea una, se usará la plantilla global por defecto.
                       </TableCell>
                     </TableRow>
                   )}
