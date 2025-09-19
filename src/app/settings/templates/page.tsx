@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 
 function GlobalTemplatesInfo({ onCustomize }: { onCustomize: (template: MessageTemplate) => void }) {
@@ -74,11 +75,11 @@ function GlobalTemplatesInfo({ onCustomize }: { onCustomize: (template: MessageT
           <React.Fragment key={template.id}>
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
               <div className="flex-1">
-                <p className="font-semibold flex items-center gap-2">
+                <div className="font-semibold flex items-center gap-2">
                   <Globe className="h-4 w-4 text-muted-foreground" />
                   {template.name} 
                   <Badge variant="secondary">{templateEventLabels[template.eventType]}</Badge>
-                </p>
+                </div>
                 <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{template.content}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => onCustomize(template)}>
