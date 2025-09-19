@@ -3,7 +3,6 @@
  
 import * as React from 'react';
 import { getClients } from '@/lib/actions';
-import { getPgpsClientDetailsById } from '@/lib/pgps-actions';
 import { getAllUnits } from '@/lib/unit-actions';
 import { triggerManualNotificationCheck } from '@/lib/notification-actions';
 import ClientList from '@/components/client-list';
@@ -32,48 +31,10 @@ function ClientsPageContent() {
     if (user) {
       setIsLoading(true);
       try {
-        const [internalClients, unitData] = await Promise.all([
+        const [enrichedClients, unitData] = await Promise.all([
             getClients(user.id, user.role, user.creatorId),
             getAllUnits(user),
         ]);
-
-        // Enrich internal clients with P. GPS data if linked
-        const enrichedClients = await Promise.all(
-            internalClients.map(async (client) => {
-                let enrichedClient: ClientDisplay = { ...client };
-                if (client.pgpsId) {
-                    const pgpsDetails = await getPgpsClientDetailsById(client.pgpsId);
-                    if (pgpsDetails) {
-                        enrichedClient = {
-                            ...enrichedClient,
-                            correo: pgpsDetails.correo,
-                            telefono: pgpsDetails.telefono || client.telefono,
-                        };
-                    }
-                }
-
-                // Calculate financial totals and unit count for this client
-                const clientUnits = unitData.filter(u => u.clientId === client.id);
-                const unitCount = clientUnits.length;
-                const financials = clientUnits.reduce((acc, unit) => {
-                    if (unit.tipoContrato === 'con_contrato') {
-                        acc.totalContractAmount += unit.costoTotalContrato ?? 0;
-                        acc.totalContractBalance += unit.saldoContrato ?? 0;
-                        const monthlyContractPayment = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
-                        acc.totalMonthlyPayment += monthlyContractPayment;
-                    } else {
-                        acc.totalMonthlyPayment += unit.costoMensual ?? 0;
-                    }
-                    return acc;
-                }, { totalContractAmount: 0, totalContractBalance: 0, totalMonthlyPayment: 0 });
-
-                return {
-                    ...enrichedClient,
-                    ...financials,
-                    unitCount,
-                };
-            })
-        );
         
         setClients(enrichedClients);
         setUnits(unitData as UnitWithClient[]);

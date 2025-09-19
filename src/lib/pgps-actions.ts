@@ -83,10 +83,12 @@ export async function getPgpsClients(): Promise<{ clients: Partial<ClientDisplay
     }
 
     const apiUrl = new URL('/api/admin/clients', settings.url);
-    apiUrl.searchParams.append('user_api_hash', settings.apiKey);
-    apiUrl.searchParams.append('limit', '10000');
+    const params = new URLSearchParams({
+        user_api_hash: settings.apiKey,
+        limit: '10000',
+    });
 
-    const response = await fetch(apiUrl.toString());
+    const response = await fetch(`${apiUrl}?${params.toString()}`);
 
     if (!response.ok) {
       console.error(`Error fetching from P. GPS API: ${response.statusText}`);

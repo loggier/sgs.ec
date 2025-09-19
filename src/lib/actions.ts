@@ -19,7 +19,8 @@ import {
 import { db } from './firebase';
 import { ClientSchema, type Client, type ClientDisplay } from './schema';
 import type { User } from './user-schema';
-import { getPgpsClients } from './pgps-actions';
+import { getPgpsClientDetailsById, getPgpsClients } from './pgps-actions';
+import { getAllUnits } from './unit-actions';
 
 
 // Helper function to convert Firestore Timestamps to a document
@@ -34,15 +35,22 @@ const convertTimestamps = (docData: any) => {
   return data;
 };
 
-// Gets locally stored clients
+// Gets locally stored clients and enriches them
 export async function getClients(userId: string, userRole: User['role'], creatorId?: string): Promise<ClientDisplay[]> {
     if (!userId) return [];
   
     try {
+      // 1. Get main data in parallel
+      const [allUnits, usersSnapshot] = await Promise.all([
+        getAllUnits({ id: userId, role: userRole, creatorId } as User),
+        getDocs(collection(db, 'users'))
+      ]);
+
+      const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+      
+      // 2. Get clients based on role
       let clientsQuery;
       const clientsCollectionRef = collection(db, 'clients');
-      
-      // For analysts, they see the clients of their manager (creator).
       const ownerIdToFilter = userRole === 'analista' && creatorId ? creatorId : userId;
   
       if (userRole === 'master') {
@@ -52,26 +60,41 @@ export async function getClients(userId: string, userRole: User['role'], creator
       }
       
       const clientSnapshot = await getDocs(clientsQuery);
-  
-      let clientsList: ClientDisplay[] = clientSnapshot.docs.map(doc => {
-          const data = convertTimestamps(doc.data());
-          return { id: doc.id, ...data } as ClientDisplay;
-      });
-  
-      if (userRole === 'master') {
-          const usersCollection = collection(db, 'users');
-          const usersSnapshot = await getDocs(usersCollection);
-          const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-          
-          clientsList = clientsList.map(client => ({
-              ...client,
-              ownerName: usersMap.get(client.ownerId!)?.nombre || 'Desconocido',
-          }));
+      if (clientSnapshot.empty) {
+        return [];
       }
-  
-      return clientsList;
+
+      // 3. Process and enrich clients
+      const enrichedClients = clientSnapshot.docs.map(doc => {
+          const clientData = convertTimestamps(doc.data()) as Client;
+          const clientUnits = allUnits.filter(u => u.clientId === doc.id);
+          
+          const financials = clientUnits.reduce((acc, unit) => {
+              if (unit.tipoContrato === 'con_contrato') {
+                  acc.totalContractAmount += unit.costoTotalContrato ?? 0;
+                  acc.totalContractBalance += unit.saldoContrato ?? 0;
+                  const monthlyContractPayment = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
+                  acc.totalMonthlyPayment += monthlyContractPayment;
+              } else {
+                  acc.totalMonthlyPayment += unit.costoMensual ?? 0;
+              }
+              return acc;
+          }, { totalContractAmount: 0, totalContractBalance: 0, totalMonthlyPayment: 0 });
+
+          const ownerName = clientData.ownerId ? usersMap.get(clientData.ownerId)?.nombre || 'Desconocido' : 'Desconocido';
+
+          return {
+            id: doc.id,
+            ...clientData,
+            ...financials,
+            unitCount: clientUnits.length,
+            ownerName: userRole === 'master' ? ownerName : undefined,
+          };
+      });
+
+      return enrichedClients;
     } catch (error) {
-      console.error("Error getting clients:", error);
+      console.error("Error getting and enriching clients:", error);
       return [];
     }
 }
@@ -98,6 +121,18 @@ export async function getClientById(id: string, user: User): Promise<ClientDispl
       
       let clientData: ClientDisplay = { id: clientDoc.id, ...data };
       
+      // Enrich with P. GPS data if linked
+      if (clientData.pgpsId) {
+        const pgpsDetails = await getPgpsClientDetailsById(clientData.pgpsId);
+        if (pgpsDetails) {
+            clientData = {
+                ...clientData,
+                correo: pgpsDetails.correo,
+                telefono: pgpsDetails.telefono || clientData.telefono,
+            };
+        }
+      }
+
       if (user.role === 'master' && data.ownerId) {
           const ownerDocRef = doc(db, 'users', data.ownerId);
           const ownerDoc = await getDoc(ownerDocRef);
