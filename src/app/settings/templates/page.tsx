@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Edit, Trash2, Loader2, AlertTriangle, MoreVertical, Globe } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, AlertTriangle, MoreVertical, Globe, Copy } from 'lucide-react';
 import AppContent from '@/components/app-content';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -30,11 +30,13 @@ import MessageTemplateForm from '@/components/message-template-form';
 
 import {
   getMessageTemplatesForUser,
+  getGlobalMessageTemplates,
   deleteMessageTemplate,
 } from '@/lib/settings-actions';
 import {
   type MessageTemplate,
   templateEventLabels,
+  TemplateEventType
 } from '@/lib/settings-schema';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -47,7 +49,49 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+
+
+function GlobalTemplatesInfo({ onCustomize }: { onCustomize: (template: MessageTemplate) => void }) {
+  const [globalTemplates, setGlobalTemplates] = React.useState<MessageTemplate[]>([]);
+
+  React.useEffect(() => {
+    getGlobalMessageTemplates().then(setGlobalTemplates);
+  }, []);
+
+  if (globalTemplates.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Plantillas Globales por Defecto</CardTitle>
+        <CardDescription>
+          Estas son las plantillas que se usarán para sus notificaciones si no crea una versión personal. Puede personalizarlas para adaptarlas a su estilo.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {globalTemplates.map((template, index) => (
+          <React.Fragment key={template.id}>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+              <div className="flex-1">
+                <p className="font-semibold flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  {template.name} 
+                  <Badge variant="secondary">{templateEventLabels[template.eventType]}</Badge>
+                </p>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{template.content}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => onCustomize(template)}>
+                <Copy className="mr-2 h-4 w-4" /> Personalizar
+              </Button>
+            </div>
+            {index < globalTemplates.length - 1 && <Separator />}
+          </React.Fragment>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 
 function MessageTemplatesPageContent() {
@@ -55,7 +99,7 @@ function MessageTemplatesPageContent() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [templates, setTemplates] = React.useState<MessageTemplate[]>([]);
+  const [personalTemplates, setPersonalTemplates] = React.useState<MessageTemplate[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -67,10 +111,8 @@ function MessageTemplatesPageContent() {
     setIsLoading(true);
     try {
       const data = await getMessageTemplatesForUser(user.id);
-      // For this page, we only care about personal templates or the fallbacks.
-      // We filter out the editable global ones for the master role to avoid confusion.
-      const personalTemplates = data.filter(t => !t.isGlobal || (t.isGlobal && user.role !== 'master'));
-      setTemplates(personalTemplates);
+      const userPersonalTemplates = data.filter(t => !t.isGlobal);
+      setPersonalTemplates(userPersonalTemplates);
     } catch (error) {
       console.error("Failed to fetch templates:", error);
       toast({ title: "Error", description: "No se pudieron cargar las plantillas.", variant: "destructive" });
@@ -91,6 +133,16 @@ function MessageTemplatesPageContent() {
 
   const handleAdd = () => {
     setSelectedTemplate(null);
+    setIsSheetOpen(true);
+  };
+  
+  const handleCustomize = (templateToCopy: MessageTemplate) => {
+    setSelectedTemplate({
+        ...templateToCopy,
+        name: `Copia de ${templateToCopy.name}`,
+        isGlobal: false,
+        ownerId: user?.id ?? null,
+    });
     setIsSheetOpen(true);
   };
 
@@ -119,12 +171,6 @@ function MessageTemplatesPageContent() {
     setIsDeleteDialogOpen(false);
     setSelectedTemplate(null);
   };
-  
-  const canManageTemplate = (template: MessageTemplate) => {
-      if (!user) return false;
-      // You can only manage templates that are NOT global on this page
-      return !template.isGlobal;
-  }
 
   if (authLoading || isLoading) {
     return (
@@ -149,12 +195,15 @@ function MessageTemplatesPageContent() {
   return (
     <>
       <Header title="Plantillas de Mensajes Personales" showBackButton backButtonHref="/settings" />
+      
+      {user.role === 'manager' && <div className="mb-6"><GlobalTemplatesInfo onCustomize={handleCustomize} /></div>}
+
        <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Gestor de Plantillas Personales</CardTitle>
-                  <CardDescription>Cree y edite sus plantillas para notificaciones. Las plantillas globales se usarán si no existe una personal.</CardDescription>
+                  <CardTitle>Mis Plantillas Personales</CardTitle>
+                  <CardDescription>Cree y edite sus plantillas para notificaciones. Estas anularán a las globales.</CardDescription>
                 </div>
                   <Button onClick={handleAdd} size="sm">
                       <PlusCircle className="mr-2 h-4 w-4" />
@@ -176,34 +225,19 @@ function MessageTemplatesPageContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {templates.length > 0 ? (
-                    templates.map(template => (
+                  {personalTemplates.length > 0 ? (
+                    personalTemplates.map(template => (
                       <TableRow key={template.id}>
                         <TableCell className="font-medium flex items-center gap-2">
                             {template.name}
-                            {template.isGlobal && (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                                                <Globe className="mr-1 h-3 w-3"/> Global (Por defecto)
-                                            </Badge>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Esta es una plantilla global y se usa porque no has creado una personal.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{templateEventLabels[template.eventType]}</Badge>
+                          <Badge variant="secondary">{templateEventLabels[template.eventType as TemplateEventType]}</Badge>
                         </TableCell>
                         <TableCell>
                             <p className="line-clamp-2 max-w-sm text-muted-foreground">{template.content}</p>
                         </TableCell>
                         <TableCell>
-                         {canManageTemplate(template) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -220,14 +254,13 @@ function MessageTemplatesPageContent() {
                                   </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                         )}
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center h-24">
-                        No hay plantillas creadas.
+                        No ha creado ninguna plantilla personal todavía.
                       </TableCell>
                     </TableRow>
                   )}
@@ -240,7 +273,7 @@ function MessageTemplatesPageContent() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-2xl w-full">
           <SheetHeader>
-            <SheetTitle>{selectedTemplate ? 'Editar Plantilla Personal' : 'Nueva Plantilla Personal'}</SheetTitle>
+            <SheetTitle>{selectedTemplate?.id ? 'Editar Plantilla Personal' : 'Nueva Plantilla Personal'}</SheetTitle>
           </SheetHeader>
           <MessageTemplateForm
             template={selectedTemplate}
