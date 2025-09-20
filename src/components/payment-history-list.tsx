@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -12,7 +12,7 @@ import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { getAllPayments } from '@/lib/payment-actions';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -51,20 +51,15 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
 
-  const [page, setPage] = React.useState(1);
-  const [cursors, setCursors] = React.useState<(string | null)[]>([null]);
-  const [nextCursor, setNextCursor] = React.useState<string | null>(null);
-  
-  const fetchAndSetPayments = React.useCallback(async (cursor: string | null = null) => {
+  const fetchAndSetPayments = React.useCallback(async () => {
     if (!user) {
         setIsLoading(false);
         return;
     };
     setIsLoading(true);
     try {
-      const { payments: newPayments, nextCursor: newNextCursor } = await getAllPayments(user, cursor);
-      setPayments(newPayments);
-      setNextCursor(newNextCursor);
+      const allPayments = await getAllPayments(user);
+      setPayments(allPayments);
     } catch (error) {
       toast({
         title: "Error",
@@ -77,37 +72,9 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
     }
   }, [user, toast]);
   
-  // Fetch initial data only once when the user is available.
   React.useEffect(() => {
-    if (user) {
-        fetchAndSetPayments(null);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-
-  const handleNextPage = () => {
-    if (!nextCursor) return;
-    
-    // Add the next cursor to the history for the 'previous' button
-    if (!cursors.includes(nextCursor)) {
-       setCursors([...cursors, nextCursor]);
-    }
-    
-    setPage(prev => prev + 1);
-    fetchAndSetPayments(nextCursor);
-  };
-
-  const handlePrevPage = () => {
-    if (page <= 1) return;
-    
-    const newPage = page - 1;
-    const prevCursor = cursors[newPage - 1] ?? null;
-    
-    // We don't need to remove cursors from the history, just go back to a previous one
-    setPage(newPage);
-    fetchAndSetPayments(prevCursor);
-  };
+    fetchAndSetPayments();
+  }, [fetchAndSetPayments]);
 
 
   const filteredPayments = React.useMemo(() => {
@@ -130,8 +97,8 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
     setIsDeleteDialogOpen(false);
     setSelectedPayment(null);
     onPaymentDeleted();
-    // Refetch the current page after deletion to reflect changes
-    fetchAndSetPayments(cursors[page - 1]);
+    // Refetch all payments to reflect changes
+    fetchAndSetPayments();
   }
 
   return (
@@ -214,25 +181,6 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
             </Table>
           </div>
         </CardContent>
-         <CardFooter className="flex justify-end items-center gap-2">
-            <span className="text-sm text-muted-foreground">Página {page}</span>
-             <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrevPage}
-                disabled={page <= 1 || isLoading}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={!nextCursor || isLoading}
-              >
-                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-          </CardFooter>
       </Card>
       
       <DeletePaymentDialog

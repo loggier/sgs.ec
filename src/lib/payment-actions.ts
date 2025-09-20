@@ -26,8 +26,6 @@ import type { User } from './user-schema';
 import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
-const PAYMENTS_PAGE_SIZE = 20;
-
 const convertTimestamps = (docData: any) => {
     if (!docData) {
         return docData;
@@ -181,78 +179,55 @@ export async function registerPayment(
 }
 
 
-export async function getAllPayments(
-  currentUser: User,
-  cursor?: string | null
-): Promise<{ payments: PaymentHistoryEntry[]; nextCursor: string | null }> {
-  if (!currentUser) return { payments: [], nextCursor: null };
+export async function getAllPayments(currentUser: User): Promise<PaymentHistoryEntry[]> {
+    if (!currentUser) return [];
 
-  try {
-    const paymentsGroupRef = collectionGroup(db, 'payments');
-    const queryConstraints: any[] = [];
-    
-    // Base order - this is crucial for pagination
-    queryConstraints.push(orderBy('fechaPago', 'desc'));
+    try {
+        const paymentsGroupRef = collectionGroup(db, 'payments');
+        let q: Query;
 
-    // Permissions filter - applied directly in the query
-    if (currentUser.role !== 'master') {
-      const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-          ? currentUser.creatorId 
-          : currentUser.id;
-      queryConstraints.push(where('ownerId', '==', ownerIdToFilter));
-    }
-    
-    // Pagination cursor
-    if (cursor) {
-        const cursorDoc = await getDoc(doc(db, cursor)); // Use the full path for the cursor doc
-        if (cursorDoc.exists()) {
-            queryConstraints.push(startAfter(cursorDoc));
+        if (currentUser.role === 'master') {
+            q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'));
+        } else {
+            const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
+                ? currentUser.creatorId 
+                : currentUser.id;
+            q = query(paymentsGroupRef, where('ownerId', '==', ownerIdToFilter), orderBy('fechaPago', 'desc'));
         }
+        
+        const paymentSnapshot = await getDocs(q);
+        
+        if (paymentSnapshot.empty) {
+            return [];
+        }
+        
+        let paymentsData = paymentSnapshot.docs.map(doc => ({
+            id: doc.id,
+            refPath: doc.ref.path,
+            ...convertTimestamps(doc.data())
+        })) as PaymentHistoryEntry[];
+        
+        if (currentUser.role === 'master' && paymentsData.length > 0) {
+            const ownerIds = [...new Set(paymentsData.map(p => p.ownerId).filter(Boolean))];
+            if (ownerIds.length > 0) {
+                const usersSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', 'in', ownerIds)));
+                const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, (doc.data() as User).nombre]));
+                paymentsData.forEach(p => {
+                    if (p.ownerId) {
+                        p.ownerName = usersMap.get(p.ownerId);
+                    }
+                });
+            }
+        }
+        
+        return paymentsData;
+
+    } catch (error) {
+        console.error("Error fetching payment history:", error);
+        return [];
     }
-    
-    queryConstraints.push(limit(PAYMENTS_PAGE_SIZE));
-
-    const q = query(paymentsGroupRef, ...queryConstraints);
-    const paymentSnapshot = await getDocs(q);
-
-    if (paymentSnapshot.empty) {
-      return { payments: [], nextCursor: null };
-    }
-    
-    const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
-    const nextCursor = lastVisibleDoc ? lastVisibleDoc.ref.path : null;
-
-    let paymentsData = paymentSnapshot.docs.map(doc => ({
-        id: doc.id,
-        refPath: doc.ref.path,
-        ...convertTimestamps(doc.data())
-    })) as PaymentHistoryEntry[];
-
-    // Enrich with ownerName for master user
-    if (currentUser.role === 'master' && paymentsData.length > 0) {
-      const ownerIds = [...new Set(paymentsData.map(p => p.ownerId).filter(Boolean))];
-      if (ownerIds.length > 0) {
-          const usersSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', 'in', ownerIds)));
-          const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, (doc.data() as User).nombre]));
-          paymentsData.forEach(p => {
-              if (p.ownerId) {
-                  p.ownerName = usersMap.get(p.ownerId);
-              }
-          });
-      }
-    }
-
-    return {
-      payments: paymentsData,
-      nextCursor: nextCursor,
-    };
-
-  } catch (error) {
-    console.error("Error fetching paginated payment history:", error);
-    // Return empty state on error to prevent app crash
-    return { payments: [], nextCursor: null };
-  }
 }
+
 
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
