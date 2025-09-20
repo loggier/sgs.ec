@@ -141,7 +141,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
-                    ownerId: clientData.ownerId, // <-- CRITICAL FIX: Add ownerId to the payment record
+                    ownerId: clientData.ownerId,
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
@@ -293,3 +293,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
