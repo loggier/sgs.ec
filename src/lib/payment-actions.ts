@@ -193,7 +193,6 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
 
         let allPayments = paymentSnapshot.docs.map(doc => ({
             id: doc.id,
-            refPath: doc.ref.path,
             ...convertTimestamps(doc.data())
         })) as PaymentHistoryEntry[];
 

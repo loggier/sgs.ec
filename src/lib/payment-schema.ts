@@ -46,6 +46,5 @@ export type ClientPaymentFormInput = z.infer<typeof ClientPaymentFormSchema>;
 
 // Type for enriched payment history records
 export type PaymentHistoryEntry = Payment & {
-  refPath: string; // Path to the document, used as cursor
   ownerName?: string;
 };
