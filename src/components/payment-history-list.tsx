@@ -74,20 +74,29 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   }, [user, toast]);
 
   React.useEffect(() => {
+    // This effect runs when the component mounts or when `fetchAndSetPayments` changes.
+    // It fetches the first page of payments.
     fetchAndSetPayments(cursors[page - 1]);
-  }, [page, cursors, fetchAndSetPayments]);
+  }, [fetchAndSetPayments]);
+
 
   const handleNextPage = () => {
     if (!nextCursor) return;
-    // The nextCursor is the refPath of the last item on the current page
-    setCursors(prev => [...prev, nextCursor]);
+    // The nextCursor is the refPath of the last item on the current page.
+    // We add it to our history of cursors.
+    if (!cursors.includes(nextCursor)) {
+      setCursors(prev => [...prev, nextCursor]);
+    }
     setPage(prev => prev + 1);
+    fetchAndSetPayments(nextCursor);
   };
 
   const handlePrevPage = () => {
     if (page <= 1) return;
-    setPage(prev => prev - 1);
-    // Cursors array remains, we just point to an earlier entry in it
+    const prevPage = page - 1;
+    setPage(prevPage);
+    // The cursor for the previous page is already in our history.
+    fetchAndSetPayments(cursors[prevPage - 1]);
   };
 
 
@@ -111,7 +120,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
     setIsDeleteDialogOpen(false);
     setSelectedPayment(null);
     onPaymentDeleted();
-    // Refetch the current page after deletion
+    // Refetch the current page after deletion to reflect changes
     fetchAndSetPayments(cursors[page - 1]);
   }
 
@@ -129,7 +138,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
         <CardContent>
           <div className="overflow-x-auto relative">
              {isLoading && (
-              <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             )}

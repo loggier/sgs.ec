@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -18,6 +17,9 @@ import {
   where,
   startAfter,
   collectionGroup,
+  Query,
+  DocumentData,
+  endBefore
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -113,7 +115,7 @@ export async function registerPayment(
                 const newNextPaymentDate = addMonths(baseDateForCalculation, mesesPagados);
 
                 const unitUpdateData: Partial<Record<keyof Unit, any>> = {
-                    ultimoPago: fechaPago,
+                    ultimoPago: Timestamp.fromDate(new Date(fechaPago)),
                     fechaSiguientePago: newNextPaymentDate,
                 };
                 
@@ -144,7 +146,7 @@ export async function registerPayment(
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
                     ownerId: clientData.ownerId,
-                    fechaPago,
+                    fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
                     formaPago: paymentData.formaPago,
@@ -189,18 +191,25 @@ export async function getAllPayments(
 
   try {
     const paymentsGroupRef = collectionGroup(db, 'payments');
+    let q: Query<DocumentData>;
+
+    // Base query constraints
     const queryConstraints: any[] = [];
     
+    // Determine the correct owner ID to filter by
     const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
       ? currentUser.creatorId 
       : currentUser.id;
 
+    // Apply role-based filtering
     if (currentUser.role !== 'master') {
         queryConstraints.push(where('ownerId', '==', ownerIdToFilter));
     }
     
+    // Always order by payment date descending
     queryConstraints.push(orderBy('fechaPago', 'desc'));
     
+    // Handle pagination cursor
     if (cursor) {
         const cursorDoc = await getDoc(doc(db, cursor));
         if (cursorDoc.exists()) {
@@ -208,21 +217,30 @@ export async function getAllPayments(
         }
     }
     
+    // Limit the results per page
     queryConstraints.push(limit(PAYMENTS_PAGE_SIZE));
 
-    const q = query(paymentsGroupRef, ...queryConstraints);
+    q = query(paymentsGroupRef, ...queryConstraints);
     const paymentSnapshot = await getDocs(q);
 
     if (paymentSnapshot.empty) {
-        return { payments: [], nextCursor: null };
+      return { payments: [], nextCursor: null };
     }
     
-    const allUsersSnapshot = await getDocs(collection(db, 'users'));
-    const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+    // For master users, we need to fetch all users to map owner names
+    let usersMap: Map<string, User> | null = null;
+    if (currentUser.role === 'master') {
+      const allUsersSnapshot = await getDocs(collection(db, 'users'));
+      usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+    }
 
     const payments = paymentSnapshot.docs.map(doc => {
       const data = convertTimestamps(doc.data()) as Payment;
-      const ownerName = data.ownerId ? usersMap.get(data.ownerId)?.nombre : undefined;
+      let ownerName: string | undefined = undefined;
+
+      if (currentUser.role === 'master' && data.ownerId && usersMap) {
+          ownerName = usersMap.get(data.ownerId)?.nombre;
+      }
 
       return {
         ...data,
@@ -234,21 +252,24 @@ export async function getAllPayments(
 
     const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
     
-    // Check for a next page by querying for one more item
-    const nextQueryConstraints = [...queryConstraints];
-    if (nextQueryConstraints[nextQueryConstraints.length -1].type === 'limit') {
-        nextQueryConstraints.pop(); // remove original limit
+    // Construct the next query to check if there are more results
+    const nextQueryCheckConstraints = [...queryConstraints];
+    // Remove the previous limit
+    if (nextQueryCheckConstraints[nextQueryCheckConstraints.length -1]?.type === 'limit') {
+        nextQueryCheckConstraints.pop(); 
     }
-    const nextQuery = query(paymentsGroupRef, ...nextQueryConstraints, startAfter(lastVisibleDoc), limit(1));
+    // Add new startAfter and limit(1)
+    const nextQuery = query(paymentsGroupRef, ...nextQueryCheckConstraints, startAfter(lastVisibleDoc), limit(1));
     const nextSnapshot = await getDocs(nextQuery);
 
     return {
       payments,
-      nextCursor: nextSnapshot.empty ? null : lastVisibleDoc.ref.path,
+      nextCursor: !nextSnapshot.empty ? lastVisibleDoc.ref.path : null,
     };
 
   } catch (error) {
     console.error("Error fetching paginated payment history:", error);
+    // In case of an error, return an empty result to avoid crashing the UI
     return { payments: [], nextCursor: null };
   }
 }
@@ -297,7 +318,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const otherPaymentsSnapshotDocs = (await getDocs(otherPaymentsQuery)).docs; // Execute query inside transaction
             
             unitUpdate.ultimoPago = otherPaymentsSnapshotDocs.length > 0
-                ? (otherPaymentsSnapshotDocs[0].data().fechaPago as Timestamp).toDate().toISOString()
+                ? (otherPaymentsSnapshotDocs[0].data().fechaPago as Timestamp)
                 : null;
             
             transaction.update(unitDocRef, unitUpdate);
