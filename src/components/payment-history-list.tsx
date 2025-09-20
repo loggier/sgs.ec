@@ -74,16 +74,13 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   }, [user, toast]);
 
   React.useEffect(() => {
-    // This effect runs when the component mounts or when `fetchAndSetPayments` changes.
-    // It fetches the first page of payments.
-    fetchAndSetPayments(cursors[page - 1]);
-  }, [fetchAndSetPayments]);
+    fetchAndSetPayments(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleNextPage = () => {
     if (!nextCursor) return;
-    // The nextCursor is the refPath of the last item on the current page.
-    // We add it to our history of cursors.
     if (!cursors.includes(nextCursor)) {
       setCursors(prev => [...prev, nextCursor]);
     }
@@ -94,9 +91,10 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const handlePrevPage = () => {
     if (page <= 1) return;
     const prevPage = page - 1;
+    const newCursors = cursors.slice(0, page);
+    setCursors(newCursors);
     setPage(prevPage);
-    // The cursor for the previous page is already in our history.
-    fetchAndSetPayments(cursors[prevPage - 1]);
+    fetchAndSetPayments(newCursors[prevPage - 1]);
   };
 
 
@@ -220,7 +218,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
                 onClick={handleNextPage}
                 disabled={!nextCursor || isLoading}
               >
-                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+                Siguiente <ArrowRight className="ml-2 h-4" />
               </Button>
           </CardFooter>
       </Card>

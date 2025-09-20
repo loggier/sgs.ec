@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -191,25 +192,10 @@ export async function getAllPayments(
 
   try {
     const paymentsGroupRef = collectionGroup(db, 'payments');
-    let q: Query<DocumentData>;
-
-    // Base query constraints
     const queryConstraints: any[] = [];
     
-    // Determine the correct owner ID to filter by
-    const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-      ? currentUser.creatorId 
-      : currentUser.id;
-
-    // Apply role-based filtering
-    if (currentUser.role !== 'master') {
-        queryConstraints.push(where('ownerId', '==', ownerIdToFilter));
-    }
-    
-    // Always order by payment date descending
     queryConstraints.push(orderBy('fechaPago', 'desc'));
     
-    // Handle pagination cursor
     if (cursor) {
         const cursorDoc = await getDoc(doc(db, cursor));
         if (cursorDoc.exists()) {
@@ -217,59 +203,61 @@ export async function getAllPayments(
         }
     }
     
-    // Limit the results per page
     queryConstraints.push(limit(PAYMENTS_PAGE_SIZE));
 
-    q = query(paymentsGroupRef, ...queryConstraints);
+    const q = query(paymentsGroupRef, ...queryConstraints);
     const paymentSnapshot = await getDocs(q);
 
     if (paymentSnapshot.empty) {
       return { payments: [], nextCursor: null };
     }
-    
-    // For master users, we need to fetch all users to map owner names
-    let usersMap: Map<string, User> | null = null;
-    if (currentUser.role === 'master') {
-      const allUsersSnapshot = await getDocs(collection(db, 'users'));
-      usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-    }
 
-    const payments = paymentSnapshot.docs.map(doc => {
-      const data = convertTimestamps(doc.data()) as Payment;
-      let ownerName: string | undefined = undefined;
-
-      if (currentUser.role === 'master' && data.ownerId && usersMap) {
-          ownerName = usersMap.get(data.ownerId)?.nombre;
-      }
-
-      return {
-        ...data,
+    let paymentsData = paymentSnapshot.docs.map(doc => ({
         id: doc.id,
         refPath: doc.ref.path,
-        ownerName: ownerName,
-      } as PaymentHistoryEntry;
-    });
+        ...convertTimestamps(doc.data())
+    })) as PaymentHistoryEntry[];
 
-    const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
-    
-    // Construct the next query to check if there are more results
-    const nextQueryCheckConstraints = [...queryConstraints];
-    // Remove the previous limit
-    if (nextQueryCheckConstraints[nextQueryCheckConstraints.length -1]?.type === 'limit') {
-        nextQueryCheckConstraints.pop(); 
+    // Post-filter for permissions
+    if (currentUser.role !== 'master') {
+        const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
+          ? currentUser.creatorId 
+          : currentUser.id;
+        paymentsData = paymentsData.filter(p => p.ownerId === ownerIdToFilter);
     }
-    // Add new startAfter and limit(1)
-    const nextQuery = query(paymentsGroupRef, ...nextQueryCheckConstraints, startAfter(lastVisibleDoc), limit(1));
-    const nextSnapshot = await getDocs(nextQuery);
+    
+    // Enrich with ownerName for master user
+    if (currentUser.role === 'master' && paymentsData.length > 0) {
+      const ownerIds = [...new Set(paymentsData.map(p => p.ownerId).filter(Boolean))];
+      if (ownerIds.length > 0) {
+          const usersSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', 'in', ownerIds)));
+          const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+          paymentsData.forEach(p => {
+              if (p.ownerId) {
+                  p.ownerName = usersMap.get(p.ownerId)?.nombre;
+              }
+          });
+      }
+    }
+
+    const lastVisibleDoc = paymentSnapshot.docs.length > 0 ? paymentSnapshot.docs[paymentSnapshot.docs.length - 1] : null;
+
+    let nextCursor: string | null = null;
+    if (lastVisibleDoc) {
+        const nextQuery = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
+        const nextSnapshot = await getDocs(nextQuery);
+        if (!nextSnapshot.empty) {
+            nextCursor = lastVisibleDoc.ref.path;
+        }
+    }
 
     return {
-      payments,
-      nextCursor: !nextSnapshot.empty ? lastVisibleDoc.ref.path : null,
+      payments: paymentsData,
+      nextCursor: nextCursor,
     };
 
   } catch (error) {
     console.error("Error fetching paginated payment history:", error);
-    // In case of an error, return an empty result to avoid crashing the UI
     return { payments: [], nextCursor: null };
   }
 }
