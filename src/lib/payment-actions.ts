@@ -18,7 +18,6 @@ import {
   where,
   startAfter,
   collectionGroup,
-  endBefore,
   QueryDocumentSnapshot,
   DocumentData,
 } from 'firebase/firestore';
@@ -26,10 +25,7 @@ import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
-import type { Client, ClientDisplay } from './schema';
-import { getClients } from './actions';
-import { getUnitsByClientId } from './unit-actions';
-import { getCurrentUser } from './auth';
+import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const PAYMENTS_PAGE_SIZE = 20;
@@ -112,7 +108,7 @@ export async function registerPayment(
                 const currentNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : null;
                 const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
                 
-                const baseDateForCalculation = (currentNextPaymentDate && isValid(currentNextPaymentDate))
+                const baseDateForCalculation = (currentNextPaymentDate && isValid(currentNextPaymentDate) && isBefore(contractStartDate, currentNextPaymentDate))
                     ? currentNextPaymentDate
                     : contractStartDate;
                 
@@ -189,10 +185,9 @@ export async function registerPayment(
 
 export async function getAllPayments(
   currentUser: User,
-  cursor?: string,
-  direction: 'next' | 'prev' = 'next'
-): Promise<{ payments: PaymentHistoryEntry[]; nextCursor: string | null; prevCursor: string | null; }> {
-  if (!currentUser) return { payments: [], nextCursor: null, prevCursor: null };
+  cursor?: string
+): Promise<{ payments: PaymentHistoryEntry[]; nextCursor: string | null }> {
+  if (!currentUser) return { payments: [], nextCursor: null };
 
   try {
     const paymentsGroupRef = collectionGroup(db, 'payments');
@@ -206,17 +201,12 @@ export async function getAllPayments(
         queryConstraints.push(where('ownerId', '==', ownerIdToFilter));
     }
     
-    queryConstraints.push(orderBy('fechaPago', direction === 'next' ? 'desc' : 'asc'));
+    queryConstraints.push(orderBy('fechaPago', 'desc'));
     
     if (cursor) {
-        const cursorDocRef = doc(db, cursor);
-        const cursorDoc = await getDoc(cursorDocRef);
+        const cursorDoc = await getDoc(doc(db, cursor));
         if (cursorDoc.exists()) {
-             if (direction === 'next') {
-                queryConstraints.push(startAfter(cursorDoc));
-            } else {
-                queryConstraints.push(endBefore(cursorDoc));
-            }
+            queryConstraints.push(startAfter(cursorDoc));
         }
     }
     
@@ -226,13 +216,13 @@ export async function getAllPayments(
     const paymentSnapshot = await getDocs(q);
 
     if (paymentSnapshot.empty) {
-        return { payments: [], nextCursor: null, prevCursor: null };
+        return { payments: [], nextCursor: null };
     }
     
     const allUsersSnapshot = await getDocs(collection(db, 'users'));
     const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-    let payments = paymentSnapshot.docs.map(doc => {
+    const payments = paymentSnapshot.docs.map(doc => {
       const data = convertTimestamps(doc.data()) as Payment;
       const ownerName = data.ownerId ? usersMap.get(data.ownerId)?.nombre : undefined;
 
@@ -244,65 +234,39 @@ export async function getAllPayments(
       } as PaymentHistoryEntry;
     });
 
-    if (direction === 'prev') {
-        payments.reverse();
-    }
+    const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
     
-    const firstVisible = payments[0]?.refPath;
-    const lastVisible = payments[payments.length - 1]?.refPath;
-    
-    let hasNext = false;
-    let hasPrev = false;
-
-    if (lastVisible) {
-        const nextQueryConstraints = [...queryConstraints.slice(0, -1)]; // All but limit
-        const lastDoc = await getDoc(doc(db, lastVisible));
-        nextQueryConstraints.push(startAfter(lastDoc));
-        nextQueryConstraints.push(limit(1));
-        const nextSnapshot = await getDocs(query(paymentsGroupRef, ...nextQueryConstraints));
-        hasNext = !nextSnapshot.empty;
-    }
-    
-    if (firstVisible) {
-        const prevQueryConstraints = [...queryConstraints.slice(0, -1)]; // All but limit
-        const firstDoc = await getDoc(doc(db, firstVisible));
-        prevQueryConstraints.push(endBefore(firstDoc));
-        prevQueryConstraints.push(limit(1));
-        const prevSnapshot = await getDocs(query(paymentsGroupRef, ...prevQueryConstraints));
-        hasPrev = !prevSnapshot.empty;
-    }
+    // Check for a next page
+    const nextQuery = query(paymentsGroupRef, ...queryConstraints.slice(0,-1), startAfter(lastVisibleDoc), limit(1));
+    const nextSnapshot = await getDocs(nextQuery);
 
     return {
       payments,
-      nextCursor: hasNext ? lastVisible : null,
-      prevCursor: direction === 'next' ? (cursor ? firstVisible : null) : (hasPrev ? firstVisible : null),
+      nextCursor: nextSnapshot.empty ? null : lastVisibleDoc.ref.path,
     };
 
   } catch (error) {
     console.error("Error fetching paginated payment history:", error);
-    return { payments: [], nextCursor: null, prevCursor: null };
+    return { payments: [], nextCursor: null };
   }
 }
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
+        const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
+        
         await runTransaction(db, async (transaction) => {
-            const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
             const paymentDoc = await transaction.get(paymentDocRef);
-
             if (!paymentDoc.exists()) {
                 throw new Error('Pago no encontrado.');
             }
-            
             const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
 
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitDoc = await transaction.get(unitDocRef);
-
             if (!unitDoc.exists()) {
                 throw new Error('No se pudo encontrar la unidad asociada.');
             }
-            
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
 
             const nextPaymentDate = unitData.fechaSiguientePago ? new Date(unitData.fechaSiguientePago) : null;
@@ -325,12 +289,13 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
+            // Find the new "last payment"
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const otherPaymentsQuery = query(paymentsCollectionRef, where('__name__', '!=', paymentId), orderBy('fechaPago', 'desc'), limit(1));
-            const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
+            const otherPaymentsSnapshotDocs = (await getDocs(otherPaymentsQuery)).docs; // Execute query inside transaction
             
-            unitUpdate.ultimoPago = !otherPaymentsSnapshot.empty
-                ? otherPaymentsSnapshot.docs[0].data().fechaPago.toDate().toISOString()
+            unitUpdate.ultimoPago = otherPaymentsSnapshotDocs.length > 0
+                ? (otherPaymentsSnapshotDocs[0].data().fechaPago as Timestamp).toDate().toISOString()
                 : null;
             
             transaction.update(unitDocRef, unitUpdate);

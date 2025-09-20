@@ -47,7 +47,6 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isDeleting, setIsDeleting] = React.useState(false);
   
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
@@ -55,12 +54,12 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const [page, setPage] = React.useState(1);
   const [cursors, setCursors] = React.useState<(string | null)[]>([null]);
   const [nextCursor, setNextCursor] = React.useState<string | null>(null);
-
-  const fetchAndSetPayments = React.useCallback(async (cursor: string | null = null, direction: 'next' | 'prev' = 'next') => {
+  
+  const fetchAndSetPayments = React.useCallback(async (cursor: string | null = null) => {
     if (!user) return;
     setIsLoading(true);
     try {
-      const { payments: newPayments, nextCursor: newNextCursor } = await getAllPayments(user, cursor, direction);
+      const { payments: newPayments, nextCursor: newNextCursor } = await getAllPayments(user, cursor);
       setPayments(newPayments);
       setNextCursor(newNextCursor);
     } catch (error) {
@@ -75,26 +74,20 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   }, [user, toast]);
 
   React.useEffect(() => {
-    // Initial fetch
-    fetchAndSetPayments(null);
-  }, [fetchAndSetPayments]);
+    fetchAndSetPayments(cursors[page - 1]);
+  }, [page, cursors, fetchAndSetPayments]);
 
   const handleNextPage = () => {
     if (!nextCursor) return;
-    const newCursors = [...cursors, nextCursor];
-    setCursors(newCursors);
-    setPage(page + 1);
-    fetchAndSetPayments(nextCursor, 'next');
+    // The nextCursor is the refPath of the last item on the current page
+    setCursors(prev => [...prev, nextCursor]);
+    setPage(prev => prev + 1);
   };
 
   const handlePrevPage = () => {
     if (page <= 1) return;
-    const newCursors = [...cursors];
-    newCursors.pop(); // Remove current cursor
-    const prevCursor = newCursors[newCursors.length - 1]; // Get previous cursor
-    setCursors(newCursors);
-    setPage(page - 1);
-    fetchAndSetPayments(prevCursor, 'next'); // Refetch from the start of the previous page
+    setPage(prev => prev - 1);
+    // Cursors array remains, we just point to an earlier entry in it
   };
 
 
@@ -117,8 +110,9 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const handlePaymentDeleted = () => {
     setIsDeleteDialogOpen(false);
     setSelectedPayment(null);
-    onPaymentDeleted(); // Callback to parent
-    fetchAndSetPayments(cursors[cursors.length - 1]); // Refetch current page
+    onPaymentDeleted();
+    // Refetch the current page after deletion
+    fetchAndSetPayments(cursors[page - 1]);
   }
 
   return (
@@ -217,7 +211,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
                 onClick={handleNextPage}
                 disabled={!nextCursor || isLoading}
               >
-                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+                Siguiente <ArrowRight className="ml-2 h-4" />
               </Button>
           </CardFooter>
       </Card>
