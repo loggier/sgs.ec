@@ -56,7 +56,10 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const [nextCursor, setNextCursor] = React.useState<string | null>(null);
   
   const fetchAndSetPayments = React.useCallback(async (cursor: string | null = null) => {
-    if (!user) return;
+    if (!user) {
+        setIsLoading(false);
+        return;
+    };
     setIsLoading(true);
     try {
       const { payments: newPayments, nextCursor: newNextCursor } = await getAllPayments(user, cursor);
@@ -73,33 +76,36 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
       setIsLoading(false);
     }
   }, [user, toast]);
-
+  
+  // Fetch initial data only once when the user is available.
   React.useEffect(() => {
-    fetchAndSetPayments(null);
-  }, [fetchAndSetPayments]);
+    if (user) {
+        fetchAndSetPayments(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
 
   const handleNextPage = () => {
     if (!nextCursor) return;
     
-    setPage(prev => {
-        const newPage = prev + 1;
-        // Ensure the next cursor is stored at the index of the new page
-        setCursors(prevCursors => {
-            const newCursors = [...prevCursors];
-            newCursors[newPage -1] = nextCursor;
-            return newCursors;
-        });
-        fetchAndSetPayments(nextCursor);
-        return newPage;
-    });
+    // Add the next cursor to the history for the 'previous' button
+    if (!cursors.includes(nextCursor)) {
+       setCursors([...cursors, nextCursor]);
+    }
+    
+    setPage(prev => prev + 1);
+    fetchAndSetPayments(nextCursor);
   };
 
   const handlePrevPage = () => {
     if (page <= 1) return;
-    const prevPage = page - 1;
-    const prevCursor = cursors[prevPage - 1]; // Cursor to get the PREVIOUS page's data
-    setPage(prevPage);
+    
+    const newPage = page - 1;
+    const prevCursor = cursors[newPage - 1] ?? null;
+    
+    // We don't need to remove cursors from the history, just go back to a previous one
+    setPage(newPage);
     fetchAndSetPayments(prevCursor);
   };
 
@@ -110,7 +116,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
     return payments.filter(p =>
       p.clientName.toLowerCase().includes(lowercasedTerm) ||
       p.unitPlaca.toLowerCase().includes(lowercasedTerm) ||
-      p.numeroFactura.toLowerCase().includes(lowercasedTerm) ||
+      (p.numeroFactura && p.numeroFactura.toLowerCase().includes(lowercasedTerm)) ||
       (p.ownerName && p.ownerName.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, payments]);
@@ -161,7 +167,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.length > 0 ? (
+                {!isLoading && filteredPayments.length > 0 ? (
                   filteredPayments.map(payment => (
                     <TableRow key={payment.id}>
                       <TableCell>{formatDate(payment.fechaPago)}</TableCell>

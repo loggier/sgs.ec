@@ -114,7 +114,7 @@ export async function registerPayment(
 
                 const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                     ultimoPago: Timestamp.fromDate(new Date(fechaPago)),
-                    fechaSiguientePago: newNextPaymentDate,
+                    fechaSiguientePago: Timestamp.fromDate(newNextPaymentDate), // Use timestamp for consistency
                 };
                 
                 const getMonthlyCost = (unit: Unit): number => {
@@ -133,7 +133,7 @@ export async function registerPayment(
                 } else {
                     const expirationDateCandidate = unitDataFromDB.fechaVencimiento ? new Date(unitDataFromDB.fechaVencimiento) : null;
                     const baseExpirationDate = (expirationDateCandidate && isValid(expirationDateCandidate)) ? expirationDateCandidate : baseDateForCalculation;
-                    unitUpdateData.fechaVencimiento = addMonths(baseExpirationDate, mesesPagados);
+                    unitUpdateData.fechaVencimiento = Timestamp.fromDate(addMonths(baseExpirationDate, mesesPagados));
                 }
 
                 transaction.update(ref, unitUpdateData);
@@ -183,7 +183,7 @@ export async function registerPayment(
 
 export async function getAllPayments(
   currentUser: User,
-  cursor?: string
+  cursor?: string | null
 ): Promise<{ payments: PaymentHistoryEntry[]; nextCursor: string | null }> {
   if (!currentUser) return { payments: [], nextCursor: null };
 
@@ -191,26 +191,25 @@ export async function getAllPayments(
     const paymentsGroupRef = collectionGroup(db, 'payments');
     const queryConstraints: any[] = [];
     
-    // Base order
+    // Base order - this is crucial for pagination
     queryConstraints.push(orderBy('fechaPago', 'desc'));
 
-    // Permissions filter
+    // Permissions filter - applied directly in the query
     if (currentUser.role !== 'master') {
       const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
           ? currentUser.creatorId 
           : currentUser.id;
-      queryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
+      queryConstraints.push(where('ownerId', '==', ownerIdToFilter));
     }
     
     // Pagination cursor
     if (cursor) {
-        const cursorDoc = await getDoc(doc(db, cursor));
+        const cursorDoc = await getDoc(doc(db, cursor)); // Use the full path for the cursor doc
         if (cursorDoc.exists()) {
             queryConstraints.push(startAfter(cursorDoc));
         }
     }
     
-    // Limit per page
     queryConstraints.push(limit(PAYMENTS_PAGE_SIZE));
 
     const q = query(paymentsGroupRef, ...queryConstraints);
@@ -219,6 +218,9 @@ export async function getAllPayments(
     if (paymentSnapshot.empty) {
       return { payments: [], nextCursor: null };
     }
+    
+    const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
+    const nextCursor = lastVisibleDoc ? lastVisibleDoc.ref.path : null;
 
     let paymentsData = paymentSnapshot.docs.map(doc => ({
         id: doc.id,
@@ -239,16 +241,6 @@ export async function getAllPayments(
           });
       }
     }
-
-    const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
-
-    // Check if there is a next page
-    const nextQueryConstraints = [...queryConstraints];
-    nextQueryConstraints[nextQueryConstraints.length -1] = startAfter(lastVisibleDoc); // replace limit with startAfter
-    nextQueryConstraints.push(limit(1));
-    const nextSnapshot = await getDocs(query(paymentsGroupRef, ...nextQueryConstraints));
-
-    const nextCursor = !nextSnapshot.empty ? lastVisibleDoc.ref.path : null;
 
     return {
       payments: paymentsData,
@@ -287,7 +279,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             }
             
             const unitUpdate: Partial<Record<keyof Unit, any>> = {
-                fechaSiguientePago: subMonths(nextPaymentDate, paymentData.mesesPagados)
+                fechaSiguientePago: Timestamp.fromDate(subMonths(nextPaymentDate, paymentData.mesesPagados))
             };
 
             if (unitData.tipoContrato === 'con_contrato') {
@@ -297,7 +289,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             } else {
                 const expirationDate = unitData.fechaVencimiento ? new Date(unitData.fechaVencimiento) : null;
                 if (expirationDate && isValid(expirationDate)) {
-                     unitUpdate.fechaVencimiento = subMonths(expirationDate, paymentData.mesesPagados);
+                     unitUpdate.fechaVencimiento = Timestamp.fromDate(subMonths(expirationDate, paymentData.mesesPagados));
                 }
             }
             
