@@ -1,16 +1,18 @@
 
+
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
+import { getAllPayments } from '@/lib/payment-actions';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -23,11 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
 import DeletePaymentDialog from './delete-payment-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type PaymentHistoryListProps = {
-  initialPayments: PaymentHistoryEntry[];
   onPaymentDeleted: () => void;
-  isLoading: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -40,16 +41,62 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, isLoading }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryListProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { searchTerm } = useSearch();
-  const [payments, setPayments] = React.useState(initialPayments);
+  const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
 
+  const [page, setPage] = React.useState(1);
+  const [cursors, setCursors] = React.useState<(string | null)[]>([null]);
+  const [nextCursor, setNextCursor] = React.useState<string | null>(null);
+
+  const fetchAndSetPayments = React.useCallback(async (cursor: string | null = null, direction: 'next' | 'prev' = 'next') => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const { payments: newPayments, nextCursor: newNextCursor } = await getAllPayments(user, cursor, direction);
+      setPayments(newPayments);
+      setNextCursor(newNextCursor);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el historial de pagos.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, toast]);
+
   React.useEffect(() => {
-    setPayments(initialPayments);
-  }, [initialPayments]);
+    // Initial fetch
+    fetchAndSetPayments(null);
+  }, [fetchAndSetPayments]);
+
+  const handleNextPage = () => {
+    if (!nextCursor) return;
+    const newCursors = [...cursors, nextCursor];
+    setCursors(newCursors);
+    setPage(page + 1);
+    fetchAndSetPayments(nextCursor, 'next');
+  };
+
+  const handlePrevPage = () => {
+    if (page <= 1) return;
+    const newCursors = [...cursors];
+    newCursors.pop(); // Remove current cursor
+    const prevCursor = newCursors[newCursors.length - 1]; // Get previous cursor
+    setCursors(newCursors);
+    setPage(page - 1);
+    fetchAndSetPayments(prevCursor, 'next'); // Refetch from the start of the previous page
+  };
+
 
   const filteredPayments = React.useMemo(() => {
     if (!searchTerm) return payments;
@@ -70,7 +117,8 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
   const handlePaymentDeleted = () => {
     setIsDeleteDialogOpen(false);
     setSelectedPayment(null);
-    onPaymentDeleted(); // Call the callback to refetch data
+    onPaymentDeleted(); // Callback to parent
+    fetchAndSetPayments(cursors[cursors.length - 1]); // Refetch current page
   }
 
   return (
@@ -144,8 +192,8 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="text-center">
-                      No se encontraron pagos.
+                    <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="h-24 text-center">
+                       {isLoading ? 'Cargando pagos...' : 'No se encontraron pagos.'}
                     </TableCell>
                   </TableRow>
                 )}
@@ -153,6 +201,25 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
             </Table>
           </div>
         </CardContent>
+         <CardFooter className="flex justify-end items-center gap-2">
+            <span className="text-sm text-muted-foreground">Página {page}</span>
+             <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrevPage}
+                disabled={page <= 1 || isLoading}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={!nextCursor || isLoading}
+              >
+                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+          </CardFooter>
       </Card>
       
       <DeletePaymentDialog

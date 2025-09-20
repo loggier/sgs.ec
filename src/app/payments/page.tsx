@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -6,32 +7,25 @@ import { getAllPayments } from '@/lib/payment-actions';
 import PaymentHistoryList from '@/components/payment-history-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
-import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import NewPaymentSection from '@/components/new-payment-section';
 import AppContent from '@/components/app-content';
 
 function PaymentsPageContent() {
   const { user } = useAuth();
-  const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [initialLoad, setInitialLoad] = React.useState(true);
 
-  const fetchPayments = React.useCallback(() => {
+  const fetchPayments = React.useCallback(async () => {
+    // This function can be used to trigger a re-fetch, for example by resetting state in the list
+  }, []);
+  
+  React.useEffect(() => {
     if (user) {
-      setIsLoading(true);
-      getAllPayments(user)
-        .then(data => {
-          setPayments(data);
-          setIsLoading(false);
-        });
+        setInitialLoad(false);
     }
   }, [user]);
 
-  React.useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
-
-  if (isLoading && payments.length === 0) {
+  if (initialLoad) {
     return (
       <>
         <Header title="Gestión de Pagos" />
@@ -46,7 +40,7 @@ function PaymentsPageContent() {
       <Header title="Gestión de Pagos" />
       <div className="space-y-8">
         <NewPaymentSection onPaymentSaved={fetchPayments} />
-        <PaymentHistoryList initialPayments={payments} onPaymentDeleted={fetchPayments} isLoading={isLoading} />
+        <PaymentHistoryList onPaymentDeleted={fetchPayments} />
       </div>
     </>
   );
