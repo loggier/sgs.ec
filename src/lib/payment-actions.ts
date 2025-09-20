@@ -112,7 +112,7 @@ export async function registerPayment(
 
                 const unitUpdateData: Partial<Record<keyof Unit, any>> = {
                     ultimoPago: Timestamp.fromDate(new Date(fechaPago)),
-                    fechaSiguientePago: Timestamp.fromDate(newNextPaymentDate), // Use timestamp for consistency
+                    fechaSiguientePago: Timestamp.fromDate(newNextPaymentDate),
                 };
                 
                 const getMonthlyCost = (unit: Unit): number => {
@@ -141,7 +141,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
-                    ownerId: clientData.ownerId,
+                    ownerId: clientData.ownerId, // <-- CRITICAL FIX: Add ownerId to the payment record
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
