@@ -184,35 +184,35 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
 
     try {
         const paymentsGroupRef = collectionGroup(db, 'payments');
-        let q: Query;
-
-        if (currentUser.role === 'master') {
-            q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'));
-        } else {
-            const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-                ? currentUser.creatorId 
-                : currentUser.id;
-            q = query(paymentsGroupRef, where('ownerId', '==', ownerIdToFilter), orderBy('fechaPago', 'desc'));
-        }
-        
+        const q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'));
         const paymentSnapshot = await getDocs(q);
-        
+
         if (paymentSnapshot.empty) {
             return [];
         }
-        
-        let paymentsData = paymentSnapshot.docs.map(doc => ({
+
+        let allPayments = paymentSnapshot.docs.map(doc => ({
             id: doc.id,
             refPath: doc.ref.path,
             ...convertTimestamps(doc.data())
         })) as PaymentHistoryEntry[];
-        
-        if (currentUser.role === 'master' && paymentsData.length > 0) {
-            const ownerIds = [...new Set(paymentsData.map(p => p.ownerId).filter(Boolean))];
+
+        // Filter payments in server-side memory based on user role
+        if (currentUser.role !== 'master') {
+            const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
+                ? currentUser.creatorId 
+                : currentUser.id;
+            
+            allPayments = allPayments.filter(p => p.ownerId === ownerIdToFilter);
+        }
+
+        // Enrich with ownerName for master users after filtering (if needed)
+        if (currentUser.role === 'master' && allPayments.length > 0) {
+            const ownerIds = [...new Set(allPayments.map(p => p.ownerId).filter(Boolean))];
             if (ownerIds.length > 0) {
                 const usersSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', 'in', ownerIds)));
                 const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, (doc.data() as User).nombre]));
-                paymentsData.forEach(p => {
+                allPayments.forEach(p => {
                     if (p.ownerId) {
                         p.ownerName = usersMap.get(p.ownerId);
                     }
@@ -220,7 +220,7 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
             }
         }
         
-        return paymentsData;
+        return allPayments;
 
     } catch (error) {
         console.error("Error fetching payment history:", error);
