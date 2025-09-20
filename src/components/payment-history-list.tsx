@@ -158,7 +158,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
                         </Link>
                       </TableCell>
                       <TableCell>{payment.unitPlaca}</TableCell>
-                      {user?.role === 'master' && <TableCell>{payment.ownerName}</TableCell>}
+                      {user?.role === 'master' && <TableCell>{payment.ownerName || 'N/A'}</TableCell>}
                       <TableCell className="font-semibold">{formatCurrency(payment.monto)}</TableCell>
                       <TableCell>{payment.mesesPagados}</TableCell>
                       <TableCell>
@@ -211,7 +211,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
                 onClick={handleNextPage}
                 disabled={!nextCursor || isLoading}
               >
-                Siguiente <ArrowRight className="ml-2 h-4" />
+                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
           </CardFooter>
       </Card>

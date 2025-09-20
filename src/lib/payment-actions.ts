@@ -18,8 +18,6 @@ import {
   where,
   startAfter,
   collectionGroup,
-  QueryDocumentSnapshot,
-  DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -161,7 +159,7 @@ export async function registerPayment(
         });
         
         if (updatedUnitsForNotification.length > 0) {
-            await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+             await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
         }
 
         revalidatePath(`/clients/${safeClientId}/units`);
@@ -236,8 +234,12 @@ export async function getAllPayments(
 
     const lastVisibleDoc = paymentSnapshot.docs[paymentSnapshot.docs.length - 1];
     
-    // Check for a next page
-    const nextQuery = query(paymentsGroupRef, ...queryConstraints.slice(0,-1), startAfter(lastVisibleDoc), limit(1));
+    // Check for a next page by querying for one more item
+    const nextQueryConstraints = [...queryConstraints];
+    if (nextQueryConstraints[nextQueryConstraints.length -1].type === 'limit') {
+        nextQueryConstraints.pop(); // remove original limit
+    }
+    const nextQuery = query(paymentsGroupRef, ...nextQueryConstraints, startAfter(lastVisibleDoc), limit(1));
     const nextSnapshot = await getDocs(nextQuery);
 
     return {
