@@ -68,6 +68,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
         description: "No se pudo cargar el historial de pagos.",
         variant: "destructive"
       });
+      setPayments([]);
     } finally {
       setIsLoading(false);
     }
@@ -75,26 +76,31 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
 
   React.useEffect(() => {
     fetchAndSetPayments(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchAndSetPayments]);
 
 
   const handleNextPage = () => {
     if (!nextCursor) return;
-    if (!cursors.includes(nextCursor)) {
-      setCursors(prev => [...prev, nextCursor]);
-    }
-    setPage(prev => prev + 1);
-    fetchAndSetPayments(nextCursor);
+    
+    setPage(prev => {
+        const newPage = prev + 1;
+        // Ensure the next cursor is stored at the index of the new page
+        setCursors(prevCursors => {
+            const newCursors = [...prevCursors];
+            newCursors[newPage -1] = nextCursor;
+            return newCursors;
+        });
+        fetchAndSetPayments(nextCursor);
+        return newPage;
+    });
   };
 
   const handlePrevPage = () => {
     if (page <= 1) return;
     const prevPage = page - 1;
-    const newCursors = cursors.slice(0, page);
-    setCursors(newCursors);
+    const prevCursor = cursors[prevPage - 1]; // Cursor to get the PREVIOUS page's data
     setPage(prevPage);
-    fetchAndSetPayments(newCursors[prevPage - 1]);
+    fetchAndSetPayments(prevCursor);
   };
 
 
@@ -218,7 +224,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
                 onClick={handleNextPage}
                 disabled={!nextCursor || isLoading}
               >
-                Siguiente <ArrowRight className="ml-2 h-4" />
+                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
           </CardFooter>
       </Card>
