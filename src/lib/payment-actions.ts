@@ -206,13 +206,17 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
                 const paymentData = doc.data() as Payment;
                 const client = clientsMap.get(paymentData.clientId);
 
+                if (!client) {
+                    return null; // Skip payments for clients that might have been deleted
+                }
+
                 // Permission check
-                if (currentUser.role !== 'master' && client?.ownerId !== ownerIdToFilter) {
+                if (currentUser.role !== 'master' && client.ownerId !== ownerIdToFilter) {
                     return null;
                 }
 
                 // Enrich data
-                const owner = client?.ownerId ? usersMap.get(client.ownerId) : null;
+                const owner = client.ownerId ? usersMap.get(client.ownerId) : null;
                 return {
                     id: doc.id,
                     ...convertTimestamps(paymentData),
