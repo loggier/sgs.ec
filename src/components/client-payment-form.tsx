@@ -71,8 +71,9 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
 
   React.useEffect(() => {
     async function fetchUnits() {
-      const clientUnits = await getUnitsByClientId(clientId);
-      setUnits(clientUnits);
+        if (!clientId) return;
+        const clientUnits = await getUnitsByClientId(clientId);
+        setUnits(clientUnits);
     }
     fetchUnits();
   }, [clientId]);
@@ -109,10 +110,10 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   
   async function onSubmit(values: BatchPaymentFormInput) {
     setIsSubmitting(true);
-    console.log(values.unitIds, clientId);
+    
     try {
       const result = await registerPayment(values, values.unitIds, clientId);
-      console.log(result  );
+      
       if (result.success) {
         toast({
           title: 'Éxito',

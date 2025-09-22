@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -206,7 +207,7 @@ export async function getAllPayments(
           allPayments.push({
             ...paymentData,
             id: paymentDoc.id,
-            clientId: client.id,
+            clientId: client.id!,
             clientName: client.nomSujeto,
             unitPlaca: unit.placa,
             ownerId: client.ownerId,
