@@ -220,7 +220,8 @@ export async function getPayments(
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
             
-            let unitPlaca = data.unitPlaca;
+            let unitPlaca = data.unitPlaca; // Use stored plate if available
+            // If plate is not on the payment record, fetch it from the unit document
             if (!unitPlaca && data.clientId && data.unitId) {
                 try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
@@ -345,3 +346,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
