@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2, DatabaseZap } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -28,7 +28,9 @@ import DeletePaymentDialog from './delete-payment-dialog';
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
+  isBackfilling: boolean;
   onPaymentDeleted: () => void;
+  onBackfill: () => void;
 };
 
 function formatCurrency(amount?: number) {
@@ -41,7 +43,7 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted, isBackfilling, onBackfill }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
@@ -83,6 +85,16 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
               <CardTitle>Historial de Pagos</CardTitle>
               <CardDescription>Todos los pagos registrados en el sistema.</CardDescription>
             </div>
+             {user?.role === 'master' && (
+              <Button onClick={onBackfill} disabled={isBackfilling} variant="outline" size="sm">
+                {isBackfilling ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <DatabaseZap className="mr-2 h-4 w-4" />
+                )}
+                {isBackfilling ? 'Actualizando...' : 'Actualizar Datos de Pagos (Temporal)'}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>

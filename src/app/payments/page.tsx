@@ -10,8 +10,7 @@ import NewPaymentSection from '@/components/new-payment-section';
 import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, DatabaseZap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 function PaymentsPageContent({ 
     payments, 
@@ -38,23 +37,14 @@ function PaymentsPageContent({
 
   return (
     <>
-      <Header title="Gestión de Pagos">
-        {user.role === 'master' && (
-          <Button onClick={onBackfill} disabled={isBackfilling} variant="outline">
-            {isBackfilling ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <DatabaseZap className="mr-2 h-4 w-4" />
-            )}
-            {isBackfilling ? 'Actualizando...' : 'Actualizar Datos de Pagos'}
-          </Button>
-        )}
-      </Header>
+      <Header title="Gestión de Pagos" />
       <div className="space-y-8">
         <NewPaymentSection onPaymentSaved={onDataChange} />
         <PaymentHistoryList 
             initialPayments={payments} 
             isLoading={isLoading}
+            isBackfilling={isBackfilling}
+            onBackfill={onBackfill}
             onPaymentDeleted={onDataChange}
         />
       </div>
