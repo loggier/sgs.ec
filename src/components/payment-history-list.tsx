@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -28,10 +28,9 @@ import DeletePaymentDialog from './delete-payment-dialog';
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
-  isLoadingMore: boolean;
-  hasMore: boolean;
-  onLoadMore: () => void;
   onPaymentDeleted: () => void;
+  onBackfill: () => void;
+  isBackfilling: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -47,10 +46,9 @@ function formatDate(date?: Date | string) {
 export default function PaymentHistoryList({ 
   initialPayments, 
   isLoading, 
-  isLoadingMore,
-  hasMore,
-  onLoadMore,
   onPaymentDeleted,
+  onBackfill,
+  isBackfilling
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -93,6 +91,12 @@ export default function PaymentHistoryList({
               <CardTitle>Historial de Pagos</CardTitle>
               <CardDescription>Todos los pagos registrados en el sistema.</CardDescription>
             </div>
+             {user?.role === 'master' && (
+              <Button onClick={onBackfill} disabled={isBackfilling}>
+                {isBackfilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isBackfilling ? 'Actualizando...' : 'Actualizar Datos de Pagos'}
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -166,17 +170,6 @@ export default function PaymentHistoryList({
             </Table>
           </div>
         </CardContent>
-        {(hasMore || isLoadingMore) && (
-            <CardFooter className="justify-center">
-                <Button
-                    onClick={onLoadMore}
-                    disabled={isLoadingMore}
-                >
-                    {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {isLoadingMore ? 'Cargando...' : 'Cargar más pagos...'}
-                </Button>
-            </CardFooter>
-        )}
       </Card>
       
       <DeletePaymentDialog

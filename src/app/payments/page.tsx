@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getAllPayments } from '@/lib/payment-actions';
+import { getAllPayments, backfillPaymentOwnerIds } from '@/lib/payment-actions';
 import PaymentHistoryList from '@/components/payment-history-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -11,31 +11,24 @@ import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import BackfillConfirmationDialog from '@/components/backfill-confirmation-dialog';
 
 function PaymentsPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [lastVisible, setLastVisible] = React.useState<string | null>(null);
-  const [hasMore, setHasMore] = React.useState(true);
+  const [isBackfilling, setIsBackfilling] = React.useState(false);
+  const [isBackfillDialogOpen, setIsBackfillDialogOpen] = React.useState(false);
 
-  const fetchPayments = React.useCallback(async (cursor: string | null = null) => {
+  const fetchPayments = React.useCallback(async () => {
     if (!user) return;
     
-    if (cursor) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoading(true);
-      setPayments([]); // Reset on initial load or refresh
-    }
-
+    setIsLoading(true);
     try {
-      const { payments: newPayments, lastVisible: newLastVisible, hasMore: newHasMore } = await getAllPayments(user, cursor);
-      setPayments(prev => cursor ? [...prev, ...newPayments] : newPayments);
-      setLastVisible(newLastVisible);
-      setHasMore(newHasMore);
+      const allPayments = await getAllPayments(user);
+      setPayments(allPayments);
     } catch (error) {
       toast({
           title: "Error",
@@ -45,7 +38,6 @@ function PaymentsPageContent() {
       setPayments([]);
     } finally {
       setIsLoading(false);
-      setIsLoadingMore(false);
     }
   }, [user, toast]);
 
@@ -54,11 +46,33 @@ function PaymentsPageContent() {
   }, [fetchPayments]);
 
   const handleDataChange = () => {
-    // Reset and fetch from the beginning
-    setLastVisible(null);
-    setHasMore(true);
-    fetchPayments(null);
+    fetchPayments();
   }
+
+  const handleConfirmBackfill = async () => {
+    setIsBackfillDialogOpen(false);
+    setIsBackfilling(true);
+    toast({
+        title: 'Iniciando actualización...',
+        description: 'Recorriendo la base de datos para actualizar los registros. Esto puede tardar unos momentos.',
+    });
+
+    const result = await backfillPaymentOwnerIds();
+
+    if (result.success) {
+        toast({
+            title: 'Actualización Completada',
+            description: result.message,
+        });
+    } else {
+        toast({
+            title: 'Error en la Actualización',
+            description: result.message,
+            variant: 'destructive',
+        });
+    }
+    setIsBackfilling(false);
+  };
   
   if (!user) {
     return (
@@ -76,12 +90,17 @@ function PaymentsPageContent() {
         <PaymentHistoryList 
             initialPayments={payments} 
             isLoading={isLoading}
-            isLoadingMore={isLoadingMore}
-            hasMore={hasMore}
-            onLoadMore={() => fetchPayments(lastVisible)}
             onPaymentDeleted={handleDataChange}
+            onBackfill={() => setIsBackfillDialogOpen(true)}
+            isBackfilling={isBackfilling}
         />
       </div>
+      <BackfillConfirmationDialog
+        isOpen={isBackfillDialogOpen}
+        onOpenChange={setIsBackfillDialogOpen}
+        onConfirm={handleConfirmBackfill}
+        isBackfilling={isBackfilling}
+      />
     </>
   );
 }
