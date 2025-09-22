@@ -44,7 +44,7 @@ const convertTimestamps = (data: any): any => {
     }
 
     // Handle Objects
-    if (typeof data === 'object') {
+    if (typeof data === 'object' && data !== null) {
         const newData: { [key: string]: any } = {};
         for (const key in data) {
             if (Object.prototype.hasOwnProperty.call(data, key)) {
@@ -206,9 +206,24 @@ export async function saveUnit(
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
     const savedUnit = await getUnit(clientId, savedUnitId!);
+
+    if (!savedUnit) {
+      return { success: false, message: 'Error: No se pudo recuperar la unidad después de guardarla.' };
+    }
     
-    // CRITICAL: Convert the returned unit to a serializable object before returning
-    const serializableUnit = convertTimestamps(savedUnit);
+    // Explicitly create the serializable object to ensure no Timestamps are passed to the client.
+    const serializableUnit: SerializableUnit = {
+      ...savedUnit,
+      id: savedUnit.id,
+      clientId: savedUnit.clientId,
+      fechaInstalacion: savedUnit.fechaInstalacion ? (savedUnit.fechaInstalacion as any).toDate().toISOString() : null,
+      fechaSuspension: savedUnit.fechaSuspension ? (savedUnit.fechaSuspension as any).toDate().toISOString() : null,
+      fechaInicioContrato: (savedUnit.fechaInicioContrato as any).toDate().toISOString(),
+      fechaVencimiento: (savedUnit.fechaVencimiento as any).toDate().toISOString(),
+      ultimoPago: savedUnit.ultimoPago ? (savedUnit.ultimoPago as any).toDate().toISOString() : null,
+      fechaSiguientePago: (savedUnit.fechaSiguientePago as any).toDate().toISOString(),
+    };
+    
 
     return { success: true, message: 'Unidad guardada con éxito.', unit: serializableUnit };
 
