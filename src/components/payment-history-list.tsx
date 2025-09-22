@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -29,6 +29,9 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
+  onLoadMore: () => void;
+  isLoadingMore: boolean;
+  hasMore: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -37,14 +40,23 @@ function formatCurrency(amount?: number) {
 }
 
 function formatDate(date?: Date | string) {
-  if (!date) return 'N/A';
-  return format(new Date(date), 'P', { locale: es });
+  if (!date) return 'N-A';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return 'Fecha Inválida';
+    return format(d, 'P', { locale: es });
+  } catch (e) {
+    return 'Error Fecha';
+  }
 }
 
 export default function PaymentHistoryList({ 
   initialPayments, 
   isLoading, 
   onPaymentDeleted,
+  onLoadMore,
+  isLoadingMore,
+  hasMore,
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -160,6 +172,17 @@ export default function PaymentHistoryList({
             </Table>
           </div>
         </CardContent>
+        {hasMore && (
+           <CardFooter className="flex justify-center">
+               <Button onClick={onLoadMore} disabled={isLoadingMore}>
+                   {isLoadingMore ? (
+                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cargando...</>
+                   ) : (
+                       'Cargar más pagos...'
+                   )}
+               </Button>
+           </CardFooter>
+        )}
       </Card>
       
       <DeletePaymentDialog

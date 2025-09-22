@@ -183,52 +183,30 @@ export async function registerPayment(
     }
 }
 
-export async function getAllPayments(currentUser: User): Promise<PaymentHistoryEntry[]> {
-    if (!currentUser) return [];
-
+export async function getAllPayments(unitsForPage: Unit[]): Promise<PaymentHistoryEntry[]> {
+    if (unitsForPage.length === 0) return [];
+    
     try {
-        const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-            ? currentUser.creatorId 
-            : currentUser.id;
-
-        const clientsQuery = currentUser.role === 'master'
-            ? query(collection(db, 'clients'))
-            : query(collection(db, 'clients'), where('ownerId', '==', ownerIdToFilter));
+        const allPayments: PaymentHistoryEntry[] = [];
         
-        const clientsSnapshot = await getDocs(clientsQuery);
-        if (clientsSnapshot.empty) {
-            return [];
-        }
-
         const usersSnapshot = await getDocs(collection(db, 'users'));
         const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-        const allPayments: PaymentHistoryEntry[] = [];
+        for (const unit of unitsForPage) {
+             const paymentsCollectionRef = collection(db, 'clients', unit.clientId, 'units', unit.id, 'payments');
+             const paymentsSnapshot = await getDocs(paymentsCollectionRef);
 
-        for (const clientDoc of clientsSnapshot.docs) {
-            const client = { id: clientDoc.id, ...clientDoc.data() } as Client;
-            const unitsCollectionRef = collection(db, 'clients', client.id, 'units');
-            const unitsSnapshot = await getDocs(unitsCollectionRef);
-
-            for (const unitDoc of unitsSnapshot.docs) {
-                const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unitDoc.id, 'payments');
-                const paymentsSnapshot = await getDocs(paymentsCollectionRef);
-
-                paymentsSnapshot.forEach(paymentDoc => {
-                    const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-                    const owner = paymentData.ownerId ? userMap.get(paymentData.ownerId) : undefined;
-                    allPayments.push({
-                        ...paymentData,
-                        id: paymentDoc.id,
-                        ownerName: owner?.nombre,
-                    });
-                });
-            }
+             paymentsSnapshot.forEach(paymentDoc => {
+                const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
+                const owner = paymentData.ownerId ? userMap.get(paymentData.ownerId) : undefined;
+                 allPayments.push({
+                    ...paymentData,
+                    id: paymentDoc.id,
+                    ownerName: owner?.nombre,
+                 });
+             });
         }
         
-        // Sort payments by date descending, as they are collected from multiple sources
-        allPayments.sort((a, b) => new Date(b.fechaPago as string).getTime() - new Date(a.fechaPago as string).getTime());
-
         return allPayments;
     } catch (error) {
         console.error("Error fetching payment history:", error);
