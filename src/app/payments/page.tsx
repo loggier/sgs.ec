@@ -17,16 +17,14 @@ function PaymentsPageContent() {
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [hasMore, setHasMore] = React.useState(true);
   
-  const fetchPayments = React.useCallback(async (cursor: string | null = null) => {
+  const fetchPayments = React.useCallback(async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      const { payments: newPayments, hasMore: newHasMore } = await getAllPayments(user, cursor);
-      setPayments(prev => cursor ? [...prev, ...newPayments] : newPayments);
-      setHasMore(newHasMore);
+      const allPayments = await getAllPayments(user);
+      setPayments(allPayments);
     } catch (error) {
       toast({
         title: "Error",
@@ -40,19 +38,12 @@ function PaymentsPageContent() {
   }, [user, toast]);
 
   React.useEffect(() => {
-    fetchPayments(null);
+    fetchPayments();
   }, [fetchPayments]);
   
   const handleDataChange = () => {
-      fetchPayments(null); // Refetch from the beginning
+      fetchPayments();
   }
-
-  const handleLoadMore = () => {
-    if (payments.length > 0 && hasMore && !isLoading) {
-      const lastPayment = payments[payments.length - 1];
-      fetchPayments(lastPayment.refPath || null);
-    }
-  };
   
   if (!user) {
     return (
@@ -71,8 +62,6 @@ function PaymentsPageContent() {
             initialPayments={payments} 
             isLoading={isLoading}
             onPaymentDeleted={handleDataChange}
-            hasMore={hasMore}
-            onLoadMore={handleLoadMore}
         />
       </div>
     </>
@@ -87,3 +76,5 @@ export default function PaymentsPage() {
         </AppContent>
     )
 }
+
+    

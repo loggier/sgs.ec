@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -16,8 +15,6 @@ import {
   runTransaction,
   limit,
   where,
-  collectionGroup,
-  startAfter,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -181,105 +178,66 @@ export async function registerPayment(
     }
 }
 
-
 export async function getAllPayments(
-  currentUser: User,
-  cursor: string | null
-): Promise<{ payments: PaymentHistoryEntry[]; hasMore: boolean; }> {
-  if (!currentUser) return { payments: [], hasMore: false };
-
-  const PAYMENTS_PAGE_SIZE = 50; // Using a smaller batch size for demonstration
+  currentUser: User
+): Promise<PaymentHistoryEntry[]> {
+  if (!currentUser) return [];
 
   try {
-    const paymentsGroupRef = collectionGroup(db, 'payments');
-    let q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE));
-
-    if (cursor) {
-      const cursorDoc = await getDoc(doc(db, cursor));
-      if(cursorDoc.exists()) {
-        q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), startAfter(cursorDoc), limit(PAYMENTS_PAGE_SIZE));
-      }
-    }
+    const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
     
-    const paymentsSnapshot = await getDocs(q);
-    
-    // Efficiently get all related data in bulk
-    const clientIds = new Set(paymentsSnapshot.docs.map(doc => doc.data().clientId));
-    const ownerIds = new Set<string>();
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-    const clientsData: Map<string, Client> = new Map();
-    if(clientIds.size > 0) {
-      const clientsQuery = query(collection(db, 'clients'), where('__name__', 'in', Array.from(clientIds)));
-      const clientsSnapshot = await getDocs(clientsQuery);
-      clientsSnapshot.forEach(doc => {
-        const client = { id: doc.id, ...doc.data() } as Client;
-        clientsData.set(doc.id, client);
-        if (client.ownerId) ownerIds.add(client.ownerId);
-      });
-    }
+    const allPayments: PaymentHistoryEntry[] = [];
 
-    const usersData: Map<string, User> = new Map();
-    if(ownerIds.size > 0) {
-      const usersQuery = query(collection(db, 'users'), where('__name__', 'in', Array.from(ownerIds)));
-      const usersSnapshot = await getDocs(usersQuery);
-      usersSnapshot.forEach(doc => usersData.set(doc.id, doc.data() as User));
-    }
+    for (const client of userClients) {
+      if (!client.id) continue;
+      const units = await getUnitsByClientId(client.id);
+      for (const unit of units) {
+        const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
+        const paymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
 
-    const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId ? currentUser.creatorId : currentUser.id;
+        paymentsSnapshot.forEach(paymentDoc => {
+          const paymentData = convertTimestamps(paymentDoc.data()) as Omit<Payment, 'id'>;
+          const owner = client.ownerId ? userMap.get(client.ownerId) : undefined;
 
-    const filteredPayments: PaymentHistoryEntry[] = [];
-    for (const docSnap of paymentsSnapshot.docs) {
-      const paymentData = convertTimestamps(docSnap.data()) as Payment;
-      const client = clientsData.get(paymentData.clientId);
-
-      if (!client) continue; // Skip payments for clients not found (or deleted)
-      
-      const canView = currentUser.role === 'master' || client.ownerId === ownerIdToFilter;
-
-      if (canView) {
-        const owner = client.ownerId ? usersData.get(client.ownerId) : null;
-        filteredPayments.push({
-          ...paymentData,
-          id: docSnap.id,
-          refPath: docSnap.ref.path,
-          clientName: client.nomSujeto,
-          ownerName: owner?.nombre,
+          allPayments.push({
+            ...paymentData,
+            id: paymentDoc.id,
+          });
         });
       }
     }
     
-    const lastVisibleDoc = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1];
-    let hasMore = false;
-    if (lastVisibleDoc) {
-      const nextQuery = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
-      const nextSnapshot = await getDocs(nextQuery);
-      hasMore = !nextSnapshot.empty;
-    }
+    allPayments.sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
 
-    return { payments: filteredPayments, hasMore };
+    return allPayments;
   } catch (error) {
     console.error("Error fetching payment history:", error);
-    return { payments: [], hasMore: false };
+    return [];
   }
 }
 
-
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
-        const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
-        
         await runTransaction(db, async (transaction) => {
+            const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
             const paymentDoc = await transaction.get(paymentDocRef);
+
             if (!paymentDoc.exists()) {
                 throw new Error('Pago no encontrado.');
             }
+            
             const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
 
             const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
             const unitDoc = await transaction.get(unitDocRef);
+
             if (!unitDoc.exists()) {
                 throw new Error('No se pudo encontrar la unidad asociada.');
             }
+            
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
 
             const nextPaymentDate = unitData.fechaSiguientePago ? new Date(unitData.fechaSiguientePago) : null;
@@ -327,3 +285,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    

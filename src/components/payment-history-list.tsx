@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2, ArrowDown } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -29,8 +29,6 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
-  hasMore: boolean;
-  onLoadMore: () => void;
 };
 
 function formatCurrency(amount?: number) {
@@ -43,7 +41,7 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted, hasMore, onLoadMore }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
@@ -158,22 +156,6 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
             </Table>
           </div>
         </CardContent>
-        {hasMore && !searchTerm && (
-            <CardFooter className="flex justify-center">
-                <Button
-                    variant="outline"
-                    onClick={onLoadMore}
-                    disabled={isLoading}
-                >
-                    {isLoading ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <ArrowDown className="mr-2 h-4 w-4" />
-                    )}
-                    {isLoading ? 'Cargando...' : 'Cargar más'}
-                </Button>
-            </CardFooter>
-        )}
       </Card>
       
       <DeletePaymentDialog
@@ -185,3 +167,5 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
     </>
   );
 }
+
+    
