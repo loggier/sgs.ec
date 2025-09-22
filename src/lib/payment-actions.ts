@@ -22,6 +22,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
   deleteDoc,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -279,7 +280,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
             
             unitUpdate.ultimoPago = !otherPaymentsSnapshot.empty
-                ? otherPaymentsSnapshot.docs[0].data().fechaPago
+                ? otherPaymentsSnapshot.docs[0].data().fechaPago.toDate().toISOString()
                 : null;
             
             transaction.update(unitDocRef, unitUpdate);
@@ -331,7 +332,7 @@ export async function migrateNestedPayments(): Promise<{ success: boolean; messa
             }
         }
         revalidatePath('/payments');
-        return { success: true, message: `Migración completada. ${migratedCount} pagos movidos, ${skippedCount} ya existían y fueron omitidos.` };
+        return { success: true, message: `Migración completada. ${migratedCount} pagos copiados, ${skippedCount} ya existían y fueron omitidos.` };
 
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Error desconocido';
