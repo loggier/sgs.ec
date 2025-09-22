@@ -221,20 +221,18 @@ export async function getPayments(
 
         const paymentsPromises = paymentsSnapshot.docs.map(async (doc) => {
             const data = convertTimestamps(doc.data()) as Payment;
+            
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
-            const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
-            
-            let unitPlaca = data.unitPlaca || 'Placa no encontrada';
-            
-            // If plate is not directly on payment, fetch it from the unit
-            if (unitPlaca === 'Placa no encontrada' && data.clientId && data.unitId) {
-                 try {
+            const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : 'Cliente no encontrado';
+            let unitPlaca = 'Placa no encontrada';
+
+            // Always try to fetch the latest plate from the unit document.
+            if (data.clientId && data.unitId) {
+                try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
                     if (unitDoc.exists()) {
-                        // Ensure we convert timestamps for the unit data too
-                        const unitData = convertTimestamps(unitDoc.data()) as Unit;
-                        unitPlaca = unitData.placa;
+                        unitPlaca = unitDoc.data().placa;
                     }
                 } catch (e) {
                     console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
@@ -244,7 +242,7 @@ export async function getPayments(
             return {
                 id: doc.id,
                 ...data,
-                clientName: clientName || data.clientName,
+                clientName: clientName,
                 unitPlaca: unitPlaca,
                 ownerName,
             };
@@ -352,5 +350,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
 
     
