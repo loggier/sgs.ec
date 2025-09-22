@@ -191,35 +191,37 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
             return [];
         }
 
-        let allPayments = paymentSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...convertTimestamps(doc.data())
-        })) as PaymentHistoryEntry[];
+        const allClientsSnapshot = await getDocs(collection(db, 'clients'));
+        const clientsMap = new Map(allClientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
 
-        // Filter payments in server-side memory based on user role
-        if (currentUser.role !== 'master') {
-            const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-                ? currentUser.creatorId 
-                : currentUser.id;
-            
-            allPayments = allPayments.filter(p => p.ownerId === ownerIdToFilter);
-        }
-
-        // Enrich with ownerName for master users after filtering (if needed)
-        if (currentUser.role === 'master' && allPayments.length > 0) {
-            const ownerIds = [...new Set(allPayments.map(p => p.ownerId).filter(Boolean))];
-            if (ownerIds.length > 0) {
-                const usersSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', 'in', ownerIds)));
-                const usersMap = new Map(usersSnapshot.docs.map(doc => [doc.id, (doc.data() as User).nombre]));
-                allPayments.forEach(p => {
-                    if (p.ownerId) {
-                        p.ownerName = usersMap.get(p.ownerId);
-                    }
-                });
-            }
-        }
+        const allUsersSnapshot = await getDocs(collection(db, 'users'));
+        const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
         
-        return allPayments;
+        const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
+            ? currentUser.creatorId 
+            : currentUser.id;
+
+        const filteredAndEnrichedPayments = paymentSnapshot.docs
+            .map(doc => {
+                const paymentData = doc.data() as Payment;
+                const client = clientsMap.get(paymentData.clientId);
+
+                // Permission check
+                if (currentUser.role !== 'master' && client?.ownerId !== ownerIdToFilter) {
+                    return null;
+                }
+
+                // Enrich data
+                const owner = client?.ownerId ? usersMap.get(client.ownerId) : null;
+                return {
+                    id: doc.id,
+                    ...convertTimestamps(paymentData),
+                    ownerName: owner?.nombre,
+                } as PaymentHistoryEntry;
+            })
+            .filter((p): p is PaymentHistoryEntry => p !== null);
+        
+        return filteredAndEnrichedPayments;
 
     } catch (error) {
         console.error("Error fetching payment history:", error);
@@ -293,5 +295,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
