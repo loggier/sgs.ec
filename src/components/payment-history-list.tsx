@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -8,7 +7,6 @@ import { es } from 'date-fns/locale';
 import Link from 'next/link';
 
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
-import { getAllPayments } from '@/lib/payment-actions';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,10 +22,11 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
 import DeletePaymentDialog from './delete-payment-dialog';
-import { useToast } from '@/hooks/use-toast';
 
 type PaymentHistoryListProps = {
+  initialPayments: PaymentHistoryEntry[];
   onPaymentDeleted: () => void;
+  isLoading: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -40,41 +39,16 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, isLoading }: PaymentHistoryListProps) {
   const { user } = useAuth();
-  const { toast } = useToast();
   const { searchTerm } = useSearch();
-  const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  
+  const [payments, setPayments] = React.useState(initialPayments);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
 
-  const fetchAndSetPayments = React.useCallback(async () => {
-    if (!user) {
-        setIsLoading(false);
-        return;
-    };
-    setIsLoading(true);
-    try {
-      const allPayments = await getAllPayments(user);
-      setPayments(allPayments);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo cargar el historial de pagos.",
-        variant: "destructive"
-      });
-      setPayments([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, toast]);
-  
   React.useEffect(() => {
-    fetchAndSetPayments();
-  }, [fetchAndSetPayments]);
-
+    setPayments(initialPayments);
+  }, [initialPayments]);
 
   const filteredPayments = React.useMemo(() => {
     if (!searchTerm) return payments;
@@ -95,9 +69,7 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
   const handlePaymentDeleted = () => {
     setIsDeleteDialogOpen(false);
     setSelectedPayment(null);
-    onPaymentDeleted();
-    // Refetch all payments to reflect changes
-    fetchAndSetPayments();
+    onPaymentDeleted(); // Call the callback to refetch data
   }
 
   return (
@@ -191,5 +163,3 @@ export default function PaymentHistoryList({ onPaymentDeleted }: PaymentHistoryL
     </>
   );
 }
-
-    

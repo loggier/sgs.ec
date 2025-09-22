@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import * as React from 'react';
@@ -10,22 +8,41 @@ import { useAuth } from '@/context/auth-context';
 import { Skeleton } from '@/components/ui/skeleton';
 import NewPaymentSection from '@/components/new-payment-section';
 import AppContent from '@/components/app-content';
+import type { PaymentHistoryEntry } from '@/lib/payment-schema';
+import { useToast } from '@/hooks/use-toast';
 
 function PaymentsPageContent() {
   const { user } = useAuth();
-  const [initialLoad, setInitialLoad] = React.useState(true);
+  const { toast } = useToast();
+  const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const fetchPayments = React.useCallback(async () => {
-    // This function can be used to trigger a re-fetch, for example by resetting state in the list
-  }, []);
-  
-  React.useEffect(() => {
-    if (user) {
-        setInitialLoad(false);
+    if (!user) {
+        setIsLoading(false);
+        return;
+    };
+    setIsLoading(true);
+    try {
+      const allPayments = await getAllPayments(user);
+      setPayments(allPayments);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el historial de pagos.",
+        variant: "destructive"
+      });
+      setPayments([]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
-  if (initialLoad) {
+  React.useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
+  if (isLoading && payments.length === 0) {
     return (
       <>
         <Header title="Gestión de Pagos" />
@@ -40,7 +57,11 @@ function PaymentsPageContent() {
       <Header title="Gestión de Pagos" />
       <div className="space-y-8">
         <NewPaymentSection onPaymentSaved={fetchPayments} />
-        <PaymentHistoryList onPaymentDeleted={fetchPayments} />
+        <PaymentHistoryList 
+            initialPayments={payments} 
+            onPaymentDeleted={fetchPayments}
+            isLoading={isLoading} 
+        />
       </div>
     </>
   );
