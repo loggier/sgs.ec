@@ -19,15 +19,14 @@ import {
   collectionGroup,
   startAfter,
   addDoc,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
-import type { Client, ClientDisplay } from './schema';
-import { getClients } from './actions';
-import { getUnitsByClientId } from './unit-actions';
-import { getCurrentUser } from './auth';
+import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const PAYMENTS_PAGE_SIZE = 25;
@@ -147,7 +146,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
-                    ownerId: clientData.ownerId,
+                    ownerId: clientData.ownerId, // Set ownerId on new payment
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
@@ -185,46 +184,67 @@ export async function registerPayment(
 }
 
 export async function getAllPayments(
-  currentUser: User
-): Promise<PaymentHistoryEntry[]> {
-  if (!currentUser) return [];
+  currentUser: User,
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null
+): Promise<{ 
+    payments: PaymentHistoryEntry[],
+    lastVisible: QueryDocumentSnapshot<DocumentData> | null,
+    hasMore: boolean
+}> {
+  if (!currentUser) return { payments: [], lastVisible: null, hasMore: false };
 
   try {
-    const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
+    const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
+      ? currentUser.creatorId 
+      : currentUser.id;
     
     const usersSnapshot = await getDocs(collection(db, 'users'));
     const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-    const allPayments: PaymentHistoryEntry[] = [];
+    const paymentsQueryConstraints = [
+      where('ownerId', '==', ownerIdToFilter),
+      orderBy('fechaPago', 'desc'),
+      limit(PAYMENTS_PAGE_SIZE)
+    ];
 
-    for (const client of userClients) {
-      const units = await getUnitsByClientId(client.id);
-      for (const unit of units) {
-        const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
-        const paymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
-
-        paymentsSnapshot.forEach(paymentDoc => {
-          const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-          const owner = client.ownerId ? userMap.get(client.ownerId) : undefined;
-
-          allPayments.push({
-            ...paymentData,
-            id: paymentDoc.id,
-            clientName: client.nomSujeto,
-            unitPlaca: unit.placa,
-            ownerId: client.ownerId,
-            ownerName: owner?.nombre,
-          });
-        });
-      }
+    if (lastVisible) {
+      paymentsQueryConstraints.push(startAfter(lastVisible));
     }
     
-    allPayments.sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
+    const paymentsGroupQuery = query(collectionGroup(db, 'payments'), ...paymentsQueryConstraints);
+    const paymentsSnapshot = await getDocs(paymentsGroupQuery);
+    
+    const allPayments: PaymentHistoryEntry[] = paymentsSnapshot.docs.map(doc => {
+      const paymentData = convertTimestamps(doc.data()) as Payment;
+      const owner = paymentData.ownerId ? userMap.get(paymentData.ownerId) : undefined;
+      return {
+        ...paymentData,
+        id: doc.id,
+        ownerName: owner?.nombre,
+      };
+    });
 
-    return allPayments;
+    const newLastVisible = paymentsSnapshot.docs.length > 0 
+      ? paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1] 
+      : null;
+
+    let hasMore = false;
+    if (newLastVisible) {
+        const nextQuery = query(collectionGroup(db, 'payments'), 
+            where('ownerId', '==', ownerIdToFilter),
+            orderBy('fechaPago', 'desc'),
+            startAfter(newLastVisible),
+            limit(1)
+        );
+        const nextSnapshot = await getDocs(nextQuery);
+        hasMore = !nextSnapshot.empty;
+    }
+
+    return { payments: allPayments, lastVisible: newLastVisible, hasMore };
   } catch (error) {
     console.error("Error fetching payment history:", error);
-    return [];
+    // Rethrow to be caught by the calling component
+    throw error;
   }
 }
 
@@ -292,55 +312,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         console.error("Error deleting payment:", error);
         const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
         return { success: false, message: errorMessage };
-    }
-}
-
-export async function backfillPaymentOwnerIds(): Promise<{ success: boolean, message: string }> {
-    try {
-        const clientsSnapshot = await getDocs(collection(db, 'clients'));
-        const clientOwnerMap = new Map<string, string>();
-        clientsSnapshot.forEach(doc => {
-            const client = doc.data() as Client;
-            if (client.ownerId) {
-                clientOwnerMap.set(doc.id, client.ownerId);
-            }
-        });
-
-        const paymentsSnapshot = await getDocs(collectionGroup(db, 'payments'));
-        if (paymentsSnapshot.empty) {
-            return { success: true, message: "No se encontraron pagos para actualizar." };
-        }
-
-        const batch = writeBatch(db);
-        let updatedCount = 0;
-
-        paymentsSnapshot.docs.forEach(paymentDoc => {
-            const paymentData = paymentDoc.data();
-            if (!paymentData.ownerId) { // Check if ownerId is already set
-                const unitRef = paymentDoc.ref.parent.parent;
-                if (unitRef) {
-                    const clientRef = unitRef.parent.parent;
-                    if (clientRef) {
-                        const ownerId = clientOwnerMap.get(clientRef.id);
-                        if (ownerId) {
-                            batch.update(paymentDoc.ref, { ownerId: ownerId });
-                            updatedCount++;
-                        }
-                    }
-                }
-            }
-        });
-
-        if (updatedCount === 0) {
-            return { success: true, message: "Todos los registros de pago ya estaban actualizados." };
-        }
-
-        await batch.commit();
-        return { success: true, message: `${updatedCount} registros de pago han sido actualizados con el ID del propietario.` };
-
-    } catch (error) {
-        console.error("Error during backfill:", error);
-        const message = error instanceof Error ? error.message : "Error desconocido.";
-        return { success: false, message: `Ocurrió un error: ${message}` };
     }
 }

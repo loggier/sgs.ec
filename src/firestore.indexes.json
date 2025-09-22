@@ -1,7 +1,19 @@
 
-
 {
-  "indexes": []
+  "indexes": [
+    {
+      "collectionGroup": "payments",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fechaPago",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
 }
-
-
