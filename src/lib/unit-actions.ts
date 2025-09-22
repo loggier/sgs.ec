@@ -19,7 +19,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { UnitFormSchema, type Unit, type UnitFormInput } from './unit-schema';
+import { UnitFormSchema, type Unit, type UnitFormInput, type SerializableUnit } from './unit-schema';
 import type { Client, ClientDisplay } from './schema';
 import type { User } from './user-schema';
 import { getPgpsDevicesByClientId, getPgpsDeviceDetails, setPgpsDeviceStatus } from './pgps-actions';
@@ -27,15 +27,23 @@ import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (data: any): any => {
     if (!data) return data;
-
+    
+    // Handle Firestore Timestamps
     if (data instanceof Timestamp) {
         return data.toDate().toISOString();
     }
+    
+    // Handle JS Date objects
+    if (data instanceof Date) {
+        return data.toISOString();
+    }
 
+    // Handle Arrays
     if (Array.isArray(data)) {
         return data.map(item => convertTimestamps(item));
     }
 
+    // Handle Objects
     if (typeof data === 'object') {
         const newData: { [key: string]: any } = {};
         for (const key in data) {
@@ -99,7 +107,7 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
 
-    const data = convertTimestamps(unitDoc.data());
+    const data = unitDoc.data();
     let unit: Unit = { id: unitDoc.id, clientId, ...data } as Unit;
 
     // Enrich with P. GPS device status if linked
@@ -119,7 +127,7 @@ export async function saveUnit(
   clientId: string,
   user: User | null,
   unitId?: string
-): Promise<{ success: boolean; message:string; unit?: Unit }> {
+): Promise<{ success: boolean; message:string; unit?: SerializableUnit }> {
   if (!user || !['master', 'manager', 'analista'].includes(user.role)) {
       return { success: false, message: 'No tiene permiso para modificar unidades.' };
   }
@@ -198,7 +206,11 @@ export async function saveUnit(
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
     const savedUnit = await getUnit(clientId, savedUnitId!);
-    return { success: true, message: 'Unidad guardada con éxito.', unit: savedUnit! };
+    
+    // CRITICAL: Convert the returned unit to a serializable object before returning
+    const serializableUnit = convertTimestamps(savedUnit);
+
+    return { success: true, message: 'Unidad guardada con éxito.', unit: serializableUnit };
 
   } catch (error) {
     console.error("Error saving unit:", error);
@@ -559,7 +571,3 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
-
-    
-
-    

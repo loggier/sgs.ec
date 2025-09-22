@@ -1,8 +1,9 @@
 
+
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 
-// Helper to accept Date or Firestore Timestamp
+// Helper to accept Date or Firestore Timestamp for input, but not for server->client transfer
 const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]);
 const nullableDateOrTimestamp = z.union([z.instanceof(Timestamp), z.date()]).nullable();
 
@@ -22,6 +23,7 @@ export const UnitCategory = z.enum([
 ]);
 export type UnitCategory = z.infer<typeof UnitCategory>;
 
+// This schema defines the shape of the data as it exists in Firestore
 export const UnitSchema = z.object({
   id: z.string(),
   clientId: z.string(),
@@ -51,6 +53,18 @@ export const UnitSchema = z.object({
 });
 
 export type Unit = z.infer<typeof UnitSchema>;
+
+// This type represents a "plain" Unit object safe to pass from Server to Client components.
+// All Timestamp/Date fields are converted to string | null.
+export type SerializableUnit = Omit<Unit, 'fechaInstalacion' | 'fechaSuspension' | 'fechaInicioContrato' | 'fechaVencimiento' | 'ultimoPago' | 'fechaSiguientePago'> & {
+  fechaInstalacion: string | null;
+  fechaSuspension: string | null;
+  fechaInicioContrato: string;
+  fechaVencimiento: string;
+  ultimoPago: string | null;
+  fechaSiguientePago: string;
+};
+
 
 export const UnitFormSchema = UnitSchema.omit({ 
   id: true, 
