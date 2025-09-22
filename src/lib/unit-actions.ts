@@ -28,22 +28,25 @@ import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 const convertTimestamps = (data: any): any => {
     if (!data) return data;
 
-    const newData: { [key: string]: any } = {};
-    for (const key in data) {
-        if (Object.prototype.hasOwnProperty.call(data, key)) {
-            const value = data[key];
-            if (value instanceof Timestamp) {
-                newData[key] = value.toDate().toISOString();
-            } else if (value === null || value === undefined) {
-                newData[key] = null;
-            } else if (typeof value === 'object' && !Array.isArray(value)) {
-                newData[key] = convertTimestamps(value); // Recursively convert nested objects
-            } else {
-                newData[key] = value;
+    if (data instanceof Timestamp) {
+        return data.toDate().toISOString();
+    }
+
+    if (Array.isArray(data)) {
+        return data.map(item => convertTimestamps(item));
+    }
+
+    if (typeof data === 'object') {
+        const newData: { [key: string]: any } = {};
+        for (const key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key)) {
+                newData[key] = convertTimestamps(data[key]);
             }
         }
+        return newData;
     }
-    return newData;
+
+    return data;
 };
 
 
@@ -556,5 +559,7 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
+
+    
 
     
