@@ -211,13 +211,19 @@ export async function getPayments(
 
         const allUserDocs = await getDocs(query(collection(db, 'users')));
         const userMap = new Map(allUserDocs.docs.map(doc => [doc.id, doc.data() as User]));
+        
+        const allClientDocs = await getDocs(query(collection(db, 'clients')));
+        const clientMap = new Map(allClientDocs.docs.map(doc => [doc.id, doc.data() as Client]));
 
         const payments = paymentsSnapshot.docs.map(doc => {
             const data = convertTimestamps(doc.data()) as Payment;
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
+            const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
+
             return {
                 id: doc.id,
                 ...data,
+                clientName: clientName || data.clientName, // Fallback to stored name
                 ownerName,
             };
         });
