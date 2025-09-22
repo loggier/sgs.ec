@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -211,17 +210,23 @@ export async function saveUnit(
       return { success: false, message: 'Error: No se pudo recuperar la unidad después de guardarla.' };
     }
     
-    // Explicitly create the serializable object to ensure no Timestamps are passed to the client.
+    const toISODate = (date: any): string | null => {
+        if (!date) return null;
+        if (date instanceof Timestamp) return date.toDate().toISOString();
+        if (date instanceof Date) return date.toISOString();
+        return null;
+    };
+
     const serializableUnit: SerializableUnit = {
       ...savedUnit,
       id: savedUnit.id,
       clientId: savedUnit.clientId,
-      fechaInstalacion: savedUnit.fechaInstalacion ? (savedUnit.fechaInstalacion as any).toDate().toISOString() : null,
-      fechaSuspension: savedUnit.fechaSuspension ? (savedUnit.fechaSuspension as any).toDate().toISOString() : null,
-      fechaInicioContrato: (savedUnit.fechaInicioContrato as any).toDate().toISOString(),
-      fechaVencimiento: (savedUnit.fechaVencimiento as any).toDate().toISOString(),
-      ultimoPago: savedUnit.ultimoPago ? (savedUnit.ultimoPago as any).toDate().toISOString() : null,
-      fechaSiguientePago: (savedUnit.fechaSiguientePago as any).toDate().toISOString(),
+      fechaInstalacion: toISODate(savedUnit.fechaInstalacion),
+      fechaSuspension: toISODate(savedUnit.fechaSuspension),
+      fechaInicioContrato: toISODate(savedUnit.fechaInicioContrato)!,
+      fechaVencimiento: toISODate(savedUnit.fechaVencimiento)!,
+      ultimoPago: toISODate(savedUnit.ultimoPago),
+      fechaSiguientePago: toISODate(savedUnit.fechaSiguientePago)!,
     };
     
 
