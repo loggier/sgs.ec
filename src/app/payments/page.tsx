@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getAllPayments, getPayments } from '@/lib/payment-actions';
+import { getPayments } from '@/lib/payment-actions';
 import PaymentHistoryList from '@/components/payment-history-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -11,9 +11,6 @@ import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import type { Unit } from '@/lib/unit-schema';
-import { getAllUnits } from '@/lib/unit-actions';
-import PaymentMigration from '@/components/payment-migration';
 import type { DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 
 function PaymentsPageContent() {
@@ -81,9 +78,6 @@ function PaymentsPageContent() {
     <>
       <Header title="Gestión de Pagos" />
       <div className="space-y-8">
-        {user.role === 'master' && (
-          <PaymentMigration onMigrationComplete={handleDataChange} />
-        )}
         <NewPaymentSection onPaymentSaved={handleDataChange} />
         <PaymentHistoryList 
             initialPayments={payments} 

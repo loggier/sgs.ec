@@ -22,7 +22,6 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
   deleteDoc,
-  setDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -191,11 +190,14 @@ export async function getPayments(
     try {
         const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
 
-        const paymentsQueryConstraints = [
-            where('ownerId', '==', ownerIdToFilter),
+        const paymentsQueryConstraints: any[] = [
             orderBy('fechaPago', 'desc'),
             limit(PAYMENTS_PAGE_SIZE)
         ];
+
+        if (user.role !== 'master') {
+            paymentsQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
+        }
 
         if (lastVisible) {
             paymentsQueryConstraints.push(startAfter(lastVisible));
@@ -298,44 +300,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         console.error("Error deleting payment:", error);
         const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
         return { success: false, message: errorMessage };
-    }
-}
-
-
-export async function migrateNestedPayments(): Promise<{ success: boolean; message: string; }> {
-    try {
-        const clientsSnapshot = await getDocs(collection(db, 'clients'));
-        let migratedCount = 0;
-        let skippedCount = 0;
-
-        for (const clientDoc of clientsSnapshot.docs) {
-            const unitsSnapshot = await getDocs(collection(clientDoc.ref, 'units'));
-            for (const unitDoc of unitsSnapshot.docs) {
-                const nestedPaymentsSnapshot = await getDocs(collection(unitDoc.ref, 'payments'));
-                if (nestedPaymentsSnapshot.empty) continue;
-                
-                for (const paymentDoc of nestedPaymentsSnapshot.docs) {
-                     const newPaymentCollectionRef = collection(db, 'payments');
-                     // Use paymentDoc.id as a check to avoid duplicates
-                     const potentialNewDocRef = doc(newPaymentCollectionRef, paymentDoc.id);
-                     const existingDocSnapshot = await getDoc(potentialNewDocRef);
-                     
-                     if (existingDocSnapshot.exists()) {
-                         skippedCount++;
-                         continue; // Skip if a document with this ID already exists
-                     }
-
-                    const paymentData = paymentDoc.data();
-                    await setDoc(potentialNewDocRef, paymentData); // Use set with specific ID
-                    migratedCount++;
-                }
-            }
-        }
-        revalidatePath('/payments');
-        return { success: true, message: `Migración completada. ${migratedCount} pagos copiados, ${skippedCount} ya existían y fueron omitidos.` };
-
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Error desconocido';
-        return { success: false, message: `Error durante la migración: ${msg}` };
     }
 }
