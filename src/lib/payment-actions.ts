@@ -1,8 +1,9 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths, subMonths, isValid } from 'date-fns';
+import { addMonths, subMonths, isBefore, isValid } from 'date-fns';
 import {
   collection,
   doc,
@@ -21,9 +22,10 @@ import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
-import type { Client } from './schema';
+import type { Client, ClientDisplay } from './schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
+import { getCurrentUser } from './auth';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const convertTimestamps = (docData: any) => {
@@ -185,37 +187,38 @@ export async function getAllPayments(
   if (!currentUser) return [];
 
   try {
-    const allClientsSnapshot = await getDocs(collection(db, 'clients'));
-    const clientsMap = new Map(allClientsSnapshot.docs.map(doc => [doc.id, doc.data() as Client]));
+    const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
     
-    const allUsersSnapshot = await getDocs(collection(db, 'users'));
-    const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-    
-    const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId ? currentUser.creatorId : currentUser.id;
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-    const paymentsQuery = query(collectionGroup(db, 'payments'), orderBy('fechaPago', 'desc'));
-    const paymentsSnapshot = await getDocs(paymentsQuery);
-    
     const allPayments: PaymentHistoryEntry[] = [];
-    
-    paymentsSnapshot.docs.forEach(paymentDoc => {
-      const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-      const client = clientsMap.get(paymentData.clientId);
 
-      if (client) {
-          const isMaster = currentUser.role === 'master';
-          const isOwner = client.ownerId === ownerIdToFilter;
+    for (const client of userClients) {
+      if (!client.id) continue;
+      const units = await getUnitsByClientId(client.id);
+      for (const unit of units) {
+        if (!unit.id) continue;
+        const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
+        const paymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
 
-          if (isMaster || isOwner) {
-            const owner = client.ownerId ? usersMap.get(client.ownerId) : undefined;
-            allPayments.push({
-              ...paymentData,
-              id: paymentDoc.id,
-              ownerName: owner?.nombre,
-            });
-          }
+        paymentsSnapshot.forEach(paymentDoc => {
+          const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
+          const owner = client.ownerId ? userMap.get(client.ownerId) : undefined;
+
+          allPayments.push({
+            ...paymentData,
+            id: paymentDoc.id,
+            clientName: client.nomSujeto,
+            unitPlaca: unit.placa,
+            ownerId: client.ownerId,
+            ownerName: owner?.nombre,
+          });
+        });
       }
-    });
+    }
+    
+    allPayments.sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
 
     return allPayments;
   } catch (error) {
@@ -267,7 +270,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const otherPaymentsQuery = query(paymentsCollectionRef, where('__name__', '!=', paymentId), orderBy('fechaPago', 'desc'), limit(1));
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
             
-            unitUpdate.ultimoPago = otherPaymentsSnapshot.docs.length > 0
+            unitUpdate.ultimoPago = !otherPaymentsSnapshot.empty
                 ? (otherPaymentsSnapshot.docs[0].data().fechaPago as Timestamp)
                 : null;
             
@@ -288,5 +291,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
