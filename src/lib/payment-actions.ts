@@ -158,7 +158,7 @@ export async function registerPayment(
                 const paymentDocRef = doc(collection(db, 'payments'));
                 transaction.set(paymentDocRef, newPayment);
 
-                updatedUnitsForNotification.push({ ...unitDataFromDB, ...unitUpdateData, id: unitId });
+                updatedUnitsForNotification.push({ ...unitDataFromDB, ...convertTimestamps(unitUpdateData), id: unitId });
                 processedCount++;
             }
         });
@@ -175,7 +175,7 @@ export async function registerPayment(
         return {
             success: true,
             message: `${processedCount} pago(s) registrado(s) con éxito.`,
-            units: updatedUnitsForNotification
+            units: updatedUnitsForNotification.map(u => convertTimestamps(u)) as Unit[],
         };
 
     } catch (error) {
@@ -331,15 +331,17 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             }
             
             // Find the new "last payment" by querying all payments for the unit.
-            // This query is now safe because of the added index.
-            const allPaymentsForUnitQuery = query(collection(db, 'payments'), where('unitId', '==', unitId));
+            const allPaymentsForUnitQuery = query(
+              collection(db, 'payments'), 
+              where('unitId', '==', unitId),
+              orderBy('fechaPago', 'desc')
+            );
             const allPaymentsSnapshot = await getDocs(allPaymentsForUnitQuery);
 
             const otherPayments = allPaymentsSnapshot.docs
                 .map(d => convertTimestamps({ id: d.id, ...d.data() }) as Payment)
                 .filter(p => p.id !== paymentId)
-                .sort((a, b) => new Date(b.fechaPago as string).getTime() - new Date(a.fechaPago as string).getTime());
-            
+
             const lastPaymentDate = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
             unitUpdate.ultimoPago = lastPaymentDate ? Timestamp.fromDate(new Date(lastPaymentDate as string)) : null;
             
