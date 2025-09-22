@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -140,7 +139,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
-                    ownerId: clientData.ownerId, // IMPORTANT: Save ownerId with the payment
+                    ownerId: clientData.ownerId, 
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
@@ -182,46 +181,64 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
     if (!currentUser) return [];
 
     try {
-        const paymentsGroupRef = collectionGroup(db, 'payments');
-        let paymentsQuery: Query;
+        const clientsCollection = collection(db, 'clients');
+        let allowedClientIds: string[] = [];
 
+        // 1. Get the list of client IDs the user is allowed to see.
         if (currentUser.role === 'master') {
-            // Master gets all payments, no filter needed
-            paymentsQuery = query(paymentsGroupRef, orderBy('fechaPago', 'desc'));
+            const allClientsSnapshot = await getDocs(clientsCollection);
+            allowedClientIds = allClientsSnapshot.docs.map(doc => doc.id);
         } else {
-            // Manager/Analyst gets payments only for their clients
             const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
                 ? currentUser.creatorId 
                 : currentUser.id;
             
-            paymentsQuery = query(
-                paymentsGroupRef, 
-                where('ownerId', '==', ownerIdToFilter), 
-                orderBy('fechaPago', 'desc')
-            );
+            const q = query(clientsCollection, where('ownerId', '==', ownerIdToFilter));
+            const userClientsSnapshot = await getDocs(q);
+            allowedClientIds = userClientsSnapshot.docs.map(doc => doc.id);
         }
-        
-        const paymentSnapshot = await getDocs(paymentsQuery);
 
-        if (paymentSnapshot.empty) {
+        if (allowedClientIds.length === 0) {
             return [];
         }
-        
-        // For enrichment, we only need the user who is the owner.
+
+        // 2. Fetch all payments belonging to those clients.
+        // We fetch in chunks to avoid hitting the 'in' operator limit of 30.
+        const allPayments: Payment[] = [];
+        const CHUNK_SIZE = 30;
+        for (let i = 0; i < allowedClientIds.length; i += CHUNK_SIZE) {
+            const chunk = allowedClientIds.slice(i, i + CHUNK_SIZE);
+            if (chunk.length > 0) {
+                const paymentsQuery = query(
+                    collectionGroup(db, 'payments'),
+                    where('clientId', 'in', chunk)
+                );
+                const paymentSnapshot = await getDocs(paymentsQuery);
+                paymentSnapshot.docs.forEach(doc => {
+                    allPayments.push({ id: doc.id, ...doc.data() } as Payment);
+                });
+            }
+        }
+
+        // 3. Enrich the payments with owner names.
         const allUsersSnapshot = await getDocs(collection(db, 'users'));
         const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-        const enrichedPayments = paymentSnapshot.docs.map(doc => {
-            const paymentData = doc.data() as Payment;
-            const owner = paymentData.ownerId ? usersMap.get(paymentData.ownerId) : null;
-            
+        const enrichedPayments = allPayments.map(payment => {
+            const owner = payment.ownerId ? usersMap.get(payment.ownerId) : null;
             return {
-                id: doc.id,
-                ...convertTimestamps(paymentData),
+                ...convertTimestamps(payment),
                 ownerName: owner?.nombre,
             } as PaymentHistoryEntry;
         });
-        
+
+        // 4. Sort the results by date in memory.
+        enrichedPayments.sort((a, b) => {
+            const dateA = a.fechaPago ? new Date(a.fechaPago).getTime() : 0;
+            const dateB = b.fechaPago ? new Date(b.fechaPago).getTime() : 0;
+            return dateB - dateA; // Descending
+        });
+
         return enrichedPayments;
 
     } catch (error) {
@@ -296,3 +313,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
