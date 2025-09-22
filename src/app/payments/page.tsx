@@ -11,37 +11,21 @@ import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 function PaymentsPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [lastVisible, setLastVisible] = React.useState<QueryDocumentSnapshot<DocumentData> | null>(null);
-  const [hasMore, setHasMore] = React.useState(true);
-
-  const fetchPayments = React.useCallback(async (loadMore = false) => {
+  
+  const fetchPayments = React.useCallback(async () => {
     if (!user) return;
 
-    if (loadMore) {
-        setIsLoadingMore(true);
-    } else {
-        setIsLoading(true);
-        setPayments([]); // Reset on initial load or refresh
-    }
+    setIsLoading(true);
 
     try {
-        const { payments: newPayments, lastVisible: newLastVisible, hasMore: newHasMore } = await getAllPayments(
-            user,
-            loadMore ? lastVisible : null
-        );
-
-        setPayments(prev => loadMore ? [...prev, ...newPayments] : newPayments);
-        setLastVisible(newLastVisible);
-        setHasMore(newHasMore);
-
+        const newPayments = await getAllPayments(user);
+        setPayments(newPayments);
     } catch (error) {
       toast({
           title: "Error",
@@ -51,14 +35,12 @@ function PaymentsPageContent() {
       setPayments([]);
     } finally {
       setIsLoading(false);
-      setIsLoadingMore(false);
     }
-  }, [user, toast, lastVisible]);
+  }, [user, toast]);
 
   React.useEffect(() => {
     fetchPayments();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [fetchPayments]);
 
   const handleDataChange = () => {
     fetchPayments();
@@ -81,9 +63,6 @@ function PaymentsPageContent() {
             initialPayments={payments} 
             isLoading={isLoading}
             onPaymentDeleted={handleDataChange}
-            onLoadMore={() => fetchPayments(true)}
-            isLoadingMore={isLoadingMore}
-            hasMore={hasMore}
         />
       </div>
     </>
