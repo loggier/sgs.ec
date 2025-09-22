@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 import { Timestamp } from 'firebase/firestore';
 import type { Unit } from './unit-schema';
@@ -46,6 +47,7 @@ export type ClientPaymentFormInput = z.infer<typeof ClientPaymentFormSchema>;
 // Type for enriched payment history records
 export type PaymentHistoryEntry = Payment & {
   ownerName?: string;
+  refPath?: string; // Document reference path for pagination cursor
 };
 
     

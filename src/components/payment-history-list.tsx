@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -10,7 +11,7 @@ import Link from 'next/link';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -28,6 +29,8 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
+  hasMore: boolean;
+  onLoadMore: () => void;
 };
 
 function formatCurrency(amount?: number) {
@@ -40,7 +43,7 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted, hasMore, onLoadMore }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
@@ -86,7 +89,7 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto relative">
-             {isLoading && (
+             {isLoading && payments.length === 0 && (
               <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -106,7 +109,7 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {!isLoading && filteredPayments.length > 0 ? (
+                {filteredPayments.length > 0 ? (
                   filteredPayments.map(payment => (
                     <TableRow key={payment.id}>
                       <TableCell>{formatDate(payment.fechaPago)}</TableCell>
@@ -155,6 +158,22 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
             </Table>
           </div>
         </CardContent>
+        {hasMore && !searchTerm && (
+            <CardFooter className="flex justify-center">
+                <Button
+                    variant="outline"
+                    onClick={onLoadMore}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <ArrowDown className="mr-2 h-4 w-4" />
+                    )}
+                    {isLoading ? 'Cargando...' : 'Cargar más'}
+                </Button>
+            </CardFooter>
+        )}
       </Card>
       
       <DeletePaymentDialog

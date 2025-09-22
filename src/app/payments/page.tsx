@@ -6,7 +6,6 @@ import { getAllPayments } from '@/lib/payment-actions';
 import PaymentHistoryList from '@/components/payment-history-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
-import { Skeleton } from '@/components/ui/skeleton';
 import NewPaymentSection from '@/components/new-payment-section';
 import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
@@ -18,14 +17,16 @@ function PaymentsPageContent() {
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-
-  const fetchPayments = React.useCallback(async () => {
+  const [hasMore, setHasMore] = React.useState(true);
+  
+  const fetchPayments = React.useCallback(async (cursor: string | null = null) => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      const allPayments = await getAllPayments(user);
-      setPayments(allPayments);
+      const { payments: newPayments, hasMore: newHasMore } = await getAllPayments(user, cursor);
+      setPayments(prev => cursor ? [...prev, ...newPayments] : newPayments);
+      setHasMore(newHasMore);
     } catch (error) {
       toast({
         title: "Error",
@@ -39,12 +40,19 @@ function PaymentsPageContent() {
   }, [user, toast]);
 
   React.useEffect(() => {
-    fetchPayments();
+    fetchPayments(null);
   }, [fetchPayments]);
   
   const handleDataChange = () => {
-      fetchPayments();
+      fetchPayments(null); // Refetch from the beginning
   }
+
+  const handleLoadMore = () => {
+    if (payments.length > 0 && hasMore && !isLoading) {
+      const lastPayment = payments[payments.length - 1];
+      fetchPayments(lastPayment.refPath || null);
+    }
+  };
   
   if (!user) {
     return (
@@ -63,6 +71,8 @@ function PaymentsPageContent() {
             initialPayments={payments} 
             isLoading={isLoading}
             onPaymentDeleted={handleDataChange}
+            hasMore={hasMore}
+            onLoadMore={handleLoadMore}
         />
       </div>
     </>
