@@ -2,7 +2,7 @@
 
 'use server';
 
-import { revalidatePath } from 'next/revalidate';
+import { revalidatePath } from 'next/cache';
 import { addMonths, subMonths, isValid } from 'date-fns';
 import {
   collection,
@@ -81,13 +81,14 @@ export async function registerPayment(
     }
     
     const clientDocRef = doc(db, 'clients', safeClientId);
-    const clientSnapshot = await getDoc(clientDocRef);
-    if (!clientSnapshot.exists()) {
-        return { success: false, message: 'El cliente asociado al pago no fue encontrado.' };
-    }
-    const clientData = { id: clientSnapshot.id, ...clientSnapshot.data() } as Client;
-
+    
     try {
+        const clientSnapshot = await getDoc(clientDocRef);
+        if (!clientSnapshot.exists()) {
+            return { success: false, message: 'El cliente asociado al pago no fue encontrado.' };
+        }
+        const clientData = { id: clientSnapshot.id, ...clientSnapshot.data() } as Client;
+
         const { fechaPago, mesesPagados, ...paymentData } = validation.data;
         const updatedUnitsForNotification: Unit[] = [];
         let processedCount = 0;
@@ -217,49 +218,45 @@ export async function getPayments(
         if (paymentDocs.length === 0) {
             return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
         }
+        
+        const allClientDocsPromise = getDocs(query(collection(db, 'clients')));
+        const allUserDocsPromise = getDocs(query(collection(db, 'users')));
 
-        const [allUserDocs, allClientDocs] = await Promise.all([
-            getDocs(query(collection(db, 'users'))),
-            getDocs(query(collection(db, 'clients')))
-        ]);
-        const userMap = new Map(allUserDocs.docs.map(doc => [doc.id, doc.data() as User]));
+        const [allClientDocs, allUserDocs] = await Promise.all([allClientDocsPromise, allUserDocsPromise]);
+        
         const clientMap = new Map(allClientDocs.docs.map(doc => [doc.id, doc.data() as Client]));
+        const userMap = new Map(allUserDocs.docs.map(doc => [doc.id, doc.data() as User]));
 
-        const uniqueUnitRefs = paymentDocs
-            .map(p => ({ clientId: p.data().clientId as string, unitId: p.data().unitId as string }))
-            .filter(ref => ref.clientId && ref.unitId)
-            .filter((v, i, a) => a.findIndex(t => (t.clientId === v.clientId && t.unitId === v.unitId)) === i)
-            .map(ref => getDoc(doc(db, 'clients', ref.clientId, 'units', ref.unitId)));
-            
-        const unitDocs = await Promise.all(uniqueUnitRefs);
-        const unitMap = new Map(unitDocs
-            .filter(doc => doc.exists())
-            .map(doc => [doc.id, doc.data()])
-        );
+        const payments = await Promise.all(paymentDocs.map(async (pDoc) => {
+            const data = convertTimestamps(pDoc.data()) as Payment;
 
-        const payments = paymentDocs.map(doc => {
-            const data = convertTimestamps(doc.data()) as Payment;
-            const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
-            const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : 'Cliente no encontrado';
+            const clientName = clientMap.get(data.clientId)?.nomSujeto || 'Cliente no encontrado';
+            const ownerName = userMap.get(data.ownerId || '')?.nombre || undefined;
             
-            let unitPlaca = 'Placa no encontrada';
-            if (data.unitPlaca) {
-              unitPlaca = data.unitPlaca;
-            } else if (data.unitId) {
-              const unitData = unitMap.get(data.unitId);
-              if (unitData) {
-                  unitPlaca = unitData.placa || 'Placa sin definir';
-              }
+            let unitPlaca = data.unitPlaca || 'Placa no encontrada';
+
+            // If unitPlaca is missing (old record), fetch it from the unit document.
+            if (!data.unitPlaca && data.clientId && data.unitId) {
+                try {
+                    const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
+                    const unitDoc = await getDoc(unitDocRef);
+                    if (unitDoc.exists()) {
+                        unitPlaca = (unitDoc.data() as Unit).placa || 'Placa sin definir';
+                    }
+                } catch (e) {
+                    console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
+                }
             }
-            
+
             return {
-                id: doc.id,
+                id: pDoc.id,
                 ...data,
                 clientName: clientName,
                 unitPlaca: unitPlaca,
-                ownerName,
+                ownerName: ownerName,
             };
-        });
+        }));
+
 
         const lastVisibleDoc = paymentDocs[paymentDocs.length - 1];
         const firstVisibleDoc = paymentDocs[0];
@@ -330,19 +327,16 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
-            // Find the new "last payment"
-            const otherPaymentsQuery = query(
-                collection(db, 'payments'), 
-                where('unitId', '==', unitId),
-                orderBy('fechaPago', 'desc'), 
-                startAfter(paymentDoc),
-                limit(1)
-            );
-            const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
+            // Find the new "last payment" by querying all payments for the unit within the transaction
+            const allPaymentsForUnitQuery = query(collection(db, 'payments'), where('unitId', '==', unitId));
+            const allPaymentsSnapshot = await getDocs(allPaymentsForUnitQuery);
+
+            const otherPayments = allPaymentsSnapshot.docs
+                .map(d => ({ id: d.id, ...d.data() } as Payment))
+                .filter(p => p.id !== paymentId)
+                .sort((a, b) => (b.fechaPago as Timestamp).toMillis() - (a.fechaPago as Timestamp).toMillis());
             
-            unitUpdate.ultimoPago = !otherPaymentsSnapshot.empty
-                ? otherPaymentsSnapshot.docs[0].data().fechaPago
-                : null;
+            unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
             
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
@@ -361,5 +355,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
   
+
+    
