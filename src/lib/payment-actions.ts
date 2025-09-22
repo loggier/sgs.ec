@@ -3,7 +3,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths, subMonths, isBefore, isValid } from 'date-fns';
+import { addMonths, subMonths, isValid } from 'date-fns';
 import {
   collection,
   doc,
@@ -21,6 +21,7 @@ import {
   addDoc,
   QueryDocumentSnapshot,
   DocumentData,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -87,7 +88,6 @@ export async function registerPayment(
         let processedCount = 0;
 
         await runTransaction(db, async (transaction) => {
-            const unitsToProcess: { ref: any, data: Unit }[] = [];
             for (const unitId of uniqueUnitIds) {
                 const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
                 const unitSnapshot = await transaction.get(unitDocRef);
@@ -102,10 +102,6 @@ export async function registerPayment(
                      throw new Error(`La unidad con placa ${unitDataFromDB.placa} tiene una fecha de inicio de contrato inválida.`);
                 }
                 
-                unitsToProcess.push({ ref: unitSnapshot.ref, data: unitDataFromDB });
-            }
-
-            for (const { ref, data: unitDataFromDB } of unitsToProcess) {
                 const currentNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : null;
                 const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
                 
@@ -139,10 +135,10 @@ export async function registerPayment(
                     unitUpdateData.fechaVencimiento = Timestamp.fromDate(addMonths(baseExpirationDate, mesesPagados));
                 }
 
-                transaction.update(ref, unitUpdateData);
+                transaction.update(unitDocRef, unitUpdateData);
 
                 const newPayment: Omit<Payment, 'id'> = {
-                    unitId: ref.id,
+                    unitId: unitId,
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
@@ -153,10 +149,10 @@ export async function registerPayment(
                     formaPago: paymentData.formaPago,
                     numeroFactura: paymentData.numeroFactura,
                 };
-                const paymentDocRef = doc(collection(db, 'clients', safeClientId, 'units', ref.id, 'payments'));
+                const paymentDocRef = doc(collection(db, 'payments'));
                 transaction.set(paymentDocRef, newPayment);
 
-                updatedUnitsForNotification.push({ ...unitDataFromDB, ...unitUpdateData, id: ref.id });
+                updatedUnitsForNotification.push({ ...unitDataFromDB, ...unitUpdateData, id: unitId });
                 processedCount++;
             }
         });
@@ -183,33 +179,49 @@ export async function registerPayment(
     }
 }
 
-export async function getAllPayments(unitsForPage: Unit[]): Promise<PaymentHistoryEntry[]> {
-    if (unitsForPage.length === 0) return [];
-    
+export async function getPayments(
+    user: User,
+    lastVisible: QueryDocumentSnapshot<DocumentData> | null
+): Promise<{ payments: PaymentHistoryEntry[], lastVisible: QueryDocumentSnapshot<DocumentData> | null, hasMore: boolean }> {
+    if (!user) {
+        return { payments: [], lastVisible: null, hasMore: false };
+    }
+
     try {
-        const allPayments: PaymentHistoryEntry[] = [];
-        
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+        const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
 
-        for (const unit of unitsForPage) {
-             const paymentsCollectionRef = collection(db, 'clients', unit.clientId, 'units', unit.id, 'payments');
-             const paymentsSnapshot = await getDocs(paymentsCollectionRef);
+        const paymentsQueryConstraints = [
+            where('ownerId', '==', ownerIdToFilter),
+            orderBy('fechaPago', 'desc'),
+            limit(PAYMENTS_PAGE_SIZE)
+        ];
 
-             paymentsSnapshot.forEach(paymentDoc => {
-                const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-                const owner = paymentData.ownerId ? userMap.get(paymentData.ownerId) : undefined;
-                 allPayments.push({
-                    ...paymentData,
-                    id: paymentDoc.id,
-                    ownerName: owner?.nombre,
-                 });
-             });
+        if (lastVisible) {
+            paymentsQueryConstraints.push(startAfter(lastVisible));
         }
-        
-        return allPayments;
+
+        const q = query(collection(db, 'payments'), ...paymentsQueryConstraints);
+        const paymentsSnapshot = await getDocs(q);
+
+        const allUserDocs = await getDocs(query(collection(db, 'users')));
+        const userMap = new Map(allUserDocs.docs.map(doc => [doc.id, doc.data() as User]));
+
+        const payments = paymentsSnapshot.docs.map(doc => {
+            const data = convertTimestamps(doc.data()) as Payment;
+            const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
+            return {
+                id: doc.id,
+                ...data,
+                ownerName,
+            };
+        });
+
+        const newLastVisible = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1] || null;
+        const hasMore = payments.length === PAYMENTS_PAGE_SIZE;
+
+        return { payments, lastVisible: newLastVisible, hasMore };
     } catch (error) {
-        console.error("Error fetching payment history:", error);
+        console.error("Error fetching payments:", error);
         throw error;
     }
 }
@@ -218,7 +230,7 @@ export async function getAllPayments(unitsForPage: Unit[]): Promise<PaymentHisto
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
         await runTransaction(db, async (transaction) => {
-            const paymentDocRef = doc(db, 'clients', clientId, 'units', unitId, 'payments', paymentId);
+            const paymentDocRef = doc(db, 'payments', paymentId);
             const paymentDoc = await transaction.get(paymentDocRef);
 
             if (!paymentDoc.exists()) {
@@ -256,12 +268,18 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
-            const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
-            const otherPaymentsQuery = query(paymentsCollectionRef, where('__name__', '!=', paymentId), orderBy('fechaPago', 'desc'), limit(1));
+            const otherPaymentsQuery = query(
+                collection(db, 'payments'), 
+                where('unitId', '==', unitId),
+                where('__name__', '!=', paymentId), 
+                orderBy('__name__'), // To satisfy Firestore query constraints
+                orderBy('fechaPago', 'desc'), 
+                limit(1)
+            );
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
             
             unitUpdate.ultimoPago = !otherPaymentsSnapshot.empty
-                ? otherPaymentsSnapshot.docs[0].data().fechaPago.toDate().toISOString()
+                ? otherPaymentsSnapshot.docs[0].data().fechaPago
                 : null;
             
             transaction.update(unitDocRef, unitUpdate);
@@ -279,5 +297,44 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         console.error("Error deleting payment:", error);
         const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
         return { success: false, message: errorMessage };
+    }
+}
+
+
+export async function migrateNestedPayments(): Promise<{ success: boolean; message: string; }> {
+    try {
+        const clientsSnapshot = await getDocs(collection(db, 'clients'));
+        let migratedCount = 0;
+        let skippedCount = 0;
+
+        for (const clientDoc of clientsSnapshot.docs) {
+            const unitsSnapshot = await getDocs(collection(clientDoc.ref, 'units'));
+            for (const unitDoc of unitsSnapshot.docs) {
+                const nestedPaymentsSnapshot = await getDocs(collection(unitDoc.ref, 'payments'));
+                if (nestedPaymentsSnapshot.empty) continue;
+                
+                for (const paymentDoc of nestedPaymentsSnapshot.docs) {
+                     const newPaymentCollectionRef = collection(db, 'payments');
+                     // Use paymentDoc.id as a check to avoid duplicates
+                     const potentialNewDocRef = doc(newPaymentCollectionRef, paymentDoc.id);
+                     const existingDocSnapshot = await getDoc(potentialNewDocRef);
+                     
+                     if (existingDocSnapshot.exists()) {
+                         skippedCount++;
+                         continue; // Skip if a document with this ID already exists
+                     }
+
+                    const paymentData = paymentDoc.data();
+                    await setDoc(potentialNewDocRef, paymentData); // Use set with specific ID
+                    migratedCount++;
+                }
+            }
+        }
+        revalidatePath('/payments');
+        return { success: true, message: `Migración completada. ${migratedCount} pagos movidos, ${skippedCount} ya existían y fueron omitidos.` };
+
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Error desconocido';
+        return { success: false, message: `Error durante la migración: ${msg}` };
     }
 }
