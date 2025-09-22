@@ -25,23 +25,25 @@ import type { User } from './user-schema';
 import { getPgpsDevicesByClientId, getPgpsDeviceDetails, setPgpsDeviceStatus } from './pgps-actions';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
-const convertTimestamps = (docData: any) => {
-  const data: { [key: string]: any } = {};
-  for (const key in docData) {
-      const value = docData[key];
-      if (value instanceof Timestamp) {
-          data[key] = value.toDate().toISOString();
-      } else {
-          // This will handle nested objects, though it's not strictly necessary for the current structure.
-          if (value && typeof value === 'object' && !Array.isArray(value)) {
-              data[key] = convertTimestamps(value);
-          } else {
-              data[key] = value;
-          }
-      }
-  }
-  return data;
+const convertTimestamps = (data: any): any => {
+    if (!data) return data;
+
+    const newData: { [key: string]: any } = {};
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            if (value instanceof Timestamp) {
+                newData[key] = value.toDate().toISOString();
+            } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                newData[key] = convertTimestamps(value); // Recursively convert nested objects
+            } else {
+                newData[key] = value;
+            }
+        }
+    }
+    return newData;
 };
+
 
 export async function saveContractUrl(
     clientId: string,
@@ -69,11 +71,6 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
     const unitsList = await Promise.all(unitSnapshot.docs.map(async (doc) => {
       const data = convertTimestamps(doc.data());
       let unit: Unit = { id: doc.id, clientId, ...data } as Unit;
-
-      // Ensure fechaSuspension is a string if it exists
-      if (data.fechaSuspension) {
-          unit.fechaSuspension = data.fechaSuspension;
-      }
       
       // Enrich with P. GPS device status if linked
       if (unit.pgpsDeviceId) {
@@ -99,11 +96,6 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
 
     const data = convertTimestamps(unitDoc.data());
     let unit: Unit = { id: unitDoc.id, clientId, ...data } as Unit;
-
-     // Ensure fechaSuspension is a string if it exists
-    if (data.fechaSuspension) {
-        unit.fechaSuspension = data.fechaSuspension;
-    }
 
     // Enrich with P. GPS device status if linked
     if (unit.pgpsDeviceId) {

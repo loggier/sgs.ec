@@ -33,19 +33,23 @@ import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
 const PAYMENTS_PAGE_SIZE = 10;
 
-const convertTimestamps = (docData: any) => {
-    if (!docData) {
-        return docData;
-    }
-    const data: { [key: string]: any } = {};
-    for (const key in docData) {
-        if (Object.prototype.hasOwnProperty.call(docData, key) && docData[key] instanceof Timestamp) {
-            data[key] = docData[key].toDate().toISOString();
-        } else {
-            data[key] = docData[key];
+const convertTimestamps = (data: any): any => {
+    if (!data) return data;
+
+    const newData: { [key: string]: any } = {};
+    for (const key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            const value = data[key];
+            if (value instanceof Timestamp) {
+                newData[key] = value.toDate().toISOString();
+            } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                newData[key] = convertTimestamps(value); // Recursively convert nested objects
+            } else {
+                newData[key] = value;
+            }
         }
     }
-    return data;
+    return newData;
 };
 
 
@@ -220,8 +224,7 @@ export async function getPayments(
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
             
-            let unitPlaca = data.unitPlaca; // Use stored plate if available
-            // If plate is not on the payment record, fetch it from the unit document
+            let unitPlaca = data.unitPlaca;
             if (!unitPlaca && data.clientId && data.unitId) {
                 try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
@@ -238,7 +241,7 @@ export async function getPayments(
             return {
                 id: doc.id,
                 ...data,
-                clientName: clientName || data.clientName, // Fallback to stored name
+                clientName: clientName || data.clientName,
                 unitPlaca: unitPlaca || 'Placa no encontrada',
                 ownerName,
             };
