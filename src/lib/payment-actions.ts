@@ -226,18 +226,19 @@ export async function getPayments(
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : 'Cliente no encontrado';
             let unitPlaca = 'Placa no encontrada';
 
-            // Always try to fetch the latest plate from the unit document.
             if (data.clientId && data.unitId) {
                 try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
                     if (unitDoc.exists()) {
-                        const unitData = convertTimestamps(unitDoc.data()); // This was the missing piece
-                        unitPlaca = unitData.placa;
+                        const unitData = convertTimestamps(unitDoc.data());
+                        unitPlaca = unitData.placa || 'Placa sin definir';
                     }
                 } catch (e) {
                     console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
                 }
+            } else if (data.unitPlaca) { // Fallback for newer records
+                unitPlaca = data.unitPlaca;
             }
 
             return {
