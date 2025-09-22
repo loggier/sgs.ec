@@ -200,18 +200,13 @@ export async function getPayments(
         let ownerIdToFilter: string | undefined;
         if (user.role === 'manager') {
             ownerIdToFilter = user.id;
-        } else if (user.role === 'analista') {
+        } else if (user.role === 'analista' && user.creatorId) {
             ownerIdToFilter = user.creatorId;
         }
 
-
         const paymentsCollectionRef = collection(db, 'payments');
         const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
-
-        if (user.role !== 'master' && ownerIdToFilter) {
-            queryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
-        }
-
+        
         if (cursor) {
             const cursorDoc = await getDoc(doc(paymentsCollectionRef, cursor));
             if (cursorDoc.exists()) {
@@ -221,12 +216,17 @@ export async function getPayments(
         
         const q = query(paymentsCollectionRef, ...queryConstraints);
         const paymentsSnapshot = await getDocs(q);
-        const paymentDocs = paymentsSnapshot.docs;
+        let paymentDocs = paymentsSnapshot.docs;
 
         if (paymentDocs.length === 0) {
             return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
         }
         
+        // Filter in memory for manager/analyst roles
+        if (user.role !== 'master' && ownerIdToFilter) {
+            paymentDocs = paymentDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
+        }
+
         const allClientDocsPromise = getDocs(query(collection(db, 'clients')));
         const allUserDocsPromise = getDocs(query(collection(db, 'users')));
 
@@ -269,16 +269,12 @@ export async function getPayments(
         }));
 
 
-        const lastVisibleDoc = paymentDocs[paymentDocs.length - 1];
-        const firstVisibleDoc = paymentDocs[0];
+        const lastVisibleDoc = paymentDocs.length > 0 ? paymentDocs[paymentDocs.length - 1] : null;
+        const firstVisibleDoc = paymentDocs.length > 0 ? paymentDocs[0] : null;
 
         let hasMore = false;
         if (lastVisibleDoc) {
-            const nextQueryConstraints = [orderBy('fechaPago', 'desc'), limit(1), startAfter(lastVisibleDoc)];
-            if (user.role !== 'master' && ownerIdToFilter) {
-                nextQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
-            }
-            const nextQuery = query(paymentsCollectionRef, ...nextQueryConstraints);
+            const nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
             const nextSnapshot = await getDocs(nextQuery);
             hasMore = !nextSnapshot.empty;
         }
@@ -292,7 +288,7 @@ export async function getPayments(
 
     } catch (error) {
         console.error("Error fetching payments:", error);
-        throw error;
+        throw new Error(`Error al cargar el historial de pagos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
 }
 
@@ -338,19 +334,23 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                  }
             }
 
+            // Get all payments for the unit, to find the new "last payment"
             const allPaymentsForUnitQuery = query(
-              collection(db, 'payments'), 
-              where('unitId', '==', unitId),
-              orderBy('fechaPago', 'desc')
+                collection(db, "payments"),
+                where("unitId", "==", unitId)
             );
             
             const allPaymentsSnapshot = await getDocs(allPaymentsForUnitQuery);
-
+            
             const otherPayments = allPaymentsSnapshot.docs
-                .map(d => ({ id: d.id, ...convertTimestamps(d.data()) } as Payment))
-                .filter(p => p.id !== paymentId);
+                .map(d => ({ id: d.id, ...(d.data() as Omit<Payment, 'id'>) }))
+                .filter(p => p.id !== paymentId)
+                .sort((a, b) => (b.fechaPago as Timestamp).toMillis() - (a.fechaPago as Timestamp).toMillis());
 
-            unitUpdate.ultimoPago = otherPayments.length > 0 ? Timestamp.fromDate(new Date(otherPayments[0].fechaPago as string)) : null;
+
+            unitUpdate.ultimoPago = otherPayments.length > 0 
+                ? otherPayments[0].fechaPago 
+                : null;
             
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
