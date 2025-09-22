@@ -17,26 +17,15 @@ function PaymentsPageContent() {
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const [hasMore, setHasMore] = React.useState(true);
-  const [lastVisibleId, setLastVisibleId] = React.useState<string | null>(null);
 
-  const fetchPayments = React.useCallback(async (loadMore = false) => {
+  const fetchPayments = React.useCallback(async () => {
     if (!user) return;
     
-    if (loadMore) {
-      setIsLoadingMore(true);
-    } else {
-      setIsLoading(true);
-    }
+    setIsLoading(true);
 
     try {
-      const { payments: newPayments, hasMore: newHasMore, lastVisibleId: newLastVisibleId } = await getAllPayments(user, loadMore ? lastVisibleId : null);
-      
-      setPayments(prev => loadMore ? [...prev, ...newPayments] : newPayments);
-      setHasMore(newHasMore);
-      setLastVisibleId(newLastVisibleId);
-
+      const newPayments = await getAllPayments(user);
+      setPayments(newPayments);
     } catch (error) {
       toast({
           title: "Error",
@@ -46,25 +35,16 @@ function PaymentsPageContent() {
       setPayments([]);
     } finally {
       setIsLoading(false);
-      setIsLoadingMore(false);
     }
-  }, [user, toast, lastVisibleId]);
+  }, [user, toast]);
 
   React.useEffect(() => {
-    fetchPayments(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Only re-fetch from scratch when user changes
+    fetchPayments();
+  }, [fetchPayments]);
 
   const handleDataChange = () => {
-    setLastVisibleId(null); // Reset pagination
-    fetchPayments(false);
+    fetchPayments();
   }
-
-  const handleLoadMore = () => {
-    if (hasMore && !isLoadingMore) {
-      fetchPayments(true);
-    }
-  };
   
   if (!user) {
     return (
@@ -83,9 +63,6 @@ function PaymentsPageContent() {
             initialPayments={payments} 
             isLoading={isLoading}
             onPaymentDeleted={handleDataChange}
-            hasMore={hasMore}
-            onLoadMore={handleLoadMore}
-            isLoadingMore={isLoadingMore}
         />
       </div>
     </>

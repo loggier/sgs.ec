@@ -29,9 +29,6 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
-  hasMore: boolean;
-  onLoadMore: () => void;
-  isLoadingMore: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -48,9 +45,6 @@ export default function PaymentHistoryList({
   initialPayments, 
   isLoading, 
   onPaymentDeleted,
-  hasMore,
-  onLoadMore,
-  isLoadingMore
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -166,20 +160,6 @@ export default function PaymentHistoryList({
             </Table>
           </div>
         </CardContent>
-        {hasMore && (
-           <CardFooter className="justify-center">
-             <Button
-                onClick={onLoadMore}
-                disabled={isLoadingMore}
-                variant="outline"
-              >
-                {isLoadingMore ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                {isLoadingMore ? 'Cargando...' : 'Cargar más pagos...'}
-              </Button>
-           </CardFooter>
-        )}
       </Card>
       
       <DeletePaymentDialog
