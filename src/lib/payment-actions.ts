@@ -43,7 +43,7 @@ const convertTimestamps = (data: any): any => {
             if (value instanceof Timestamp) {
                 newData[key] = value.toDate().toISOString();
             } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-                newData[key] = convertTimestamps(value);
+                newData[key] = convertTimestamps(value); // Recursively convert nested objects
             } else {
                 newData[key] = value;
             }
@@ -212,48 +212,48 @@ export async function getPayments(
         
         const q = query(paymentsCollectionRef, ...queryConstraints);
         const paymentsSnapshot = await getDocs(q);
+        const paymentDocs = paymentsSnapshot.docs;
 
-        const allUserDocs = await getDocs(query(collection(db, 'users')));
+        if (paymentDocs.length === 0) {
+            return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
+        }
+
+        const [allUserDocs, allClientDocs] = await Promise.all([
+            getDocs(query(collection(db, 'users'))),
+            getDocs(query(collection(db, 'clients')))
+        ]);
         const userMap = new Map(allUserDocs.docs.map(doc => [doc.id, doc.data() as User]));
-        
-        const allClientDocs = await getDocs(query(collection(db, 'clients')));
         const clientMap = new Map(allClientDocs.docs.map(doc => [doc.id, doc.data() as Client]));
 
-        const paymentsPromises = paymentsSnapshot.docs.map(async (doc) => {
-            const data = convertTimestamps(doc.data()) as Payment;
+        const uniqueUnitRefs = paymentDocs
+            .map(p => ({ clientId: p.data().clientId as string, unitId: p.data().unitId as string }))
+            .filter(ref => ref.clientId && ref.unitId)
+            .filter((v, i, a) => a.findIndex(t => (t.clientId === v.clientId && t.unitId === v.unitId)) === i)
+            .map(ref => getDoc(doc(db, 'clients', ref.clientId, 'units', ref.unitId)));
             
+        const unitDocs = await Promise.all(uniqueUnitRefs);
+        const unitMap = new Map(unitDocs
+            .filter(doc => doc.exists())
+            .map(doc => [doc.id, doc.data() as Unit])
+        );
+
+        const payments = paymentDocs.map(doc => {
+            const data = convertTimestamps(doc.data()) as Payment;
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : 'Cliente no encontrado';
-            let unitPlaca = 'Placa no encontrada';
-
-            if (data.clientId && data.unitId) {
-                try {
-                    const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
-                    const unitDoc = await getDoc(unitDocRef);
-                    if (unitDoc.exists()) {
-                        const unitData = convertTimestamps(unitDoc.data());
-                        unitPlaca = unitData.placa || 'Placa sin definir';
-                    }
-                } catch (e) {
-                    console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
-                }
-            } else if (data.unitPlaca) { // Fallback for newer records
-                unitPlaca = data.unitPlaca;
-            }
+            const unitPlaca = data.unitId ? unitMap.get(data.unitId)?.placa : 'Placa no encontrada';
 
             return {
                 id: doc.id,
                 ...data,
                 clientName: clientName,
-                unitPlaca: unitPlaca,
+                unitPlaca: unitPlaca || 'Placa sin definir',
                 ownerName,
             };
         });
 
-        const payments = await Promise.all(paymentsPromises);
-
-        const lastVisibleDoc = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1];
-        const firstVisibleDoc = paymentsSnapshot.docs[0];
+        const lastVisibleDoc = paymentDocs[paymentDocs.length - 1];
+        const firstVisibleDoc = paymentDocs[0];
 
         let hasMore = false;
         if (lastVisibleDoc) {
