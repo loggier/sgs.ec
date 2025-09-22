@@ -224,13 +224,17 @@ export async function getPayments(
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
             
-            let unitPlaca = 'Placa no encontrada'; // Default value
-            if (data.clientId && data.unitId) {
-                try {
+            let unitPlaca = data.unitPlaca || 'Placa no encontrada';
+            
+            // If plate is not directly on payment, fetch it from the unit
+            if (unitPlaca === 'Placa no encontrada' && data.clientId && data.unitId) {
+                 try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
                     if (unitDoc.exists()) {
-                        unitPlaca = (unitDoc.data() as Unit).placa;
+                        // Ensure we convert timestamps for the unit data too
+                        const unitData = convertTimestamps(unitDoc.data()) as Unit;
+                        unitPlaca = unitData.placa;
                     }
                 } catch (e) {
                     console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
@@ -348,3 +352,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
