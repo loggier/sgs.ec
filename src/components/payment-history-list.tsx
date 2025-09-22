@@ -134,7 +134,11 @@ export default function PaymentHistoryList({
                           {payment.clientName}
                         </Link>
                       </TableCell>
-                      <TableCell>{payment.unitPlaca}</TableCell>
+                      <TableCell>
+                         <Link href={`/clients/${payment.clientId}/units`} className="hover:underline text-primary">
+                            {payment.unitPlaca}
+                         </Link>
+                      </TableCell>
                       {user?.role === 'master' && <TableCell>{payment.ownerName || 'N/A'}</TableCell>}
                       <TableCell className="font-semibold">{formatCurrency(payment.monto)}</TableCell>
                       <TableCell>{payment.mesesPagados}</TableCell>
