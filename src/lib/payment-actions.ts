@@ -207,6 +207,10 @@ export async function getAllPayments(
             ...paymentData,
             id: paymentDoc.id,
             clientId: client.id,
+            clientName: client.nomSujeto,
+            unitPlaca: unit.placa,
+            ownerId: client.ownerId,
+            ownerName: owner?.nombre,
           });
         });
       }
@@ -286,50 +290,4 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
         return { success: false, message: errorMessage };
     }
-}
-
-export async function backfillPaymentOwnerIds(): Promise<{ success: boolean; message: string }> {
-  try {
-    const clientsSnapshot = await getDocs(collection(db, 'clients'));
-    const clientOwnerMap = new Map<string, string>();
-    clientsSnapshot.forEach(doc => {
-      const client = doc.data() as Client;
-      if (client.ownerId) {
-        clientOwnerMap.set(doc.id, client.ownerId);
-      }
-    });
-
-    const paymentsSnapshot = await getDocs(collectionGroup(db, 'payments'));
-    if (paymentsSnapshot.empty) {
-      return { success: true, message: 'No hay pagos para actualizar.' };
-    }
-
-    const batch = writeBatch(db);
-    let updatedCount = 0;
-
-    paymentsSnapshot.docs.forEach(paymentDoc => {
-      const paymentData = paymentDoc.data();
-      // Only update if ownerId is missing
-      if (!paymentData.ownerId) {
-        const clientId = paymentData.clientId;
-        const ownerId = clientOwnerMap.get(clientId);
-        if (ownerId) {
-          batch.update(paymentDoc.ref, { ownerId: ownerId });
-          updatedCount++;
-        }
-      }
-    });
-
-    if (updatedCount > 0) {
-      await batch.commit();
-      return { success: true, message: `${updatedCount} registros de pago han sido actualizados con la ID del propietario.` };
-    } else {
-      return { success: true, message: 'Todos los registros de pago ya estaban actualizados. No se realizaron cambios.' };
-    }
-
-  } catch (error) {
-    console.error("Error backfilling payment owner IDs:", error);
-    const message = error instanceof Error ? error.message : 'Error desconocido';
-    return { success: false, message: `Ocurrió un error en el servidor: ${message}` };
-  }
 }
