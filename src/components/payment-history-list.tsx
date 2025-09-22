@@ -28,6 +28,9 @@ import DeletePaymentDialog from './delete-payment-dialog';
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
   onPaymentDeleted: () => void;
 };
 
@@ -44,6 +47,9 @@ function formatDate(date?: Date | string) {
 export default function PaymentHistoryList({ 
   initialPayments, 
   isLoading, 
+  isLoadingMore,
+  hasMore,
+  onLoadMore,
   onPaymentDeleted,
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
@@ -91,7 +97,7 @@ export default function PaymentHistoryList({
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto relative">
-             {isLoading && payments.length === 0 && (
+             {isLoading && (
               <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -160,6 +166,17 @@ export default function PaymentHistoryList({
             </Table>
           </div>
         </CardContent>
+        {(hasMore || isLoadingMore) && (
+            <CardFooter className="justify-center">
+                <Button
+                    onClick={onLoadMore}
+                    disabled={isLoadingMore}
+                >
+                    {isLoadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isLoadingMore ? 'Cargando...' : 'Cargar más pagos...'}
+                </Button>
+            </CardFooter>
+        )}
       </Card>
       
       <DeletePaymentDialog
@@ -171,5 +188,3 @@ export default function PaymentHistoryList({
     </>
   );
 }
-
-    

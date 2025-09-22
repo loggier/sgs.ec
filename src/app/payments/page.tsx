@@ -17,15 +17,25 @@ function PaymentsPageContent() {
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const [lastVisible, setLastVisible] = React.useState<string | null>(null);
+  const [hasMore, setHasMore] = React.useState(true);
 
-  const fetchPayments = React.useCallback(async () => {
+  const fetchPayments = React.useCallback(async (cursor: string | null = null) => {
     if (!user) return;
     
-    setIsLoading(true);
+    if (cursor) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+      setPayments([]); // Reset on initial load or refresh
+    }
 
     try {
-      const newPayments = await getAllPayments(user);
-      setPayments(newPayments);
+      const { payments: newPayments, lastVisible: newLastVisible, hasMore: newHasMore } = await getAllPayments(user, cursor);
+      setPayments(prev => cursor ? [...prev, ...newPayments] : newPayments);
+      setLastVisible(newLastVisible);
+      setHasMore(newHasMore);
     } catch (error) {
       toast({
           title: "Error",
@@ -35,6 +45,7 @@ function PaymentsPageContent() {
       setPayments([]);
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [user, toast]);
 
@@ -43,7 +54,10 @@ function PaymentsPageContent() {
   }, [fetchPayments]);
 
   const handleDataChange = () => {
-    fetchPayments();
+    // Reset and fetch from the beginning
+    setLastVisible(null);
+    setHasMore(true);
+    fetchPayments(null);
   }
   
   if (!user) {
@@ -62,6 +76,9 @@ function PaymentsPageContent() {
         <PaymentHistoryList 
             initialPayments={payments} 
             isLoading={isLoading}
+            isLoadingMore={isLoadingMore}
+            hasMore={hasMore}
+            onLoadMore={() => fetchPayments(lastVisible)}
             onPaymentDeleted={handleDataChange}
         />
       </div>
