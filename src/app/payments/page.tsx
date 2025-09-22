@@ -11,6 +11,7 @@ import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import BackfillConfirmationDialog from '@/components/backfill-confirmation-dialog';
 
 function PaymentsPageContent({ 
     payments, 
@@ -59,6 +60,7 @@ export default function PaymentsPage() {
     const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
     const [isLoading, setIsLoading] = React.useState(true);
     const [isBackfilling, setIsBackfilling] = React.useState(false);
+    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = React.useState(false);
 
     const fetchPayments = React.useCallback(async () => {
         if (!user) return;
@@ -83,11 +85,11 @@ export default function PaymentsPage() {
         fetchPayments();
     }, [fetchPayments]);
 
-    const handleBackfill = async () => {
-        if (!window.confirm('¿Estás seguro de que deseas ejecutar el proceso de actualización de datos? Esta acción recorrerá todos los pagos y puede tardar unos momentos.')) {
-        return;
-        }
-        
+    const handleBackfillClick = () => {
+        setIsConfirmDialogOpen(true);
+    };
+
+    const confirmBackfill = async () => {
         setIsBackfilling(true);
         toast({
         title: 'Iniciando actualización...',
@@ -118,7 +120,13 @@ export default function PaymentsPage() {
                 isLoading={isLoading}
                 isBackfilling={isBackfilling}
                 onDataChange={fetchPayments}
-                onBackfill={handleBackfill}
+                onBackfill={handleBackfillClick}
+            />
+            <BackfillConfirmationDialog
+                isOpen={isConfirmDialogOpen}
+                onOpenChange={setIsConfirmDialogOpen}
+                isBackfilling={isBackfilling}
+                onConfirm={confirmBackfill}
             />
         </AppContent>
     )
