@@ -2,7 +2,7 @@
 
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath } from 'next/revalidate';
 import { addMonths, subMonths, isValid } from 'date-fns';
 import {
   collection,
@@ -234,20 +234,29 @@ export async function getPayments(
         const unitDocs = await Promise.all(uniqueUnitRefs);
         const unitMap = new Map(unitDocs
             .filter(doc => doc.exists())
-            .map(doc => [doc.id, doc.data() as Unit])
+            .map(doc => [doc.id, doc.data()])
         );
 
         const payments = paymentDocs.map(doc => {
             const data = convertTimestamps(doc.data()) as Payment;
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : 'Cliente no encontrado';
-            const unitPlaca = data.unitId ? unitMap.get(data.unitId)?.placa : 'Placa no encontrada';
-
+            
+            let unitPlaca = 'Placa no encontrada';
+            if (data.unitPlaca) {
+              unitPlaca = data.unitPlaca;
+            } else if (data.unitId) {
+              const unitData = unitMap.get(data.unitId);
+              if (unitData) {
+                  unitPlaca = unitData.placa || 'Placa sin definir';
+              }
+            }
+            
             return {
                 id: doc.id,
                 ...data,
                 clientName: clientName,
-                unitPlaca: unitPlaca || 'Placa sin definir',
+                unitPlaca: unitPlaca,
                 ownerName,
             };
         });
@@ -352,3 +361,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+  
