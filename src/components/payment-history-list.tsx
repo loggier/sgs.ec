@@ -29,6 +29,9 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  isLoadingMore: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -41,7 +44,14 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments, isLoading, onPaymentDeleted }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ 
+  initialPayments, 
+  isLoading, 
+  onPaymentDeleted,
+  hasMore,
+  onLoadMore,
+  isLoadingMore
+}: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
@@ -156,6 +166,20 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
             </Table>
           </div>
         </CardContent>
+        {hasMore && (
+           <CardFooter className="justify-center">
+             <Button
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+                variant="outline"
+              >
+                {isLoadingMore ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                {isLoadingMore ? 'Cargando...' : 'Cargar más pagos...'}
+              </Button>
+           </CardFooter>
+        )}
       </Card>
       
       <DeletePaymentDialog
