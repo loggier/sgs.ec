@@ -23,6 +23,8 @@ import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
 import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
+import { getClients } from './actions';
+import { getUnitsByClientId } from './unit-actions';
 
 const convertTimestamps = (docData: any) => {
     if (!docData) {
@@ -177,76 +179,49 @@ export async function registerPayment(
 }
 
 
-export async function getAllPayments(currentUser: User): Promise<PaymentHistoryEntry[]> {
-    if (!currentUser) return [];
+export async function getAllPayments(
+  currentUser: User
+): Promise<PaymentHistoryEntry[]> {
+  if (!currentUser) return [];
 
-    try {
-        const clientsCollection = collection(db, 'clients');
-        let allowedClientIds: string[] = [];
+  try {
+    const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
+    
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
-        // 1. Get the list of client IDs the user is allowed to see.
-        if (currentUser.role === 'master') {
-            const allClientsSnapshot = await getDocs(clientsCollection);
-            allowedClientIds = allClientsSnapshot.docs.map(doc => doc.id);
-        } else {
-            const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-                ? currentUser.creatorId 
-                : currentUser.id;
-            
-            const q = query(clientsCollection, where('ownerId', '==', ownerIdToFilter));
-            const userClientsSnapshot = await getDocs(q);
-            allowedClientIds = userClientsSnapshot.docs.map(doc => doc.id);
-        }
+    const allPayments: PaymentHistoryEntry[] = [];
 
-        if (allowedClientIds.length === 0) {
-            return [];
-        }
+    for (const client of userClients) {
+      const units = await getUnitsByClientId(client.id);
+      for (const unit of units) {
+        const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
+        const paymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
 
-        // 2. Fetch all payments belonging to those clients.
-        // We fetch in chunks to avoid hitting the 'in' operator limit of 30.
-        const allPayments: Payment[] = [];
-        const CHUNK_SIZE = 30;
-        for (let i = 0; i < allowedClientIds.length; i += CHUNK_SIZE) {
-            const chunk = allowedClientIds.slice(i, i + CHUNK_SIZE);
-            if (chunk.length > 0) {
-                const paymentsQuery = query(
-                    collectionGroup(db, 'payments'),
-                    where('clientId', 'in', chunk)
-                );
-                const paymentSnapshot = await getDocs(paymentsQuery);
-                paymentSnapshot.docs.forEach(doc => {
-                    allPayments.push({ id: doc.id, ...doc.data() } as Payment);
-                });
-            }
-        }
+        paymentsSnapshot.forEach(paymentDoc => {
+          const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
+          const owner = client.ownerId ? userMap.get(client.ownerId) : undefined;
 
-        // 3. Enrich the payments with owner names.
-        const allUsersSnapshot = await getDocs(collection(db, 'users'));
-        const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-
-        const enrichedPayments = allPayments.map(payment => {
-            const owner = payment.ownerId ? usersMap.get(payment.ownerId) : null;
-            return {
-                ...convertTimestamps(payment),
-                ownerName: owner?.nombre,
-            } as PaymentHistoryEntry;
+          allPayments.push({
+            ...paymentData,
+            id: paymentDoc.id,
+            clientName: client.nomSujeto,
+            unitPlaca: unit.placa,
+            ownerId: client.ownerId,
+            ownerName: owner?.nombre,
+          });
         });
-
-        // 4. Sort the results by date in memory.
-        enrichedPayments.sort((a, b) => {
-            const dateA = a.fechaPago ? new Date(a.fechaPago).getTime() : 0;
-            const dateB = b.fechaPago ? new Date(b.fechaPago).getTime() : 0;
-            return dateB - dateA; // Descending
-        });
-
-        return enrichedPayments;
-
-    } catch (error) {
-        console.error("Error fetching payment history:", error);
-        return [];
+      }
     }
-}
+    
+    allPayments.sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
 
+    return allPayments;
+  } catch (error) {
+    console.error("Error fetching payment history:", error);
+    return [];
+  }
+}
 
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
