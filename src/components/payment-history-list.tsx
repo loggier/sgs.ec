@@ -29,8 +29,6 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
-  onBackfill: () => void;
-  isBackfilling: boolean;
 };
 
 function formatCurrency(amount?: number) {
@@ -47,8 +45,6 @@ export default function PaymentHistoryList({
   initialPayments, 
   isLoading, 
   onPaymentDeleted,
-  onBackfill,
-  isBackfilling
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -91,12 +87,6 @@ export default function PaymentHistoryList({
               <CardTitle>Historial de Pagos</CardTitle>
               <CardDescription>Todos los pagos registrados en el sistema.</CardDescription>
             </div>
-             {user?.role === 'master' && (
-              <Button onClick={onBackfill} disabled={isBackfilling}>
-                {isBackfilling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isBackfilling ? 'Actualizando...' : 'Actualizar Datos de Pagos'}
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
