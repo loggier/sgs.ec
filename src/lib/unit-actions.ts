@@ -212,15 +212,30 @@ export async function saveUnit(
     
     const toISODate = (date: any): string | null => {
         if (!date) return null;
-        if (date instanceof Timestamp) return date.toDate().toISOString();
-        if (date instanceof Date) return date.toISOString();
-        return null;
+        const d = date instanceof Timestamp ? date.toDate() : new Date(date);
+        return isValid(d) ? d.toISOString() : null;
     };
 
     const serializableUnit: SerializableUnit = {
-      ...savedUnit,
       id: savedUnit.id,
       clientId: savedUnit.clientId,
+      pgpsDeviceId: savedUnit.pgpsDeviceId,
+      pgpsDeviceActive: savedUnit.pgpsDeviceActive,
+      estaSuspendido: savedUnit.estaSuspendido,
+      imei: savedUnit.imei,
+      placa: savedUnit.placa,
+      modelo: savedUnit.modelo,
+      categoriaVehiculo: savedUnit.categoriaVehiculo,
+      tipoPlan: savedUnit.tipoPlan,
+      tipoContrato: savedUnit.tipoContrato,
+      costoMensual: savedUnit.costoMensual,
+      costoTotalContrato: savedUnit.costoTotalContrato,
+      saldoContrato: savedUnit.saldoContrato,
+      mesesContrato: savedUnit.mesesContrato,
+      numeroOperacion: savedUnit.numeroOperacion,
+      observacion: savedUnit.observacion,
+      urlContrato: savedUnit.urlContrato,
+      diasCorte: savedUnit.diasCorte,
       fechaInstalacion: toISODate(savedUnit.fechaInstalacion),
       fechaSuspension: toISODate(savedUnit.fechaSuspension),
       fechaInicioContrato: toISODate(savedUnit.fechaInicioContrato)!,
@@ -591,3 +606,5 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
+
+    
