@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -11,7 +11,7 @@ import Link from 'next/link';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -29,6 +29,10 @@ type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
   isLoading: boolean;
   onPaymentDeleted: () => void;
+  page: number;
+  hasMore: boolean;
+  onNextPage: () => void;
+  onPrevPage: () => void;
 };
 
 function formatCurrency(amount?: number) {
@@ -51,6 +55,10 @@ export default function PaymentHistoryList({
   initialPayments, 
   isLoading, 
   onPaymentDeleted,
+  page,
+  hasMore,
+  onNextPage,
+  onPrevPage,
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
@@ -166,6 +174,25 @@ export default function PaymentHistoryList({
             </Table>
           </div>
         </CardContent>
+        <CardFooter className="flex justify-end items-center gap-2">
+            <span className="text-sm text-muted-foreground">Página {page}</span>
+             <Button
+                variant="outline"
+                size="sm"
+                onClick={onPrevPage}
+                disabled={page <= 1 || isLoading}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" /> Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onNextPage}
+                disabled={!hasMore || isLoading}
+              >
+                Siguiente <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+          </CardFooter>
       </Card>
       
       <DeletePaymentDialog

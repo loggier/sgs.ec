@@ -22,6 +22,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData,
   deleteDoc,
+  endBefore
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -29,6 +30,8 @@ import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
 import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
+
+const PAYMENTS_PAGE_SIZE = 10;
 
 const convertTimestamps = (docData: any) => {
     if (!docData) {
@@ -177,23 +180,33 @@ export async function registerPayment(
     }
 }
 
-export async function getPayments(user: User): Promise<{ payments: PaymentHistoryEntry[] }> {
+export async function getPayments(
+    user: User,
+    cursor: string | null = null,
+    direction: 'next' | 'prev' = 'next'
+): Promise<{ payments: PaymentHistoryEntry[], lastVisible: string | null, firstVisible: string | null, hasMore: boolean }> {
     if (!user) {
-        return { payments: [] };
+        return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
     }
 
     try {
         const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
 
-        const paymentsQueryConstraints: any[] = [
-            orderBy('fechaPago', 'desc'),
-        ];
+        const paymentsCollectionRef = collection(db, 'payments');
+        const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
 
         if (user.role !== 'master') {
-            paymentsQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
+            queryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
         }
 
-        const q = query(collection(db, 'payments'), ...paymentsQueryConstraints);
+        if (cursor) {
+            const cursorDoc = await getDoc(doc(paymentsCollectionRef, cursor));
+            if (cursorDoc.exists()) {
+                 queryConstraints.push(startAfter(cursorDoc));
+            }
+        }
+        
+        const q = query(paymentsCollectionRef, ...queryConstraints);
         const paymentsSnapshot = await getDocs(q);
 
         const allUserDocs = await getDocs(query(collection(db, 'users')));
@@ -209,7 +222,27 @@ export async function getPayments(user: User): Promise<{ payments: PaymentHistor
             };
         });
 
-        return { payments };
+        const lastVisibleDoc = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1];
+        const firstVisibleDoc = paymentsSnapshot.docs[0];
+
+        let hasMore = false;
+        if (lastVisibleDoc) {
+            const nextQueryConstraints = [orderBy('fechaPago', 'desc'), limit(1), startAfter(lastVisibleDoc)];
+            if (user.role !== 'master') {
+                nextQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
+            }
+            const nextQuery = query(paymentsCollectionRef, ...nextQueryConstraints);
+            const nextSnapshot = await getDocs(nextQuery);
+            hasMore = !nextSnapshot.empty;
+        }
+
+        return { 
+            payments, 
+            lastVisible: lastVisibleDoc?.id || null, 
+            firstVisible: firstVisibleDoc?.id || null, 
+            hasMore 
+        };
+
     } catch (error) {
         console.error("Error fetching payments:", error);
         throw error;
@@ -258,12 +291,12 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
+            // Find the new "last payment"
             const otherPaymentsQuery = query(
                 collection(db, 'payments'), 
                 where('unitId', '==', unitId),
-                where('__name__', '!=', paymentId), 
-                orderBy('__name__'), // To satisfy Firestore query constraints
                 orderBy('fechaPago', 'desc'), 
+                startAfter(paymentDoc), // Find payments older than the one being deleted
                 limit(1)
             );
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
