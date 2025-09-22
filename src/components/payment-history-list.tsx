@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -10,7 +10,7 @@ import Link from 'next/link';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
 import { useSearch } from '@/context/search-context';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -25,9 +25,11 @@ import { Button } from './ui/button';
 import DeletePaymentDialog from './delete-payment-dialog';
 
 type PaymentHistoryListProps = {
-  initialPayments: PaymentHistoryEntry[];
-  onPaymentDeleted: () => void;
+  payments: PaymentHistoryEntry[];
   isLoading: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  onPaymentDeleted: () => void;
 };
 
 function formatCurrency(amount?: number) {
@@ -40,16 +42,11 @@ function formatDate(date?: Date | string) {
   return format(new Date(date), 'P', { locale: es });
 }
 
-export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, isLoading }: PaymentHistoryListProps) {
+export default function PaymentHistoryList({ payments, isLoading, hasMore, onLoadMore, onPaymentDeleted }: PaymentHistoryListProps) {
   const { user } = useAuth();
   const { searchTerm } = useSearch();
-  const [payments, setPayments] = React.useState(initialPayments);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
-
-  React.useEffect(() => {
-    setPayments(initialPayments);
-  }, [initialPayments]);
 
   const filteredPayments = React.useMemo(() => {
     if (!searchTerm) return payments;
@@ -86,7 +83,7 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto relative">
-             {isLoading && (
+             {isLoading && filteredPayments.length === 0 && (
               <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
@@ -143,16 +140,26 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="h-24 text-center">
-                       {isLoading ? 'Cargando pagos...' : 'No se encontraron pagos.'}
-                    </TableCell>
-                  </TableRow>
+                  !isLoading && (
+                    <TableRow>
+                      <TableCell colSpan={user?.role === 'master' ? 9 : 8} className="h-24 text-center">
+                        No se encontraron pagos.
+                      </TableCell>
+                    </TableRow>
+                  )
                 )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
+        <CardFooter className="flex justify-center items-center gap-2">
+            {isLoading && filteredPayments.length > 0 && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
+            {hasMore && !isLoading && (
+                <Button onClick={onLoadMore} variant="secondary">
+                    Cargar más resultados
+                </Button>
+            )}
+        </CardFooter>
       </Card>
       
       <DeletePaymentDialog
@@ -164,5 +171,3 @@ export default function PaymentHistoryList({ initialPayments, onPaymentDeleted, 
     </>
   );
 }
-
-    

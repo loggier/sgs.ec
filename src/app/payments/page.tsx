@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,16 +17,16 @@ function PaymentsPageContent() {
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [hasMore, setHasMore] = React.useState(false);
 
-  const fetchPayments = React.useCallback(async () => {
-    if (!user) {
-        setIsLoading(false);
-        return;
-    };
+  const fetchPayments = React.useCallback(async (cursor?: string) => {
+    if (!user) return;
+    
     setIsLoading(true);
     try {
-      const allPayments = await getAllPayments(user);
-      setPayments(allPayments);
+      const { payments: newPayments, hasMore: newHasMore } = await getAllPayments(user, cursor);
+      setPayments(prev => cursor ? [...prev, ...newPayments] : newPayments);
+      setHasMore(newHasMore);
     } catch (error) {
       toast({
         title: "Error",
@@ -33,6 +34,7 @@ function PaymentsPageContent() {
         variant: "destructive"
       });
       setPayments([]);
+      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
@@ -41,26 +43,32 @@ function PaymentsPageContent() {
   React.useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
+  
+  const handleLoadMore = () => {
+    const lastPayment = payments[payments.length - 1];
+    if (lastPayment?.refPath) {
+        fetchPayments(lastPayment.refPath);
+    }
+  };
 
-  if (isLoading && payments.length === 0) {
-    return (
-      <>
-        <Header title="Gestión de Pagos" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-96 w-full mt-6" />
-      </>
-    );
+  const handleDataChange = () => {
+      // Reset and fetch from the beginning
+      setPayments([]);
+      setHasMore(false);
+      fetchPayments();
   }
 
   return (
     <>
       <Header title="Gestión de Pagos" />
       <div className="space-y-8">
-        <NewPaymentSection onPaymentSaved={fetchPayments} />
+        <NewPaymentSection onPaymentSaved={handleDataChange} />
         <PaymentHistoryList 
-            initialPayments={payments} 
-            onPaymentDeleted={fetchPayments}
-            isLoading={isLoading} 
+            payments={payments} 
+            isLoading={isLoading}
+            hasMore={hasMore}
+            onLoadMore={handleLoadMore}
+            onPaymentDeleted={handleDataChange}
         />
       </div>
     </>

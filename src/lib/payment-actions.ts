@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addMonths, subMonths, isBefore, isValid } from 'date-fns';
+import { addMonths, subMonths, isValid } from 'date-fns';
 import {
   collection,
   doc,
@@ -16,15 +16,20 @@ import {
   limit,
   where,
   collectionGroup,
+  startAfter,
+  Query,
+  DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
 import type { Unit } from './unit-schema';
 import type { User } from './user-schema';
 import type { Client } from './schema';
-import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
+import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
+
+const PAYMENTS_PAGE_SIZE = 20;
 
 const convertTimestamps = (docData: any) => {
     if (!docData) {
@@ -104,7 +109,7 @@ export async function registerPayment(
                 const currentNextPaymentDate = unitDataFromDB.fechaSiguientePago ? new Date(unitDataFromDB.fechaSiguientePago) : null;
                 const contractStartDate = new Date(unitDataFromDB.fechaInicioContrato);
                 
-                const baseDateForCalculation = (currentNextPaymentDate && isValid(currentNextPaymentDate) && isBefore(contractStartDate, currentNextPaymentDate))
+                const baseDateForCalculation = (currentNextPaymentDate && isValid(currentNextPaymentDate))
                     ? currentNextPaymentDate
                     : contractStartDate;
                 
@@ -180,46 +185,45 @@ export async function registerPayment(
 
 
 export async function getAllPayments(
-  currentUser: User
-): Promise<PaymentHistoryEntry[]> {
-  if (!currentUser) return [];
+  currentUser: User,
+  cursor?: string
+): Promise<{ payments: PaymentHistoryEntry[], hasMore: boolean }> {
+  if (!currentUser) return { payments: [], hasMore: false };
 
   try {
-    const userClients = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
-    
-    const usersSnapshot = await getDocs(collection(db, 'users'));
-    const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+    const paymentsGroupRef = collectionGroup(db, 'payments');
+    const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
 
-    const allPayments: PaymentHistoryEntry[] = [];
+    if (currentUser.role !== 'master') {
+      const ownerId = currentUser.role === 'analista' && currentUser.creatorId ? currentUser.creatorId : currentUser.id;
+      queryConstraints.unshift(where('ownerId', '==', ownerId));
+    }
 
-    for (const client of userClients) {
-      const units = await getUnitsByClientId(client.id);
-      for (const unit of units) {
-        const paymentsCollectionRef = collection(db, 'clients', client.id, 'units', unit.id, 'payments');
-        const paymentsSnapshot = await getDocs(query(paymentsCollectionRef, orderBy('fechaPago', 'desc')));
-
-        paymentsSnapshot.forEach(paymentDoc => {
-          const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-          const owner = client.ownerId ? userMap.get(client.ownerId) : undefined;
-
-          allPayments.push({
-            ...paymentData,
-            id: paymentDoc.id,
-            clientName: client.nomSujeto,
-            unitPlaca: unit.placa,
-            ownerId: client.ownerId,
-            ownerName: owner?.nombre,
-          });
-        });
+    if (cursor) {
+      const cursorDoc = await getDoc(doc(db, cursor));
+      if (cursorDoc.exists()) {
+        queryConstraints.push(startAfter(cursorDoc));
       }
     }
-    
-    allPayments.sort((a, b) => new Date(b.fechaPago).getTime() - new Date(a.fechaPago).getTime());
 
-    return allPayments;
+    const q = query(paymentsGroupRef, ...queryConstraints);
+    const paymentDocs = await getDocs(q);
+
+    const payments = paymentDocs.docs.map(doc => {
+      const data = convertTimestamps(doc.data());
+      return {
+        ...data,
+        id: doc.id,
+        refPath: doc.ref.path,
+      } as PaymentHistoryEntry;
+    });
+
+    const hasMore = payments.length === PAYMENTS_PAGE_SIZE;
+
+    return { payments, hasMore };
   } catch (error) {
     console.error("Error fetching payment history:", error);
-    return [];
+    return { payments: [], hasMore: false };
   }
 }
 
@@ -262,7 +266,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
-            // Find the new "last payment"
             const paymentsCollectionRef = collection(db, 'clients', clientId, 'units', unitId, 'payments');
             const otherPaymentsQuery = query(paymentsCollectionRef, where('__name__', '!=', paymentId), orderBy('fechaPago', 'desc'), limit(1));
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
@@ -288,5 +291,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
