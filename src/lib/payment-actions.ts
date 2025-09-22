@@ -29,8 +29,6 @@ import { getUnitsByClientId } from './unit-actions';
 import { getCurrentUser } from './auth';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
-const PAYMENTS_PAGE_SIZE = 50;
-
 const convertTimestamps = (docData: any) => {
     if (!docData) {
         return docData;
@@ -146,7 +144,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
-                    ownerId: clientData.ownerId, // DENORMALIZATION: Add ownerId to payment document
+                    ownerId: clientData.ownerId,
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
@@ -186,60 +184,79 @@ export async function registerPayment(
 
 export async function getAllPayments(
   currentUser: User,
-  cursorId: string | null
+  cursor: string | null
 ): Promise<{ payments: PaymentHistoryEntry[]; hasMore: boolean; }> {
   if (!currentUser) return { payments: [], hasMore: false };
 
+  const PAYMENTS_PAGE_SIZE = 50; // Using a smaller batch size for demonstration
+
   try {
+    const paymentsGroupRef = collectionGroup(db, 'payments');
+    let q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE));
+
+    if (cursor) {
+      const cursorDoc = await getDoc(doc(db, cursor));
+      if(cursorDoc.exists()) {
+        q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), startAfter(cursorDoc), limit(PAYMENTS_PAGE_SIZE));
+      }
+    }
+    
+    const paymentsSnapshot = await getDocs(q);
+    
+    // Efficiently get all related data in bulk
+    const clientIds = new Set(paymentsSnapshot.docs.map(doc => doc.data().clientId));
+    const ownerIds = new Set<string>();
+
+    const clientsData: Map<string, Client> = new Map();
+    if(clientIds.size > 0) {
+      const clientsQuery = query(collection(db, 'clients'), where('__name__', 'in', Array.from(clientIds)));
+      const clientsSnapshot = await getDocs(clientsQuery);
+      clientsSnapshot.forEach(doc => {
+        const client = { id: doc.id, ...doc.data() } as Client;
+        clientsData.set(doc.id, client);
+        if (client.ownerId) ownerIds.add(client.ownerId);
+      });
+    }
+
+    const usersData: Map<string, User> = new Map();
+    if(ownerIds.size > 0) {
+      const usersQuery = query(collection(db, 'users'), where('__name__', 'in', Array.from(ownerIds)));
+      const usersSnapshot = await getDocs(usersQuery);
+      usersSnapshot.forEach(doc => usersData.set(doc.id, doc.data() as User));
+    }
+
     const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId ? currentUser.creatorId : currentUser.id;
 
-    const paymentsGroupRef = collectionGroup(db, 'payments');
-    const queryConstraints: any[] = [
-        orderBy('fechaPago', 'desc'),
-        limit(PAYMENTS_PAGE_SIZE)
-    ];
-    
-    // Add owner filter if user is not master
-    if (currentUser.role !== 'master') {
-        queryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
+    const filteredPayments: PaymentHistoryEntry[] = [];
+    for (const docSnap of paymentsSnapshot.docs) {
+      const paymentData = convertTimestamps(docSnap.data()) as Payment;
+      const client = clientsData.get(paymentData.clientId);
+
+      if (!client) continue; // Skip payments for clients not found (or deleted)
+      
+      const canView = currentUser.role === 'master' || client.ownerId === ownerIdToFilter;
+
+      if (canView) {
+        const owner = client.ownerId ? usersData.get(client.ownerId) : null;
+        filteredPayments.push({
+          ...paymentData,
+          id: docSnap.id,
+          refPath: docSnap.ref.path,
+          clientName: client.nomSujeto,
+          ownerName: owner?.nombre,
+        });
+      }
     }
-
-    if (cursorId) {
-        const cursorDocSnapshot = await getDoc(doc(db, cursorId));
-        if (cursorDocSnapshot.exists()) {
-             queryConstraints.push(startAfter(cursorDocSnapshot));
-        }
-    }
     
-    const finalQuery = query(paymentsGroupRef, ...queryConstraints);
-    const paymentsSnapshot = await getDocs(finalQuery);
-    
-    if (paymentsSnapshot.empty) {
-        return { payments: [], hasMore: false };
-    }
-
-    const usersSnapshot = await getDocs(collection(db, 'users'));
-    const userMap = new Map(usersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
-
-    const allPayments: PaymentHistoryEntry[] = paymentsSnapshot.docs.map(paymentDoc => {
-        const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
-        const ownerName = paymentData.ownerId ? userMap.get(paymentData.ownerId)?.nombre : undefined;
-
-        return {
-            ...paymentData,
-            id: paymentDoc.id,
-            refPath: paymentDoc.ref.path,
-            ownerName,
-        };
-    });
-    
-    // Check if there are more documents
     const lastVisibleDoc = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1];
-    const nextQuery = query(paymentsGroupRef, ...queryConstraints, startAfter(lastVisibleDoc), limit(1));
-    const nextSnapshot = await getDocs(nextQuery);
+    let hasMore = false;
+    if (lastVisibleDoc) {
+      const nextQuery = query(paymentsGroupRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
+      const nextSnapshot = await getDocs(nextQuery);
+      hasMore = !nextSnapshot.empty;
+    }
 
-    return { payments: allPayments, hasMore: !nextSnapshot.empty };
-
+    return { payments: filteredPayments, hasMore };
   } catch (error) {
     console.error("Error fetching payment history:", error);
     return { payments: [], hasMore: false };

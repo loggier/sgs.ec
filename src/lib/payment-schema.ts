@@ -49,5 +49,3 @@ export type PaymentHistoryEntry = Payment & {
   ownerName?: string;
   refPath?: string; // Document reference path for pagination cursor
 };
-
-    

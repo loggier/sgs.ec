@@ -185,5 +185,3 @@ export default function PaymentHistoryList({ initialPayments, isLoading, onPayme
     </>
   );
 }
-
-    
