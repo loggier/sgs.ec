@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getAllPayments } from '@/lib/payment-actions';
+import { getAllPayments, backfillPaymentOwnerIds } from '@/lib/payment-actions';
 import PaymentHistoryList from '@/components/payment-history-list';
 import Header from '@/components/header';
 import { useAuth } from '@/context/auth-context';
@@ -10,14 +10,16 @@ import NewPaymentSection from '@/components/new-payment-section';
 import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, DatabaseZap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 function PaymentsPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  
+  const [isBackfilling, setIsBackfilling] = React.useState(false);
+
   const fetchPayments = React.useCallback(async () => {
     if (!user) return;
     
@@ -40,10 +42,38 @@ function PaymentsPageContent() {
   React.useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
-  
+
   const handleDataChange = () => {
-      fetchPayments();
-  }
+    fetchPayments();
+  };
+
+  const handleBackfill = async () => {
+    if (!window.confirm('¿Estás seguro de que deseas ejecutar el proceso de actualización de datos? Esta acción recorrerá todos los pagos y puede tardar unos momentos.')) {
+      return;
+    }
+    
+    setIsBackfilling(true);
+    toast({
+      title: 'Iniciando actualización...',
+      description: 'Este proceso puede tardar varios minutos. No cierres esta ventana.',
+    });
+    
+    const result = await backfillPaymentOwnerIds();
+    
+    if (result.success) {
+      toast({
+        title: 'Actualización completada',
+        description: result.message,
+      });
+    } else {
+      toast({
+        title: 'Error en la actualización',
+        description: result.message,
+        variant: 'destructive',
+      });
+    }
+    setIsBackfilling(false);
+  };
   
   if (!user) {
     return (
@@ -55,7 +85,18 @@ function PaymentsPageContent() {
 
   return (
     <>
-      <Header title="Gestión de Pagos" />
+      <Header title="Gestión de Pagos">
+        {user.role === 'master' && (
+          <Button onClick={handleBackfill} disabled={isBackfilling} variant="outline">
+            {isBackfilling ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <DatabaseZap className="mr-2 h-4 w-4" />
+            )}
+            {isBackfilling ? 'Actualizando...' : 'Actualizar Datos de Pagos'}
+          </Button>
+        )}
+      </Header>
       <div className="space-y-8">
         <NewPaymentSection onPaymentSaved={handleDataChange} />
         <PaymentHistoryList 
@@ -76,5 +117,3 @@ export default function PaymentsPage() {
         </AppContent>
     )
 }
-
-    

@@ -15,6 +15,7 @@ import {
   runTransaction,
   limit,
   where,
+  collectionGroup,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -205,6 +206,7 @@ export async function getAllPayments(
           allPayments.push({
             ...paymentData,
             id: paymentDoc.id,
+            clientId: client.id,
           });
         });
       }
@@ -286,4 +288,48 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
     }
 }
 
-    
+export async function backfillPaymentOwnerIds(): Promise<{ success: boolean; message: string }> {
+  try {
+    const clientsSnapshot = await getDocs(collection(db, 'clients'));
+    const clientOwnerMap = new Map<string, string>();
+    clientsSnapshot.forEach(doc => {
+      const client = doc.data() as Client;
+      if (client.ownerId) {
+        clientOwnerMap.set(doc.id, client.ownerId);
+      }
+    });
+
+    const paymentsSnapshot = await getDocs(collectionGroup(db, 'payments'));
+    if (paymentsSnapshot.empty) {
+      return { success: true, message: 'No hay pagos para actualizar.' };
+    }
+
+    const batch = writeBatch(db);
+    let updatedCount = 0;
+
+    paymentsSnapshot.docs.forEach(paymentDoc => {
+      const paymentData = paymentDoc.data();
+      // Only update if ownerId is missing
+      if (!paymentData.ownerId) {
+        const clientId = paymentData.clientId;
+        const ownerId = clientOwnerMap.get(clientId);
+        if (ownerId) {
+          batch.update(paymentDoc.ref, { ownerId: ownerId });
+          updatedCount++;
+        }
+      }
+    });
+
+    if (updatedCount > 0) {
+      await batch.commit();
+      return { success: true, message: `${updatedCount} registros de pago han sido actualizados con la ID del propietario.` };
+    } else {
+      return { success: true, message: 'Todos los registros de pago ya estaban actualizados. No se realizaron cambios.' };
+    }
+
+  } catch (error) {
+    console.error("Error backfilling payment owner IDs:", error);
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    return { success: false, message: `Ocurrió un error en el servidor: ${message}` };
+  }
+}
