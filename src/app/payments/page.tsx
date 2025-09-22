@@ -11,22 +11,21 @@ import NewPaymentSection from '@/components/new-payment-section';
 import AppContent from '@/components/app-content';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 function PaymentsPageContent() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [payments, setPayments] = React.useState<PaymentHistoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [hasMore, setHasMore] = React.useState(false);
 
-  const fetchPayments = React.useCallback(async (cursor?: string) => {
+  const fetchPayments = React.useCallback(async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      const { payments: newPayments, hasMore: newHasMore } = await getAllPayments(user, cursor);
-      setPayments(prev => cursor ? [...prev, ...newPayments] : newPayments);
-      setHasMore(newHasMore);
+      const allPayments = await getAllPayments(user);
+      setPayments(allPayments);
     } catch (error) {
       toast({
         title: "Error",
@@ -34,7 +33,6 @@ function PaymentsPageContent() {
         variant: "destructive"
       });
       setPayments([]);
-      setHasMore(false);
     } finally {
       setIsLoading(false);
     }
@@ -44,18 +42,16 @@ function PaymentsPageContent() {
     fetchPayments();
   }, [fetchPayments]);
   
-  const handleLoadMore = () => {
-    const lastPayment = payments[payments.length - 1];
-    if (lastPayment?.refPath) {
-        fetchPayments(lastPayment.refPath);
-    }
-  };
-
   const handleDataChange = () => {
-      // Reset and fetch from the beginning
-      setPayments([]);
-      setHasMore(false);
       fetchPayments();
+  }
+  
+  if (!user) {
+    return (
+        <div className="flex h-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
   }
 
   return (
@@ -64,10 +60,8 @@ function PaymentsPageContent() {
       <div className="space-y-8">
         <NewPaymentSection onPaymentSaved={handleDataChange} />
         <PaymentHistoryList 
-            payments={payments} 
+            initialPayments={payments} 
             isLoading={isLoading}
-            hasMore={hasMore}
-            onLoadMore={handleLoadMore}
             onPaymentDeleted={handleDataChange}
         />
       </div>
@@ -83,3 +77,5 @@ export default function PaymentsPage() {
         </AppContent>
     )
 }
+
+    

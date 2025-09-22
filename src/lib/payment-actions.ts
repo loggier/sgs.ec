@@ -16,9 +16,6 @@ import {
   limit,
   where,
   collectionGroup,
-  startAfter,
-  Query,
-  DocumentData,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
@@ -28,8 +25,6 @@ import type { Client } from './schema';
 import { getClients } from './actions';
 import { getUnitsByClientId } from './unit-actions';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
-
-const PAYMENTS_PAGE_SIZE = 20;
 
 const convertTimestamps = (docData: any) => {
     if (!docData) {
@@ -185,45 +180,47 @@ export async function registerPayment(
 
 
 export async function getAllPayments(
-  currentUser: User,
-  cursor?: string
-): Promise<{ payments: PaymentHistoryEntry[], hasMore: boolean }> {
-  if (!currentUser) return { payments: [], hasMore: false };
+  currentUser: User
+): Promise<PaymentHistoryEntry[]> {
+  if (!currentUser) return [];
 
   try {
-    const paymentsGroupRef = collectionGroup(db, 'payments');
-    const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
+    const allClientsSnapshot = await getDocs(collection(db, 'clients'));
+    const clientsMap = new Map(allClientsSnapshot.docs.map(doc => [doc.id, doc.data() as Client]));
+    
+    const allUsersSnapshot = await getDocs(collection(db, 'users'));
+    const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+    
+    const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId ? currentUser.creatorId : currentUser.id;
 
-    if (currentUser.role !== 'master') {
-      const ownerId = currentUser.role === 'analista' && currentUser.creatorId ? currentUser.creatorId : currentUser.id;
-      queryConstraints.unshift(where('ownerId', '==', ownerId));
-    }
+    const paymentsQuery = query(collectionGroup(db, 'payments'), orderBy('fechaPago', 'desc'));
+    const paymentsSnapshot = await getDocs(paymentsQuery);
+    
+    const allPayments: PaymentHistoryEntry[] = [];
+    
+    paymentsSnapshot.docs.forEach(paymentDoc => {
+      const paymentData = convertTimestamps(paymentDoc.data()) as Payment;
+      const client = clientsMap.get(paymentData.clientId);
 
-    if (cursor) {
-      const cursorDoc = await getDoc(doc(db, cursor));
-      if (cursorDoc.exists()) {
-        queryConstraints.push(startAfter(cursorDoc));
+      if (client) {
+          const isMaster = currentUser.role === 'master';
+          const isOwner = client.ownerId === ownerIdToFilter;
+
+          if (isMaster || isOwner) {
+            const owner = client.ownerId ? usersMap.get(client.ownerId) : undefined;
+            allPayments.push({
+              ...paymentData,
+              id: paymentDoc.id,
+              ownerName: owner?.nombre,
+            });
+          }
       }
-    }
-
-    const q = query(paymentsGroupRef, ...queryConstraints);
-    const paymentDocs = await getDocs(q);
-
-    const payments = paymentDocs.docs.map(doc => {
-      const data = convertTimestamps(doc.data());
-      return {
-        ...data,
-        id: doc.id,
-        refPath: doc.ref.path,
-      } as PaymentHistoryEntry;
     });
 
-    const hasMore = payments.length === PAYMENTS_PAGE_SIZE;
-
-    return { payments, hasMore };
+    return allPayments;
   } catch (error) {
     console.error("Error fetching payment history:", error);
-    return { payments: [], hasMore: false };
+    return [];
   }
 }
 
@@ -291,3 +288,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
