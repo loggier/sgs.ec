@@ -111,6 +111,7 @@ const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> =
 
     // Enrich with P. GPS device status if linked
     if (unit.pgpsDeviceId) {
+        // IMPORTANT: Await the async call
         const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
         if (device) {
             unit.pgpsDeviceActive = device.active;
@@ -204,12 +205,9 @@ export async function saveUnit(
 
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
-    const savedUnit = await getUnit(clientId, savedUnitId!);
 
-    if (!savedUnit) {
-      return { success: false, message: 'Error: No se pudo recuperar la unidad después de guardarla.' };
-    }
-    
+    const finalData = { ...unitDataForFirestore, ...cleanedData };
+
     const toISODate = (date: any): string | null => {
         if (!date) return null;
         const d = date instanceof Timestamp ? date.toDate() : new Date(date);
@@ -217,31 +215,31 @@ export async function saveUnit(
     };
 
     const serializableUnit: SerializableUnit = {
-      id: savedUnit.id,
-      clientId: savedUnit.clientId,
-      pgpsDeviceId: savedUnit.pgpsDeviceId,
-      pgpsDeviceActive: savedUnit.pgpsDeviceActive,
-      estaSuspendido: savedUnit.estaSuspendido,
-      imei: savedUnit.imei,
-      placa: savedUnit.placa,
-      modelo: savedUnit.modelo,
-      categoriaVehiculo: savedUnit.categoriaVehiculo,
-      tipoPlan: savedUnit.tipoPlan,
-      tipoContrato: savedUnit.tipoContrato,
-      costoMensual: savedUnit.costoMensual,
-      costoTotalContrato: savedUnit.costoTotalContrato,
-      saldoContrato: savedUnit.saldoContrato,
-      mesesContrato: savedUnit.mesesContrato,
-      numeroOperacion: savedUnit.numeroOperacion,
-      observacion: savedUnit.observacion,
-      urlContrato: savedUnit.urlContrato,
-      diasCorte: savedUnit.diasCorte,
-      fechaInstalacion: toISODate(savedUnit.fechaInstalacion),
-      fechaSuspension: toISODate(savedUnit.fechaSuspension),
-      fechaInicioContrato: toISODate(savedUnit.fechaInicioContrato)!,
-      fechaVencimiento: toISODate(savedUnit.fechaVencimiento)!,
-      ultimoPago: toISODate(savedUnit.ultimoPago),
-      fechaSiguientePago: toISODate(savedUnit.fechaSiguientePago)!,
+      id: savedUnitId,
+      clientId: clientId,
+      pgpsDeviceId: finalData.pgpsDeviceId,
+      pgpsDeviceActive: finalData.pgpsDeviceActive,
+      estaSuspendido: finalData.estaSuspendido ?? false,
+      imei: finalData.imei,
+      placa: finalData.placa,
+      modelo: finalData.modelo,
+      categoriaVehiculo: finalData.categoriaVehiculo,
+      tipoPlan: finalData.tipoPlan,
+      tipoContrato: finalData.tipoContrato,
+      costoMensual: finalData.costoMensual,
+      costoTotalContrato: finalData.costoTotalContrato,
+      saldoContrato: finalData.saldoContrato,
+      mesesContrato: finalData.mesesContrato,
+      numeroOperacion: finalData.numeroOperacion,
+      observacion: finalData.observacion,
+      urlContrato: finalData.urlContrato,
+      diasCorte: finalData.diasCorte,
+      fechaInstalacion: toISODate(finalData.fechaInstalacion),
+      fechaSuspension: toISODate(finalData.fechaSuspension),
+      fechaInicioContrato: toISODate(finalData.fechaInicioContrato)!,
+      fechaVencimiento: toISODate(finalData.fechaVencimiento)!,
+      ultimoPago: toISODate(finalData.ultimoPago),
+      fechaSiguientePago: toISODate(finalData.fechaSiguientePago)!,
     };
     
 
