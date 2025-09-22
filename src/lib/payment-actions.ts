@@ -16,7 +16,6 @@ import {
   runTransaction,
   limit,
   where,
-  startAfter,
   collectionGroup,
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -141,7 +140,7 @@ export async function registerPayment(
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
-                    ownerId: clientData.ownerId,
+                    ownerId: clientData.ownerId, // IMPORTANT: Save ownerId with the payment
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
@@ -184,48 +183,46 @@ export async function getAllPayments(currentUser: User): Promise<PaymentHistoryE
 
     try {
         const paymentsGroupRef = collectionGroup(db, 'payments');
-        const q = query(paymentsGroupRef, orderBy('fechaPago', 'desc'));
-        const paymentSnapshot = await getDocs(q);
+        let paymentsQuery: Query;
+
+        if (currentUser.role === 'master') {
+            // Master gets all payments, no filter needed
+            paymentsQuery = query(paymentsGroupRef, orderBy('fechaPago', 'desc'));
+        } else {
+            // Manager/Analyst gets payments only for their clients
+            const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
+                ? currentUser.creatorId 
+                : currentUser.id;
+            
+            paymentsQuery = query(
+                paymentsGroupRef, 
+                where('ownerId', '==', ownerIdToFilter), 
+                orderBy('fechaPago', 'desc')
+            );
+        }
+        
+        const paymentSnapshot = await getDocs(paymentsQuery);
 
         if (paymentSnapshot.empty) {
             return [];
         }
-
-        const allClientsSnapshot = await getDocs(collection(db, 'clients'));
-        const clientsMap = new Map(allClientsSnapshot.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as Client]));
-
+        
+        // For enrichment, we only need the user who is the owner.
         const allUsersSnapshot = await getDocs(collection(db, 'users'));
         const usersMap = new Map(allUsersSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+
+        const enrichedPayments = paymentSnapshot.docs.map(doc => {
+            const paymentData = doc.data() as Payment;
+            const owner = paymentData.ownerId ? usersMap.get(paymentData.ownerId) : null;
+            
+            return {
+                id: doc.id,
+                ...convertTimestamps(paymentData),
+                ownerName: owner?.nombre,
+            } as PaymentHistoryEntry;
+        });
         
-        const ownerIdToFilter = currentUser.role === 'analista' && currentUser.creatorId 
-            ? currentUser.creatorId 
-            : currentUser.id;
-
-        const filteredAndEnrichedPayments = paymentSnapshot.docs
-            .map(doc => {
-                const paymentData = doc.data() as Payment;
-                const client = clientsMap.get(paymentData.clientId);
-
-                if (!client) {
-                    return null; // Skip payments for clients that might have been deleted
-                }
-
-                // Permission check
-                if (currentUser.role !== 'master' && client.ownerId !== ownerIdToFilter) {
-                    return null;
-                }
-
-                // Enrich data
-                const owner = client.ownerId ? usersMap.get(client.ownerId) : null;
-                return {
-                    id: doc.id,
-                    ...convertTimestamps(paymentData),
-                    ownerName: owner?.nombre,
-                } as PaymentHistoryEntry;
-            })
-            .filter((p): p is PaymentHistoryEntry => p !== null);
-        
-        return filteredAndEnrichedPayments;
+        return enrichedPayments;
 
     } catch (error) {
         console.error("Error fetching payment history:", error);
