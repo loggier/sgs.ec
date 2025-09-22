@@ -72,7 +72,8 @@ export async function getClients(userId: string, userRole: User['role'], creator
           const financials = clientUnits.reduce((acc, unit) => {
               if (unit.tipoContrato === 'con_contrato') {
                   acc.totalContractAmount += unit.costoTotalContrato ?? 0;
-                  acc.totalContractBalance += unit.saldoContrato ?? 0;
+                  // If saldoContrato is undefined or null, use the full contract cost as balance
+                  acc.totalContractBalance += unit.saldoContrato ?? unit.costoTotalContrato ?? 0;
                   const monthlyContractPayment = (unit.costoTotalContrato ?? 0) / (unit.mesesContrato || 1);
                   acc.totalMonthlyPayment += monthlyContractPayment;
               } else {
@@ -310,4 +311,5 @@ export async function getDashboardData(user: User) {
     };
 }
     
+
 
