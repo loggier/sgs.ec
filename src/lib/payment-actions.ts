@@ -172,10 +172,12 @@ export async function registerPayment(
         revalidatePath('/units');
         revalidatePath('/payments');
 
+        const serializableUnits = updatedUnitsForNotification.map(u => convertTimestamps(u) as SerializableUnit);
+
         return {
             success: true,
             message: `${processedCount} pago(s) registrado(s) con éxito.`,
-            units: updatedUnitsForNotification.map(u => convertTimestamps(u)) as SerializableUnit[],
+            units: serializableUnits,
         };
 
     } catch (error) {
@@ -232,7 +234,7 @@ export async function getPayments(
 
             let clientName = data.clientName;
             let unitPlaca = data.unitPlaca;
-            const ownerName = userMap.get(data.ownerId || '')?.nombre || undefined;
+            const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
 
             if (!clientName) {
                 clientName = clientMap.get(data.clientId)?.nomSujeto || 'Cliente no encontrado';
@@ -291,7 +293,6 @@ export async function getPayments(
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
-        // Use a transaction to ensure atomicity
         await runTransaction(db, async (transaction) => {
             const paymentDocRef = doc(db, 'payments', paymentId);
             const paymentDoc = await transaction.get(paymentDocRef);
@@ -311,7 +312,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
 
-            // Revert unit's payment dates
             const nextPaymentDate = unitData.fechaSiguientePago ? new Date(unitData.fechaSiguientePago) : null;
             if (!nextPaymentDate || !isValid(nextPaymentDate)) {
                 throw new Error('La fecha de siguiente pago actual de la unidad es inválida. No se puede revertir el pago.');
@@ -321,7 +321,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 fechaSiguientePago: Timestamp.fromDate(subMonths(nextPaymentDate, paymentData.mesesPagados))
             };
             
-            // Revert contract balance if applicable
             if (unitData.tipoContrato === 'con_contrato') {
                 const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
@@ -333,29 +332,24 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                  }
             }
 
-            // Find the new "last payment" by querying all other payments for the unit
             const allPaymentsForUnitQuery = query(
               collection(db, 'payments'), 
               where('unitId', '==', unitId),
+              orderBy('fechaPago', 'desc')
             );
             
-            // This get is happening outside the transaction read phase, which is fine
-            // as we are just calculating a new value to set.
             const allPaymentsSnapshot = await getDocs(allPaymentsForUnitQuery);
 
             const otherPayments = allPaymentsSnapshot.docs
-                .map(d => ({ id: d.id, ...d.data() }) as Payment)
-                .filter(p => p.id !== paymentId)
-                .sort((a, b) => (b.fechaPago as Timestamp).toMillis() - (a.fechaPago as Timestamp).toMillis());
+                .map(d => ({ id: d.id, ...convertTimestamps(d.data()) } as Payment))
+                .filter(p => p.id !== paymentId);
 
-            unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
+            unitUpdate.ultimoPago = otherPayments.length > 0 ? Timestamp.fromDate(new Date(otherPayments[0].fechaPago as string)) : null;
             
-            // Perform the updates within the transaction
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
         });
 
-        // Revalidate paths after the transaction is successful
         revalidatePath(`/clients/${clientId}/units`);
         revalidatePath('/units');
         revalidatePath('/payments');
