@@ -197,12 +197,18 @@ export async function getPayments(
     }
 
     try {
-        const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
+        let ownerIdToFilter: string | undefined;
+        if (user.role === 'manager') {
+            ownerIdToFilter = user.id;
+        } else if (user.role === 'analista') {
+            ownerIdToFilter = user.creatorId;
+        }
+
 
         const paymentsCollectionRef = collection(db, 'payments');
         const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
 
-        if (user.role !== 'master') {
+        if (user.role !== 'master' && ownerIdToFilter) {
             queryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
         }
 
@@ -269,7 +275,7 @@ export async function getPayments(
         let hasMore = false;
         if (lastVisibleDoc) {
             const nextQueryConstraints = [orderBy('fechaPago', 'desc'), limit(1), startAfter(lastVisibleDoc)];
-            if (user.role !== 'master') {
+            if (user.role !== 'master' && ownerIdToFilter) {
                 nextQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
             }
             const nextQuery = query(paymentsCollectionRef, ...nextQueryConstraints);
