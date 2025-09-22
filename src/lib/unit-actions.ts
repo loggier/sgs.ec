@@ -446,7 +446,7 @@ export async function updateUnitStatus(
 
     // Send notification
     const eventType = suspend ? 'service_suspended' : 'service_reactivated';
-    // await sendGroupedTemplatedWhatsAppMessage(eventType, clientData, [{ id: unitId, ...unitData, ...updateData } as Unit]);
+    await sendGroupedTemplatedWhatsAppMessage(clientData, [{ id: unitId, ...unitData, ...updateData } as Unit], eventType);
 
     // Revalidate paths to refresh data on the client
     revalidatePath(`/clients/${clientId}/units`);
@@ -522,7 +522,7 @@ export async function bulkUpdateUnitPgpsStatus(
             if (unitsByClient[clientId].length > 0) {
                  const clientDoc = await getDoc(doc(db, 'clients', clientId));
                  if (clientDoc.exists()) {
-                    // await sendGroupedTemplatedWhatsAppMessage(eventType, clientDoc.data() as Client, unitsByClient[clientId]);
+                    await sendGroupedTemplatedWhatsAppMessage(clientDoc.data() as Client, unitsByClient[clientId], eventType);
                  }
             }
         }

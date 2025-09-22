@@ -100,9 +100,9 @@ function formatMessage(template: string, client: Client, units: Unit[], owner: U
 }
 
 export async function sendGroupedTemplatedWhatsAppMessage(
-    eventType: TemplateEventType,
     client: Client,
-    units: Unit[]
+    units: Unit[],
+    eventType: TemplateEventType
 ): Promise<{ success: boolean; message: string }> {
     
     // --- 1. Validate all data before proceeding ---
@@ -209,17 +209,17 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             const clientData = {id: clientDoc.id, ...clientDoc.data()} as Client;
             
             if (groups.dueInThreeDays.length > 0) {
-                const result = await sendGroupedTemplatedWhatsAppMessage('payment_reminder', clientData, groups.dueInThreeDays);
+                const result = await sendGroupedTemplatedWhatsAppMessage(clientData, groups.dueInThreeDays, 'payment_reminder');
                 if (result.success) sentCount++; else errorCount++;
             }
 
             if (groups.dueToday.length > 0) {
-                const result = await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientData, groups.dueToday);
+                const result = await sendGroupedTemplatedWhatsAppMessage(clientData, groups.dueToday, 'payment_due_today');
                 if (result.success) sentCount++; else errorCount++;
             }
 
             if (groups.overdue.length > 0) {
-                const result = await sendGroupedTemplatedWhatsAppMessage('payment_overdue', clientData, groups.overdue);
+                const result = await sendGroupedTemplatedWhatsAppMessage(clientData, groups.overdue, 'payment_overdue');
                 if (result.success) sentCount++; else errorCount++;
             }
         }

@@ -164,7 +164,7 @@ export async function registerPayment(
         });
         
         if (updatedUnitsForNotification.length > 0) {
-             await sendGroupedTemplatedWhatsAppMessage('payment_received', clientData, updatedUnitsForNotification);
+             await sendGroupedTemplatedWhatsAppMessage(clientData, updatedUnitsForNotification, 'payment_received');
         }
 
         revalidatePath(`/clients/${safeClientId}/units`);
@@ -230,18 +230,21 @@ export async function getPayments(
         const payments = await Promise.all(paymentDocs.map(async (pDoc) => {
             const data = convertTimestamps(pDoc.data()) as Payment;
 
-            const clientName = clientMap.get(data.clientId)?.nomSujeto || 'Cliente no encontrado';
+            let clientName = data.clientName;
+            let unitPlaca = data.unitPlaca;
             const ownerName = userMap.get(data.ownerId || '')?.nombre || undefined;
-            
-            let unitPlaca = data.unitPlaca || 'Placa no encontrada';
 
-            // If unitPlaca is missing (old record), fetch it from the unit document.
-            if (!data.unitPlaca && data.clientId && data.unitId) {
-                try {
+            if (!clientName) {
+                clientName = clientMap.get(data.clientId)?.nomSujeto || 'Cliente no encontrado';
+            }
+
+            if (!unitPlaca) {
+                 try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
                     if (unitDoc.exists()) {
-                        unitPlaca = (unitDoc.data() as Unit).placa || 'Placa sin definir';
+                         const unitData = convertTimestamps(unitDoc.data()); // This is the fix
+                         unitPlaca = unitData.placa || 'Placa no encontrada';
                     }
                 } catch (e) {
                     console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
@@ -252,7 +255,7 @@ export async function getPayments(
                 id: pDoc.id,
                 ...data,
                 clientName: clientName,
-                unitPlaca: unitPlaca,
+                unitPlaca: unitPlaca || 'Placa no encontrada',
                 ownerName: ownerName,
             };
         }));
@@ -327,16 +330,18 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 }
             }
             
-            // Find the new "last payment" by querying all payments for the unit within the transaction
+            // Find the new "last payment" by querying all payments for the unit.
+            // This query is now safe because of the added index.
             const allPaymentsForUnitQuery = query(collection(db, 'payments'), where('unitId', '==', unitId));
             const allPaymentsSnapshot = await getDocs(allPaymentsForUnitQuery);
 
             const otherPayments = allPaymentsSnapshot.docs
-                .map(d => ({ id: d.id, ...d.data() } as Payment))
+                .map(d => convertTimestamps({ id: d.id, ...d.data() }) as Payment)
                 .filter(p => p.id !== paymentId)
-                .sort((a, b) => (b.fechaPago as Timestamp).toMillis() - (a.fechaPago as Timestamp).toMillis());
+                .sort((a, b) => new Date(b.fechaPago as string).getTime() - new Date(a.fechaPago as string).getTime());
             
-            unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
+            const lastPaymentDate = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
+            unitUpdate.ultimoPago = lastPaymentDate ? Timestamp.fromDate(new Date(lastPaymentDate as string)) : null;
             
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);

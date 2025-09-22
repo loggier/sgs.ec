@@ -9,6 +9,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { subDays, startOfDay, isSameDay, addDays } from "date-fns";
 import { sendGroupedTemplatedWhatsAppMessage } from "../lib/notification-actions";
 import type { Unit } from '../lib/unit-schema';
+import type { Client } from '../lib/schema';
 
 // Asegúrate de que Firebase Admin SDK esté inicializado.
 // Esto se hace automáticamente en el entorno de Cloud Functions si no se ha hecho antes.
@@ -87,21 +88,25 @@ export const dailyNotificationCheck = functions
             // Send grouped notifications
             for (const clientId in unitsToNotify) {
                 const groups = unitsToNotify[clientId];
+                const clientDoc = await db.collection('clients').doc(clientId).get();
+                if (!clientDoc.exists) continue;
+                const clientData = { id: clientDoc.id, ...clientDoc.data() } as Client;
+
 
                 if (groups.dueInThreeDays.length > 0) {
-                    await sendGroupedTemplatedWhatsAppMessage('payment_reminder', clientId, groups.dueInThreeDays);
+                    await sendGroupedTemplatedWhatsAppMessage(clientData, groups.dueInThreeDays, 'payment_reminder');
                     functions.logger.info(`Enviando recordatorio de pago próximo para cliente ${clientId} con ${groups.dueInThreeDays.length} unidades.`);
                     processedCount++;
                 }
                 
                 if (groups.dueToday.length > 0) {
-                    await sendGroupedTemplatedWhatsAppMessage('payment_due_today', clientId, groups.dueToday);
+                    await sendGroupedTemplatedWhatsAppMessage(clientData, groups.dueToday, 'payment_due_today');
                     functions.logger.info(`Enviando aviso de vencimiento hoy para cliente ${clientId} con ${groups.dueToday.length} unidades.`);
                     processedCount++;
                 }
 
                 if (groups.overdue.length > 0) {
-                    await sendGroupedTemplatedWhatsAppMessage('payment_overdue', clientId, groups.overdue);
+                    await sendGroupedTemplatedWhatsAppMessage(clientData, groups.overdue, 'payment_overdue');
                     functions.logger.info(`Enviando aviso de pago vencido para cliente ${clientId} con ${groups.overdue.length} unidades.`);
                     processedCount++;
                 }
