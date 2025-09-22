@@ -232,7 +232,8 @@ export async function getPayments(
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
                     if (unitDoc.exists()) {
-                        unitPlaca = unitDoc.data().placa;
+                        const unitData = convertTimestamps(unitDoc.data()); // This was the missing piece
+                        unitPlaca = unitData.placa;
                     }
                 } catch (e) {
                     console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
@@ -350,7 +351,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
-
-    
