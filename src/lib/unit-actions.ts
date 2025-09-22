@@ -206,6 +206,7 @@ export async function saveUnit(
     revalidatePath(`/clients/${clientId}/units`);
     revalidatePath('/units');
 
+    // This is the data that will be returned, ensure it's "flat"
     const finalData = { ...unitDataForFirestore, ...cleanedData };
 
     const toISODate = (date: any): string | null => {
@@ -337,7 +338,7 @@ export async function bulkDeleteUnits(
 }
 
 
-export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName?: string; ownerName?: string })[]> {
+export async function getAllUnits(currentUser: User): Promise<(Unit & { clientName: string; ownerName?: string })[]> {
     if (!currentUser) return [];
 
     try {
@@ -360,7 +361,8 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
 
         const units = unitsSnapshot.docs
             .map(doc => {
-                const client = clientsMap.get(doc.ref.parent.parent!.id);
+                const clientId = doc.ref.parent.parent!.id;
+                const client = clientsMap.get(clientId);
                 if (!client) return null;
 
                 const isMaster = currentUser.role === 'master';
@@ -375,7 +377,7 @@ export async function getAllUnits(currentUser: User): Promise<(Unit & { clientNa
                 return {
                     id: doc.id,
                     ...convertTimestamps(doc.data()),
-                    clientId: client.id!,
+                    clientId: clientId,
                     clientName: client.nomSujeto,
                     ownerName: owner?.nombre,
                 } as Unit & { clientName: string; ownerName?: string };
