@@ -43,7 +43,7 @@ const convertTimestamps = (data: any): any => {
             if (value instanceof Timestamp) {
                 newData[key] = value.toDate().toISOString();
             } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-                newData[key] = convertTimestamps(value); // Recursively convert nested objects
+                newData[key] = convertTimestamps(value);
             } else {
                 newData[key] = value;
             }
@@ -146,8 +146,8 @@ export async function registerPayment(
                     unitId: unitId,
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
-                    unitPlaca: unitDataFromDB.placa, // Save the plate here
-                    ownerId: clientData.ownerId, // Set ownerId on new payment
+                    unitPlaca: unitDataFromDB.placa,
+                    ownerId: clientData.ownerId,
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
                     monto: individualPaymentAmount,
@@ -224,8 +224,8 @@ export async function getPayments(
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
             
-            let unitPlaca = data.unitPlaca;
-            if (!unitPlaca && data.clientId && data.unitId) {
+            let unitPlaca = 'Placa no encontrada'; // Default value
+            if (data.clientId && data.unitId) {
                 try {
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
@@ -237,12 +237,11 @@ export async function getPayments(
                 }
             }
 
-
             return {
                 id: doc.id,
                 ...data,
                 clientName: clientName || data.clientName,
-                unitPlaca: unitPlaca || 'Placa no encontrada',
+                unitPlaca: unitPlaca,
                 ownerName,
             };
         });
@@ -323,7 +322,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                 collection(db, 'payments'), 
                 where('unitId', '==', unitId),
                 orderBy('fechaPago', 'desc'), 
-                startAfter(paymentDoc), // Find payments older than the one being deleted
+                startAfter(paymentDoc),
                 limit(1)
             );
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
@@ -349,5 +348,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
