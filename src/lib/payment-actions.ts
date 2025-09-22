@@ -30,8 +30,6 @@ import type { User } from './user-schema';
 import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
 
-const PAYMENTS_PAGE_SIZE = 25;
-
 const convertTimestamps = (docData: any) => {
     if (!docData) {
         return docData;
@@ -179,12 +177,9 @@ export async function registerPayment(
     }
 }
 
-export async function getPayments(
-    user: User,
-    lastVisible: QueryDocumentSnapshot<DocumentData> | null
-): Promise<{ payments: PaymentHistoryEntry[], lastVisible: QueryDocumentSnapshot<DocumentData> | null, hasMore: boolean }> {
+export async function getPayments(user: User): Promise<{ payments: PaymentHistoryEntry[] }> {
     if (!user) {
-        return { payments: [], lastVisible: null, hasMore: false };
+        return { payments: [] };
     }
 
     try {
@@ -192,15 +187,10 @@ export async function getPayments(
 
         const paymentsQueryConstraints: any[] = [
             orderBy('fechaPago', 'desc'),
-            limit(PAYMENTS_PAGE_SIZE)
         ];
 
         if (user.role !== 'master') {
             paymentsQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
-        }
-
-        if (lastVisible) {
-            paymentsQueryConstraints.push(startAfter(lastVisible));
         }
 
         const q = query(collection(db, 'payments'), ...paymentsQueryConstraints);
@@ -219,10 +209,7 @@ export async function getPayments(
             };
         });
 
-        const newLastVisible = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1] || null;
-        const hasMore = payments.length === PAYMENTS_PAGE_SIZE;
-
-        return { payments, lastVisible: newLastVisible, hasMore };
+        return { payments };
     } catch (error) {
         console.error("Error fetching payments:", error);
         throw error;
@@ -302,5 +289,3 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
-
-    
