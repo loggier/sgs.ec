@@ -34,7 +34,9 @@ const convertTimestamps = (data: any): any => {
             const value = data[key];
             if (value instanceof Timestamp) {
                 newData[key] = value.toDate().toISOString();
-            } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+            } else if (value === null || value === undefined) {
+                newData[key] = null;
+            } else if (typeof value === 'object' && !Array.isArray(value)) {
                 newData[key] = convertTimestamps(value); // Recursively convert nested objects
             } else {
                 newData[key] = value;
