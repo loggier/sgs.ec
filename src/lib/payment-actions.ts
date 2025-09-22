@@ -224,6 +224,7 @@ export async function getPayments(
                 id: doc.id,
                 ...data,
                 clientName: clientName || data.clientName, // Fallback to stored name
+                unitPlaca: data.unitPlaca,
                 ownerName,
             };
         });
