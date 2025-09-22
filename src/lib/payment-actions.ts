@@ -142,7 +142,7 @@ export async function registerPayment(
                     unitId: unitId,
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
-                    unitPlaca: unitDataFromDB.placa,
+                    unitPlaca: unitDataFromDB.placa, // Save the plate here
                     ownerId: clientData.ownerId, // Set ownerId on new payment
                     fechaPago: Timestamp.fromDate(new Date(fechaPago)),
                     mesesPagados,
@@ -215,19 +215,35 @@ export async function getPayments(
         const allClientDocs = await getDocs(query(collection(db, 'clients')));
         const clientMap = new Map(allClientDocs.docs.map(doc => [doc.id, doc.data() as Client]));
 
-        const payments = paymentsSnapshot.docs.map(doc => {
+        const paymentsPromises = paymentsSnapshot.docs.map(async (doc) => {
             const data = convertTimestamps(doc.data()) as Payment;
             const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
             const clientName = data.clientId ? clientMap.get(data.clientId)?.nomSujeto : undefined;
+            
+            let unitPlaca = data.unitPlaca;
+            if (!unitPlaca && data.clientId && data.unitId) {
+                try {
+                    const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
+                    const unitDoc = await getDoc(unitDocRef);
+                    if (unitDoc.exists()) {
+                        unitPlaca = (unitDoc.data() as Unit).placa;
+                    }
+                } catch (e) {
+                    console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
+                }
+            }
+
 
             return {
                 id: doc.id,
                 ...data,
                 clientName: clientName || data.clientName, // Fallback to stored name
-                unitPlaca: data.unitPlaca,
+                unitPlaca: unitPlaca || 'Placa no encontrada',
                 ownerName,
             };
         });
+
+        const payments = await Promise.all(paymentsPromises);
 
         const lastVisibleDoc = paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1];
         const firstVisibleDoc = paymentsSnapshot.docs[0];
