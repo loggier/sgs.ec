@@ -272,7 +272,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
             
             unitUpdate.ultimoPago = !otherPaymentsSnapshot.empty
-                ? (otherPaymentsSnapshot.docs[0].data().fechaPago as Timestamp)
+                ? otherPaymentsSnapshot.docs[0].data().fechaPago.toDate().toISOString()
                 : null;
             
             transaction.update(unitDocRef, unitUpdate);
@@ -292,3 +292,5 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
         return { success: false, message: errorMessage };
     }
 }
+
+    
