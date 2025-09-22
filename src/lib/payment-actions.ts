@@ -26,7 +26,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { PaymentFormSchema, type PaymentFormInput, type Payment, type PaymentHistoryEntry } from './payment-schema';
-import type { Unit } from './unit-schema';
+import type { Unit, SerializableUnit } from './unit-schema';
 import type { User } from './user-schema';
 import type { Client } from './schema';
 import { sendGroupedTemplatedWhatsAppMessage } from './notification-actions';
@@ -57,7 +57,7 @@ export async function registerPayment(
     data: PaymentFormInput,
     unitIdsInput: unknown,
     clientIdInput: unknown
-): Promise<{ success: boolean; message: string; units?: Unit[] }> {
+): Promise<{ success: boolean; message: string; units?: SerializableUnit[] }> {
     const validation = PaymentFormSchema.safeParse(data);
     if (!validation.success) {
         return { success: false, message: 'Datos de pago no válidos.' };
@@ -175,7 +175,7 @@ export async function registerPayment(
         return {
             success: true,
             message: `${processedCount} pago(s) registrado(s) con éxito.`,
-            units: updatedUnitsForNotification.map(u => convertTimestamps(u)) as Unit[],
+            units: updatedUnitsForNotification.map(u => convertTimestamps(u)) as SerializableUnit[],
         };
 
     } catch (error) {
@@ -291,6 +291,7 @@ export async function getPayments(
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {
+        // Use a transaction to ensure atomicity
         await runTransaction(db, async (transaction) => {
             const paymentDocRef = doc(db, 'payments', paymentId);
             const paymentDoc = await transaction.get(paymentDocRef);
@@ -310,6 +311,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             
             const unitData = convertTimestamps(unitDoc.data()) as Unit;
 
+            // Revert unit's payment dates
             const nextPaymentDate = unitData.fechaSiguientePago ? new Date(unitData.fechaSiguientePago) : null;
             if (!nextPaymentDate || !isValid(nextPaymentDate)) {
                 throw new Error('La fecha de siguiente pago actual de la unidad es inválida. No se puede revertir el pago.');
@@ -318,37 +320,42 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
             const unitUpdate: Partial<Record<keyof Unit, any>> = {
                 fechaSiguientePago: Timestamp.fromDate(subMonths(nextPaymentDate, paymentData.mesesPagados))
             };
-
+            
+            // Revert contract balance if applicable
             if (unitData.tipoContrato === 'con_contrato') {
                 const monthlyCost = (unitData.costoTotalContrato ?? 0) / (unitData.mesesContrato ?? 1);
                 const paymentAmountToRestore = monthlyCost * paymentData.mesesPagados;
                 unitUpdate.saldoContrato = (unitData.saldoContrato ?? 0) + paymentAmountToRestore;
             } else {
-                const expirationDate = unitData.fechaVencimiento ? new Date(unitData.fechaVencimiento) : null;
-                if (expirationDate && isValid(expirationDate)) {
+                 const expirationDate = unitData.fechaVencimiento ? new Date(unitData.fechaVencimiento) : null;
+                 if (expirationDate && isValid(expirationDate)) {
                      unitUpdate.fechaVencimiento = Timestamp.fromDate(subMonths(expirationDate, paymentData.mesesPagados));
-                }
+                 }
             }
-            
-            // Find the new "last payment" by querying all payments for the unit.
+
+            // Find the new "last payment" by querying all other payments for the unit
             const allPaymentsForUnitQuery = query(
               collection(db, 'payments'), 
               where('unitId', '==', unitId),
-              orderBy('fechaPago', 'desc')
             );
+            
+            // This get is happening outside the transaction read phase, which is fine
+            // as we are just calculating a new value to set.
             const allPaymentsSnapshot = await getDocs(allPaymentsForUnitQuery);
 
             const otherPayments = allPaymentsSnapshot.docs
-                .map(d => convertTimestamps({ id: d.id, ...d.data() }) as Payment)
+                .map(d => ({ id: d.id, ...d.data() }) as Payment)
                 .filter(p => p.id !== paymentId)
+                .sort((a, b) => (b.fechaPago as Timestamp).toMillis() - (a.fechaPago as Timestamp).toMillis());
 
-            const lastPaymentDate = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
-            unitUpdate.ultimoPago = lastPaymentDate ? Timestamp.fromDate(new Date(lastPaymentDate as string)) : null;
+            unitUpdate.ultimoPago = otherPayments.length > 0 ? otherPayments[0].fechaPago : null;
             
+            // Perform the updates within the transaction
             transaction.update(unitDocRef, unitUpdate);
             transaction.delete(paymentDocRef);
         });
 
+        // Revalidate paths after the transaction is successful
         revalidatePath(`/clients/${clientId}/units`);
         revalidatePath('/units');
         revalidatePath('/payments');
