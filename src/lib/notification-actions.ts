@@ -132,8 +132,13 @@ export async function sendGroupedTemplatedWhatsAppMessage(
     
     const allTemplates = await getMessageTemplatesForUser(ownerId);
     const template = allTemplates.find(t => t.eventType === eventType);
+
     if (!template?.content) {
         return { success: true, message: `Operación omitida: No hay plantilla válida para el evento '${eventType}'.` };
+    }
+
+    if (!template.isActive) {
+        return { success: true, message: `Operación omitida: La plantilla para '${eventType}' está desactivada.` };
     }
 
     if (!units || units.length === 0) {

@@ -38,6 +38,7 @@ export const MessageTemplateSchema = z.object({
     name: z.string().min(1, 'El nombre de la plantilla es requerido.'),
     eventType: TemplateEventType,
     content: z.string().min(10, 'El contenido debe tener al menos 10 caracteres.'),
+    isActive: z.boolean().default(true).optional(), // New field to control template status
     isGlobal: z.boolean().optional(), // Flag to mark as a global/default template
 });
 export type MessageTemplate = z.infer<typeof MessageTemplateSchema>;

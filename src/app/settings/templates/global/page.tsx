@@ -28,6 +28,7 @@ import {
   templateEventLabels,
 } from '@/lib/settings-schema';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 function GlobalMessageTemplatesPageContent() {
   const { user, isLoading: authLoading } = useAuth();
@@ -105,6 +106,7 @@ function GlobalMessageTemplatesPageContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Nombre de Plantilla</TableHead>
                     <TableHead>Tipo de Evento</TableHead>
                     <TableHead>Contenido</TableHead>
@@ -117,6 +119,11 @@ function GlobalMessageTemplatesPageContent() {
                   {templates.length > 0 ? (
                     templates.map(template => (
                       <TableRow key={template.id}>
+                        <TableCell>
+                          <Badge variant={template.isActive ? 'default' : 'secondary'} className={cn(template.isActive && 'bg-green-500 hover:bg-green-600')}>
+                            {template.isActive ? 'Activa' : 'Inactiva'}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="font-medium flex items-center gap-2">
                             {template.name}
                              <Badge variant="outline" className="bg-blue-100 text-blue-800">
@@ -138,7 +145,7 @@ function GlobalMessageTemplatesPageContent() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center h-24">
+                      <TableCell colSpan={5} className="text-center h-24">
                         No hay plantillas globales encontradas.
                       </TableCell>
                     </TableRow>

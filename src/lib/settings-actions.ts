@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, writeBatch, limit } from 'firebase/firestore';
@@ -129,12 +130,12 @@ async function ensureGlobalTemplatesExist() {
 
         const batch = writeBatch(db);
         const defaultTemplates: Omit<MessageTemplate, 'id'>[] = [
-            { name: 'Recordatorio de Pago (Global)', eventType: 'payment_reminder', content: 'Estimado/a {nombre_cliente}, le recordamos que su pago está próximo a vencer.\n\n{resumen_unidades}\n\nPara evitar la suspensión del servicio, por favor realice su pago. Gracias, {nombre_empresa}.', isGlobal: true },
-            { name: 'Vencimiento Hoy (Global)', eventType: 'payment_due_today', content: 'Estimado/a {nombre_cliente}, su servicio vence el día de hoy.\n\n{resumen_unidades}\n\nRealice su pago para mantener su servicio activo. Atentamente, {nombre_empresa}.', isGlobal: true },
-            { name: 'Pago Vencido (Global)', eventType: 'payment_overdue', content: 'Estimado/a {nombre_cliente}, su pago se encuentra vencido.\n\n{resumen_unidades}\n\nSu servicio será suspendido. Comuníquese con {nombre_empresa} para regularizar su situación.', isGlobal: true },
-            { name: 'Pago Recibido (Global)', eventType: 'payment_received', content: 'Estimado/a {nombre_cliente}, hemos recibido su pago. ¡Gracias por su confianza!\n\n{resumen_unidades}\n\nAtentamente, {nombre_empresa}.', isGlobal: true },
-            { name: 'Servicio Suspendido (Global)', eventType: 'service_suspended', content: 'Estimado/a {nombre_cliente}, le informamos que su servicio ha sido suspendido por falta de pago.\n\n{resumen_unidades}\n\nPara reactivarlo, por favor póngase en contacto con {nombre_empresa}.', isGlobal: true },
-            { name: 'Servicio Reactivado (Global)', eventType: 'service_reactivated', content: 'Estimado/a {nombre_cliente}, le informamos que su servicio ha sido reactivado con éxito.\n\n{resumen_unidades}\n\nGracias por su pago. Atentamente, {nombre_empresa}.', isGlobal: true },
+            { name: 'Recordatorio de Pago (Global)', eventType: 'payment_reminder', content: 'Estimado/a {nombre_cliente}, le recordamos que su pago está próximo a vencer.\n\n{resumen_unidades}\n\nPara evitar la suspensión del servicio, por favor realice su pago. Gracias, {nombre_empresa}.', isGlobal: true, isActive: true },
+            { name: 'Vencimiento Hoy (Global)', eventType: 'payment_due_today', content: 'Estimado/a {nombre_cliente}, su servicio vence el día de hoy.\n\n{resumen_unidades}\n\nRealice su pago para mantener su servicio activo. Atentamente, {nombre_empresa}.', isGlobal: true, isActive: true },
+            { name: 'Pago Vencido (Global)', eventType: 'payment_overdue', content: 'Estimado/a {nombre_cliente}, su pago se encuentra vencido.\n\n{resumen_unidades}\n\nSu servicio será suspendido. Comuníquese con {nombre_empresa} para regularizar su situación.', isGlobal: true, isActive: true },
+            { name: 'Pago Recibido (Global)', eventType: 'payment_received', content: 'Estimado/a {nombre_cliente}, hemos recibido su pago. ¡Gracias por su confianza!\n\n{resumen_unidades}\n\nAtentamente, {nombre_empresa}.', isGlobal: true, isActive: true },
+            { name: 'Servicio Suspendido (Global)', eventType: 'service_suspended', content: 'Estimado/a {nombre_cliente}, le informamos que su servicio ha sido suspendido por falta de pago.\n\n{resumen_unidades}\n\nPara reactivarlo, por favor póngase en contacto con {nombre_empresa}.', isGlobal: true, isActive: true },
+            { name: 'Servicio Reactivado (Global)', eventType: 'service_reactivated', content: 'Estimado/a {nombre_cliente}, le informamos que su servicio ha sido reactivado con éxito.\n\n{resumen_unidades}\n\nGracias por su pago. Atentamente, {nombre_empresa}.', isGlobal: true, isActive: true },
         ];
         
         defaultTemplates.forEach(template => {
@@ -190,7 +191,7 @@ export async function saveMessageTemplate(
             return { success: true, message: 'Plantilla actualizada con éxito.', template: { id: templateId, ...dataToSave } };
         } else {
              // For new templates, assign owner and set isGlobal to false.
-            const newData = { ...dataToSave, ownerId: user.id, isGlobal: false };
+            const newData = { ...dataToSave, ownerId: user.id, isGlobal: false, isActive: data.isActive ?? true };
             const templateCollectionRef = collection(db, TEMPLATES_COLLECTION);
             const newDocRef = await addDoc(templateCollectionRef, newData);
             revalidatePath('/settings/templates');
@@ -224,6 +225,7 @@ async function copyGlobalTemplatesForUser(userId: string) {
             ...globalTemplateData,
             ownerId: userId, // Assign the correct owner
             isGlobal: false,   // It's a personal copy, not a global one
+            isActive: globalTemplateData.isActive ?? true,
         };
         batch.set(newTemplateRef, newTemplateData);
     });

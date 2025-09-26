@@ -36,6 +36,7 @@ import { Textarea } from './ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 import { useAuth } from '@/context/auth-context';
+import { Switch } from './ui/switch';
 
 type MessageTemplateFormProps = {
   template: MessageTemplate | null;
@@ -52,12 +53,13 @@ export default function MessageTemplateForm({ template, onSave, onCancel }: Mess
   const form = useForm<MessageTemplateFormInput>({
     resolver: zodResolver(MessageTemplateSchema.omit({id: true})),
     defaultValues: template
-      ? { ...template }
+      ? { ...template, isActive: template.isActive ?? true }
       : {
           name: '',
           eventType: 'payment_reminder',
           content: '',
           ownerId: user?.id,
+          isActive: true,
           isGlobal: false,
         },
   });
@@ -89,6 +91,27 @@ export default function MessageTemplateForm({ template, onSave, onCancel }: Mess
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4 py-4">
+             <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Plantilla Activa</FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                        Si está inactiva, esta notificación no se enviará automáticamente.
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="name"

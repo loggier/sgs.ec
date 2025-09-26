@@ -48,6 +48,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 function MessageTemplatesPageContent() {
   const { user, isLoading: authLoading } = useAuth();
@@ -161,6 +162,7 @@ function MessageTemplatesPageContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Estado</TableHead>
                     <TableHead>Nombre de Plantilla</TableHead>
                     <TableHead>Tipo de Evento</TableHead>
                     <TableHead>Contenido</TableHead>
@@ -173,6 +175,11 @@ function MessageTemplatesPageContent() {
                   {personalTemplates.length > 0 ? (
                     personalTemplates.map(template => (
                       <TableRow key={template.id}>
+                         <TableCell>
+                          <Badge variant={template.isActive ? 'default' : 'secondary'} className={cn(template.isActive && 'bg-green-500 hover:bg-green-600')}>
+                            {template.isActive ? 'Activa' : 'Inactiva'}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="font-medium flex items-center gap-2">
                             {template.name}
                         </TableCell>
@@ -204,7 +211,7 @@ function MessageTemplatesPageContent() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center h-24">
+                      <TableCell colSpan={5} className="text-center h-24">
                         No ha creado ninguna plantilla personal todavía. Si no crea una, se usará la plantilla global por defecto.
                       </TableCell>
                     </TableRow>
