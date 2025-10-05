@@ -94,6 +94,14 @@ export async function registerPayment(
         let processedCount = 0;
 
         await runTransaction(db, async (transaction) => {
+            const unitsToUpdate: {
+                unitDocRef: any;
+                unitDataFromDB: Unit;
+                unitUpdateData: Partial<Record<keyof Unit, any>>;
+                individualPaymentAmount: number;
+            }[] = [];
+
+            // PHASE 1: READS
             for (const unitId of uniqueUnitIds) {
                 const unitDocRef = doc(db, 'clients', safeClientId, 'units', unitId);
                 const unitSnapshot = await transaction.get(unitDocRef);
@@ -141,10 +149,15 @@ export async function registerPayment(
                     unitUpdateData.fechaVencimiento = Timestamp.fromDate(addMonths(baseExpirationDate, mesesPagados));
                 }
 
+                unitsToUpdate.push({ unitDocRef, unitDataFromDB, unitUpdateData, individualPaymentAmount });
+            }
+
+            // PHASE 2: WRITES
+            for (const { unitDocRef, unitDataFromDB, unitUpdateData, individualPaymentAmount } of unitsToUpdate) {
                 transaction.update(unitDocRef, unitUpdateData);
 
                 const newPayment: Omit<Payment, 'id'> = {
-                    unitId: unitId,
+                    unitId: unitDataFromDB.id,
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
@@ -158,7 +171,7 @@ export async function registerPayment(
                 const paymentDocRef = doc(collection(db, 'payments'));
                 transaction.set(paymentDocRef, newPayment);
 
-                updatedUnitsForNotification.push({ ...unitDataFromDB, ...convertTimestamps(unitUpdateData), id: unitId });
+                updatedUnitsForNotification.push({ ...unitDataFromDB, ...convertTimestamps(unitUpdateData), id: unitDataFromDB.id });
                 processedCount++;
             }
         });
@@ -214,17 +227,15 @@ export async function getPayments(
             }
         }
         
-        const q = query(paymentsCollectionRef, ...queryConstraints);
+        const q = user.role === 'master' ? 
+            query(paymentsCollectionRef, ...queryConstraints) :
+            query(paymentsCollectionRef, where('ownerId', '==', ownerIdToFilter), ...queryConstraints);
+
         const paymentsSnapshot = await getDocs(q);
         let paymentDocs = paymentsSnapshot.docs;
 
         if (paymentDocs.length === 0) {
             return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
-        }
-        
-        // Filter in memory for manager/analyst roles
-        if (user.role !== 'master' && ownerIdToFilter) {
-            paymentDocs = paymentDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
         }
 
         const allClientDocsPromise = getDocs(query(collection(db, 'clients')));
@@ -274,7 +285,11 @@ export async function getPayments(
 
         let hasMore = false;
         if (lastVisibleDoc) {
-            const nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
+            const nextQueryConstraints = [orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1)];
+             if (user.role !== 'master' && ownerIdToFilter) {
+                nextQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
+            }
+            const nextQuery = query(paymentsCollectionRef, ...nextQueryConstraints);
             const nextSnapshot = await getDocs(nextQuery);
             hasMore = !nextSnapshot.empty;
         }
@@ -370,5 +385,7 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
     }
 }
   
+
+    
 
     
