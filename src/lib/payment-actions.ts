@@ -210,13 +210,6 @@ export async function getPayments(
     }
 
     try {
-        let ownerIdToFilter: string | undefined;
-        if (user.role === 'manager') {
-            ownerIdToFilter = user.id;
-        } else if (user.role === 'analista' && user.creatorId) {
-            ownerIdToFilter = user.creatorId;
-        }
-
         const paymentsCollectionRef = collection(db, 'payments');
         const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
         
@@ -227,12 +220,18 @@ export async function getPayments(
             }
         }
         
-        const q = user.role === 'master' ? 
-            query(paymentsCollectionRef, ...queryConstraints) :
-            query(paymentsCollectionRef, where('ownerId', '==', ownerIdToFilter), ...queryConstraints);
-
+        const q = query(paymentsCollectionRef, ...queryConstraints);
         const paymentsSnapshot = await getDocs(q);
-        let paymentDocs = paymentsSnapshot.docs;
+
+        const allDocs = paymentsSnapshot.docs;
+        let paymentDocs: QueryDocumentSnapshot<DocumentData>[] = [];
+        
+        if (user.role === 'master') {
+            paymentDocs = allDocs;
+        } else {
+            const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
+            paymentDocs = allDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
+        }
 
         if (paymentDocs.length === 0) {
             return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
@@ -285,13 +284,15 @@ export async function getPayments(
 
         let hasMore = false;
         if (lastVisibleDoc) {
-            const nextQueryConstraints = [orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1)];
-             if (user.role !== 'master' && ownerIdToFilter) {
-                nextQueryConstraints.unshift(where('ownerId', '==', ownerIdToFilter));
-            }
-            const nextQuery = query(paymentsCollectionRef, ...nextQueryConstraints);
+            const nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
             const nextSnapshot = await getDocs(nextQuery);
-            hasMore = !nextSnapshot.empty;
+            if (user.role === 'master') {
+                hasMore = !nextSnapshot.empty;
+            } else {
+                // If not master, we can't be sure if the next page has items for this user
+                // A simple approach is to assume there might be more if the current page is full.
+                hasMore = payments.length >= PAYMENTS_PAGE_SIZE;
+            }
         }
 
         return { 
