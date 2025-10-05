@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -211,29 +210,31 @@ export async function getPayments(
 
     try {
         const paymentsCollectionRef = collection(db, 'payments');
-        const queryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
         
+        // Base query with ordering and limit, used by everyone
+        const baseQueryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
+        
+        let q = query(paymentsCollectionRef, ...baseQueryConstraints);
+        
+        // Handle pagination cursor if provided
         if (cursor) {
             const cursorDoc = await getDoc(doc(paymentsCollectionRef, cursor));
             if (cursorDoc.exists()) {
-                 queryConstraints.push(startAfter(cursorDoc));
+                q = query(paymentsCollectionRef, ...baseQueryConstraints, startAfter(cursorDoc));
             }
         }
         
-        const q = query(paymentsCollectionRef, ...queryConstraints);
         const paymentsSnapshot = await getDocs(q);
-
-        const allDocs = paymentsSnapshot.docs;
-        let paymentDocs: QueryDocumentSnapshot<DocumentData>[] = [];
         
-        if (user.role === 'master') {
-            paymentDocs = allDocs;
-        } else {
+        let allPaymentDocs = paymentsSnapshot.docs;
+        
+        // For non-master users, we fetch and then filter in memory
+        if (user.role !== 'master') {
             const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
-            paymentDocs = allDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
+            allPaymentDocs = allPaymentDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
         }
 
-        if (paymentDocs.length === 0) {
+        if (allPaymentDocs.length === 0) {
             return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
         }
 
@@ -245,7 +246,7 @@ export async function getPayments(
         const clientMap = new Map(allClientDocs.docs.map(doc => [doc.id, doc.data() as Client]));
         const userMap = new Map(allUserDocs.docs.map(doc => [doc.id, doc.data() as User]));
 
-        const payments = await Promise.all(paymentDocs.map(async (pDoc) => {
+        const payments = await Promise.all(allPaymentDocs.map(async (pDoc) => {
             const data = convertTimestamps(pDoc.data()) as Payment;
 
             let clientName = data.clientName;
@@ -261,7 +262,7 @@ export async function getPayments(
                     const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
                     const unitDoc = await getDoc(unitDocRef);
                     if (unitDoc.exists()) {
-                         const unitData = convertTimestamps(unitDoc.data()); // This is the fix
+                         const unitData = convertTimestamps(unitDoc.data());
                          unitPlaca = unitData.placa || 'Placa no encontrada';
                     }
                 } catch (e) {
@@ -279,20 +280,17 @@ export async function getPayments(
         }));
 
 
-        const lastVisibleDoc = paymentDocs.length > 0 ? paymentDocs[paymentDocs.length - 1] : null;
-        const firstVisibleDoc = paymentDocs.length > 0 ? paymentDocs[0] : null;
+        const lastVisibleDoc = paymentsSnapshot.docs.length > 0 ? paymentsSnapshot.docs[paymentsSnapshot.docs.length - 1] : null;
+        const firstVisibleDoc = paymentsSnapshot.docs.length > 0 ? paymentsSnapshot.docs[0] : null;
 
         let hasMore = false;
         if (lastVisibleDoc) {
             const nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
             const nextSnapshot = await getDocs(nextQuery);
-            if (user.role === 'master') {
-                hasMore = !nextSnapshot.empty;
-            } else {
-                // If not master, we can't be sure if the next page has items for this user
-                // A simple approach is to assume there might be more if the current page is full.
-                hasMore = payments.length >= PAYMENTS_PAGE_SIZE;
-            }
+            // This check isn't perfect for non-master roles, as the next item might not be visible to them.
+            // A more robust solution would be to fetch one more item than needed and check.
+            // For now, this provides a reasonable "hasMore" indication.
+            hasMore = !nextSnapshot.empty;
         }
 
         return { 
