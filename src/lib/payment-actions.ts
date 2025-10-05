@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -94,6 +95,7 @@ export async function registerPayment(
 
         await runTransaction(db, async (transaction) => {
             const unitsToUpdate: {
+                unitId: string; // Keep track of the ID
                 unitDocRef: any;
                 unitDataFromDB: Unit;
                 unitUpdateData: Partial<Record<keyof Unit, any>>;
@@ -148,15 +150,15 @@ export async function registerPayment(
                     unitUpdateData.fechaVencimiento = Timestamp.fromDate(addMonths(baseExpirationDate, mesesPagados));
                 }
 
-                unitsToUpdate.push({ unitDocRef, unitDataFromDB, unitUpdateData, individualPaymentAmount });
+                unitsToUpdate.push({ unitId, unitDocRef, unitDataFromDB, unitUpdateData, individualPaymentAmount });
             }
 
             // PHASE 2: WRITES
-            for (const { unitDocRef, unitDataFromDB, unitUpdateData, individualPaymentAmount } of unitsToUpdate) {
+            for (const { unitId, unitDocRef, unitDataFromDB, unitUpdateData, individualPaymentAmount } of unitsToUpdate) {
                 transaction.update(unitDocRef, unitUpdateData);
 
                 const newPayment: Omit<Payment, 'id'> = {
-                    unitId: unitDataFromDB.id,
+                    unitId: unitId, // Use the correct unitId here
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
@@ -170,7 +172,7 @@ export async function registerPayment(
                 const paymentDocRef = doc(collection(db, 'payments'));
                 transaction.set(paymentDocRef, newPayment);
 
-                updatedUnitsForNotification.push({ ...unitDataFromDB, ...convertTimestamps(unitUpdateData), id: unitDataFromDB.id });
+                updatedUnitsForNotification.push({ ...unitDataFromDB, ...convertTimestamps(unitUpdateData), id: unitId });
                 processedCount++;
             }
         });
@@ -211,26 +213,27 @@ export async function getPayments(
     try {
         const paymentsCollectionRef = collection(db, 'payments');
         
-        // Base query with ordering and limit, used by everyone
         const baseQueryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
         
-        let q = query(paymentsCollectionRef, ...baseQueryConstraints);
-        
-        // Handle pagination cursor if provided
+        let q: Query<DocumentData>;
+
         if (cursor) {
             const cursorDoc = await getDoc(doc(paymentsCollectionRef, cursor));
             if (cursorDoc.exists()) {
                 q = query(paymentsCollectionRef, ...baseQueryConstraints, startAfter(cursorDoc));
+            } else {
+                q = query(paymentsCollectionRef, ...baseQueryConstraints);
             }
+        } else {
+            q = query(paymentsCollectionRef, ...baseQueryConstraints);
         }
         
         const paymentsSnapshot = await getDocs(q);
         
         let allPaymentDocs = paymentsSnapshot.docs;
         
-        // For non-master users, we fetch and then filter in memory
         if (user.role !== 'master') {
-            const ownerIdToFilter = user.role === 'analista' ? user.creatorId : user.id;
+            const ownerIdToFilter = user.role === 'analista' && user.creatorId ? user.creatorId : user.id;
             allPaymentDocs = allPaymentDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
         }
 
@@ -285,11 +288,15 @@ export async function getPayments(
 
         let hasMore = false;
         if (lastVisibleDoc) {
-            const nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
+            let nextQuery;
+            if(user.role === 'master') {
+                nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
+            } else {
+                 const ownerIdToFilter = user.role === 'analista' && user.creatorId ? user.creatorId : user.id;
+                 nextQuery = query(paymentsCollectionRef, where('ownerId', '==', ownerIdToFilter), orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
+            }
+            
             const nextSnapshot = await getDocs(nextQuery);
-            // This check isn't perfect for non-master roles, as the next item might not be visible to them.
-            // A more robust solution would be to fetch one more item than needed and check.
-            // For now, this provides a reasonable "hasMore" indication.
             hasMore = !nextSnapshot.empty;
         }
 
@@ -348,7 +355,6 @@ export async function deletePayment(paymentId: string, clientId: string, unitId:
                  }
             }
 
-            // Get all payments for the unit, to find the new "last payment"
             const allPaymentsForUnitQuery = query(
                 collection(db, "payments"),
                 where("unitId", "==", unitId)
