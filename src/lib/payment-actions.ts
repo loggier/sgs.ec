@@ -158,7 +158,7 @@ export async function registerPayment(
                 transaction.update(unitDocRef, unitUpdateData);
 
                 const newPayment: Omit<Payment, 'id'> = {
-                    unitId: unitId, // Use the correct unitId here
+                    unitId: unitId,
                     clientId: safeClientId,
                     clientName: clientData.nomSujeto,
                     unitPlaca: unitDataFromDB.placa,
@@ -213,8 +213,12 @@ export async function getPayments(
     try {
         const paymentsCollectionRef = collection(db, 'payments');
         
-        const baseQueryConstraints: any[] = [orderBy('fechaPago', 'desc'), limit(PAYMENTS_PAGE_SIZE)];
-        
+        // Base query for pagination
+        const baseQueryConstraints: any[] = [
+            orderBy('fechaPago', 'desc'),
+            limit(PAYMENTS_PAGE_SIZE)
+        ];
+
         let q: Query<DocumentData>;
 
         if (cursor) {
@@ -232,6 +236,7 @@ export async function getPayments(
         
         let allPaymentDocs = paymentsSnapshot.docs;
         
+        // Apply permission filtering in the server-side logic, not in the query
         if (user.role !== 'master') {
             const ownerIdToFilter = user.role === 'analista' && user.creatorId ? user.creatorId : user.id;
             allPaymentDocs = allPaymentDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
@@ -241,9 +246,10 @@ export async function getPayments(
             return { payments: [], lastVisible: null, firstVisible: null, hasMore: false };
         }
 
+        // Batch-fetch all clients and users once to avoid multiple reads
         const allClientDocsPromise = getDocs(query(collection(db, 'clients')));
         const allUserDocsPromise = getDocs(query(collection(db, 'users')));
-
+        
         const [allClientDocs, allUserDocs] = await Promise.all([allClientDocsPromise, allUserDocsPromise]);
         
         const clientMap = new Map(allClientDocs.docs.map(doc => [doc.id, doc.data() as Client]));
@@ -288,14 +294,7 @@ export async function getPayments(
 
         let hasMore = false;
         if (lastVisibleDoc) {
-            let nextQuery;
-            if(user.role === 'master') {
-                nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
-            } else {
-                 const ownerIdToFilter = user.role === 'analista' && user.creatorId ? user.creatorId : user.id;
-                 nextQuery = query(paymentsCollectionRef, where('ownerId', '==', ownerIdToFilter), orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
-            }
-            
+            const nextQuery = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'), startAfter(lastVisibleDoc), limit(1));
             const nextSnapshot = await getDocs(nextQuery);
             hasMore = !nextSnapshot.empty;
         }
