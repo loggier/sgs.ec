@@ -24,9 +24,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { QyvooMessageSchema, type QyvooMessageFormInput } from '@/lib/qyvoo-schema';
+import { QyvooMessageSchema, type QyvooMessageFormInput } from '@/lib/notification-schema';
 import { getNotificationUrlForUser } from '@/lib/settings-actions';
-import { sendNotificationMessage } from '@/lib/qyvoo-actions';
+import { sendNotificationMessage } from '@/lib/notification-actions';
 import { type NotificationSettings } from '@/lib/settings-schema';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 

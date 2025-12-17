@@ -12,7 +12,7 @@ import { useAuth } from '@/context/auth-context';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
-import NotificationSettingsForm from '@/components/qyvoo-settings-form';
+import NotificationSettingsForm from '@/components/notification-settings-form';
 import Link from 'next/link';
 
 function SettingsPageContent() {
@@ -75,7 +75,7 @@ function SettingsPageContent() {
                         <CardTitle>URL de Notificaciones (Personal)</CardTitle>
                         <CardDescription>
                             Configure su URL personal para el envío de notificaciones.
-                            Esta URL se usará para enviar mensajes a sus clientes.
+                            Esta URL se usará para enviar mensajes a sus clientes. Los usuarios 'Analistas' usarán la URL del 'Manager' que los creó.
                         </CardDescription>
                     </CardHeader>
                     <NotificationSettingsForm />
