@@ -41,8 +41,8 @@ export async function sendNotificationMessage(
     try {
         if (!settings?.notificationUrl) {
             const errorMsg = 'La URL de notificaciones no está configurada.';
-            await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage: errorMsg });
-            return { success: true, message: `Notificación omitida: ${errorMsg}` };
+            // Do not create a log here, as the UI will prevent this action.
+            return { success: false, message: errorMsg };
         }
 
         // Construct the final URL
