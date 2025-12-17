@@ -1,18 +1,13 @@
 
-
 'use server';
 
-import type { QyvooSettings } from './settings-schema';
+import type { NotificationSettings } from './settings-schema';
 import { createMessageLog } from './log-actions';
 
-const QYVOO_API_URL = 'https://admin.qyvoo.com/api/send-message';
-
-// Function to format phone number for QV
+// Function to format phone number for the notification URL
 function formatPhoneNumber(phone: string): string {
-    // This is now safe because we check for a valid string before calling it.
     let cleaned = phone.replace(/\D/g, '');
     
-    // Example: If number starts with 09, replace with 5939 (Ecuador code)
     if (cleaned.startsWith('09')) {
         cleaned = '593' + cleaned.substring(1);
     } else if (cleaned.startsWith('9')) {
@@ -22,25 +17,21 @@ function formatPhoneNumber(phone: string): string {
     return cleaned;
 }
 
-export async function sendQyvooMessage(
+export async function sendNotificationMessage(
     phoneNumber: string,
     message: string,
-    settings: QyvooSettings | null,
+    settings: NotificationSettings | null,
     logMetadata: { ownerId: string; clientId: string; clientName: string; }
 ): Promise<{ success: boolean; message: string }> {
 
-    // --- CRITICAL VALIDATION ---
     if (!phoneNumber || typeof phoneNumber !== 'string' || phoneNumber.trim() === '') {
-        // This operation is considered "successful" from a business logic standpoint
-        // as it prevents the parent process (like payment registration) from failing.
-        // The message indicates that the notification was skipped intentionally.
         return { success: true, message: 'Operación omitida: No se proporcionó un número de teléfono válido para la notificación.' };
     }
     
     const formattedNumber = formatPhoneNumber(phoneNumber);
     const logPayloadBase = {
         ownerId: logMetadata.ownerId,
-        qyvooUserId: settings?.userId || 'Desconocido',
+        qyvooUserId: settings?.notificationUrl || 'URL no configurada', // Log the URL for reference
         recipientNumber: formattedNumber,
         clientId: logMetadata.clientId,
         clientName: logMetadata.clientName,
@@ -48,40 +39,38 @@ export async function sendQyvooMessage(
     };
     
     try {
-        if (!settings?.apiKey || !settings?.userId) {
-            const errorMsg = 'La integración con QV no está configurada (Falta API Key o User ID).';
+        if (!settings?.notificationUrl) {
+            const errorMsg = 'La URL de notificaciones no está configurada.';
             await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage: errorMsg });
-            // Return success:true so the main process doesn't fail.
             return { success: true, message: `Notificación omitida: ${errorMsg}` };
         }
 
-        const response = await fetch(QYVOO_API_URL, {
-            method: 'POST',
+        // Construct the final URL
+        const finalUrl = settings.notificationUrl
+            .replace('NUMBER', encodeURIComponent(formattedNumber))
+            .replace('TEXT', encodeURIComponent(message));
+
+        const response = await fetch(finalUrl, {
+            method: 'GET', // Or 'POST' if the API requires it
             headers: {
-                'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({
-                apiKey: settings.apiKey,
-                number: formattedNumber,
-                message: message,
-            }),
         });
 
-        const responseBody = await response.json();
+        const responseBody = await response.json().catch(() => ({})); // Handle cases where response is not JSON
 
-        if (!response.ok || !responseBody.success) {
-            const errorMessage = responseBody.message || `Error de la API de QV: ${response.statusText}`;
-            console.error(`Error sending message via QV API: ${response.status} ${errorMessage}`, responseBody);
+        if (!response.ok) {
+            const errorMessage = responseBody?.message || responseBody?.error || `Error de la API: ${response.statusText}`;
+            console.error(`Error sending message via URL: ${response.status} ${errorMessage}`, responseBody);
             await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage });
             return { success: false, message: `No se pudo enviar el mensaje: ${errorMessage}` };
         }
         
         await createMessageLog({ ...logPayloadBase, status: 'success' });
-        return { success: true, message: responseBody.message };
+        return { success: true, message: responseBody.message || 'Mensaje enviado para procesamiento.' };
 
     } catch (error) {
-        console.error("Failed to send QV message:", error);
+        console.error("Failed to send notification message:", error);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido.';
         await createMessageLog({ ...logPayloadBase, status: 'failure', errorMessage });
         return { success: false, message: `Error inesperado: ${errorMessage}` };

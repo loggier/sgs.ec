@@ -25,20 +25,20 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { QyvooMessageSchema, type QyvooMessageFormInput } from '@/lib/qyvoo-schema';
-import { getQyvooSettingsForUser } from '@/lib/settings-actions';
-import { sendQyvooMessage } from '@/lib/qyvoo-actions';
+import { getNotificationUrlForUser } from '@/lib/settings-actions';
+import { sendNotificationMessage } from '@/lib/qyvoo-actions';
 
-type SendQyvooMessageDialogProps = {
+type SendMessageDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   client: ClientDisplay | null;
 };
 
-export default function SendQyvooMessageDialog({
+export default function SendMessageDialog({
   isOpen,
   onOpenChange,
   client,
-}: SendQyvooMessageDialogProps) {
+}: SendMessageDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -70,13 +70,13 @@ export default function SendQyvooMessageDialog({
 
     setIsSubmitting(true);
     try {
-      const settings = await getQyvooSettingsForUser(client.ownerId);
+      const settings = await getNotificationUrlForUser(client.ownerId);
       const logMetadata = { 
         ownerId: client.ownerId, 
         clientId: client.id!, 
         clientName: client.nomSujeto 
       };
-      const result = await sendQyvooMessage(
+      const result = await sendNotificationMessage(
           client.telefono, 
           values.message, 
           settings,
@@ -112,7 +112,7 @@ export default function SendQyvooMessageDialog({
         <DialogHeader>
           <DialogTitle>Enviar mensaje a {client.nomSujeto}</DialogTitle>
           <DialogDescription>
-            El mensaje se enviará al número {client.telefono} a través de WhatsApp.
+            El mensaje se enviará al número {client.telefono} a través del servicio de notificaciones configurado.
           </DialogDescription>
         </DialogHeader>
         <FormProvider {...form}>

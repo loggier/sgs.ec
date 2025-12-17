@@ -1,11 +1,10 @@
 
-
 'use server';
 
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, writeBatch, limit } from 'firebase/firestore';
 import { db } from './firebase';
 import { revalidatePath } from 'next/cache';
-import { WoxSettingsSchema, type WoxSettings, QyvooSettingsSchema, type QyvooSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput, TemplateEventType } from './settings-schema';
+import { WoxSettingsSchema, type WoxSettings, NotificationSettingsSchema, type NotificationSettings, MessageTemplateSchema, type MessageTemplate, type MessageTemplateFormInput, TemplateEventType } from './settings-schema';
 import type { User } from './user-schema';
 
 const SETTINGS_DOC_ID = 'integrations';
@@ -53,22 +52,21 @@ export async function getPgpsSettings(): Promise<WoxSettings | null> {
   }
 }
 
-// --- QV Settings ---
+// --- Notification URL Settings ---
 
-export async function saveQyvooSettings(
+export async function saveNotificationUrl(
   userId: string,
-  data: QyvooSettings
+  data: NotificationSettings
 ): Promise<{ success: boolean; message: string; user?: User; }> {
   try {
-    const validation = QyvooSettingsSchema.safeParse(data);
+    const validation = NotificationSettingsSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, message: 'Datos no válidos.' };
     }
 
     const userDocRef = doc(db, 'users', userId);
     const userDataToUpdate = {
-        qyvooApiKey: validation.data.apiKey,
-        qyvooUserId: validation.data.userId,
+        notificationUrl: validation.data.notificationUrl,
     };
     await updateDoc(userDocRef, userDataToUpdate);
     
@@ -79,15 +77,15 @@ export async function saveQyvooSettings(
     
     const { password, ...user } = { id: updatedUserDoc.id, ...updatedUserDoc.data() } as User;
 
-    return { success: true, message: 'Configuración de QV guardada con éxito en su perfil.', user: user };
+    return { success: true, message: 'URL de Notificaciones guardada con éxito en su perfil.', user: user };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-    console.error("Error saving QV settings:", message);
+    console.error("Error saving Notification URL:", message);
     return { success: false, message };
   }
 }
 
-export async function getQyvooSettingsForUser(userId: string): Promise<QyvooSettings | null> {
+export async function getNotificationUrlForUser(userId: string): Promise<NotificationSettings | null> {
     try {
         const userDocRef = doc(db, 'users', userId);
         const userDoc = await getDoc(userDocRef);
@@ -99,20 +97,19 @@ export async function getQyvooSettingsForUser(userId: string): Promise<QyvooSett
         
         // If the user is an analyst, get settings from their manager/creator
         if (userData.role === 'analista' && userData.creatorId) {
-            return getQyvooSettingsForUser(userData.creatorId);
+            return getNotificationUrlForUser(userData.creatorId);
         }
         
         // For master/manager, get their own settings
-        if (userData.qyvooApiKey && userData.qyvooUserId) {
+        if (userData.notificationUrl) {
             return {
-                apiKey: userData.qyvooApiKey,
-                userId: userData.qyvooUserId
+                notificationUrl: userData.notificationUrl,
             };
         }
 
         return null;
     } catch(error) {
-        console.error("Error getting QV settings for user:", error);
+        console.error("Error getting Notification URL for user:", error);
         return null;
     }
 }

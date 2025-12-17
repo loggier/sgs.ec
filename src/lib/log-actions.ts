@@ -88,9 +88,13 @@ export async function getMessageLogs(
     
     let hasMore = false;
     if (lastVisible) {
-        const nextQuery = query(logsCollectionRef, ...baseQuery, startAfter(logSnapshot.docs[logSnapshot.docs.length - 1]), limit(1));
-        const nextSnapshot = await getDocs(nextQuery);
-        hasMore = !nextSnapshot.empty;
+        const nextDocRef = doc(db, LOGS_COLLECTION, lastVisible);
+        const nextDoc = await getDoc(nextDocRef);
+        if (nextDoc.exists()) {
+             const nextQuery = query(logsCollectionRef, orderBy('sentAt', 'desc'), limit(1), startAfter(nextDoc));
+             const nextSnapshot = await getDocs(nextQuery);
+             hasMore = !nextSnapshot.empty;
+        }
     }
 
     return { logs, lastVisible, firstVisible, hasMore };

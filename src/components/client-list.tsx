@@ -32,7 +32,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
-import SendQyvooMessageDialog from './send-qyvoo-message-dialog';
+import SendMessageDialog from './send-qyvoo-message-dialog';
 
 
 type ClientListProps = {
@@ -54,7 +54,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
-  const [isQyvooDialogOpen, setIsQyvooDialogOpen] = React.useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientDisplay | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
 
@@ -83,9 +83,9 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     setIsPaymentDialogOpen(true);
   }
 
-  const handleOpenQyvooDialog = (client: ClientDisplay) => {
+  const handleOpenMessageDialog = (client: ClientDisplay) => {
     setSelectedClient(client);
-    setIsQyvooDialogOpen(true);
+    setIsMessageDialogOpen(true);
   };
 
   const handleFormSave = () => {
@@ -269,8 +269,8 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                                   <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
                                 </DropdownMenuItem>
                                 {client.telefono && (
-                                  <DropdownMenuItem onClick={() => handleOpenQyvooDialog(client)}>
-                                    <MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp
+                                  <DropdownMenuItem onClick={() => handleOpenMessageDialog(client)}>
+                                    <MessageSquare className="mr-2 h-4 w-4" /> Enviar Mensaje
                                   </DropdownMenuItem>
                                 )}
                                 {user && ['master', 'manager'].includes(user.role) && (
@@ -368,9 +368,9 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
               </DialogContent>
           </Dialog>
 
-          <SendQyvooMessageDialog
-            isOpen={isQyvooDialogOpen}
-            onOpenChange={setIsQyvooDialogOpen}
+          <SendMessageDialog
+            isOpen={isMessageDialogOpen}
+            onOpenChange={setIsMessageDialogOpen}
             client={selectedClient}
           />
       </div>

@@ -11,14 +11,13 @@ export const WoxSettingsSchema = z.object({
 export type WoxSettings = z.infer<typeof WoxSettingsSchema>;
 export type WoxSettingsFormInput = WoxSettings;
 
-// --- QV Integration Settings ---
-export const QyvooSettingsSchema = z.object({
-  apiKey: z.string().min(1, 'La API Key es requerida.'),
-  userId: z.string().min(1, 'El User ID es requerido.'),
+// --- Notification URL Settings ---
+export const NotificationSettingsSchema = z.object({
+  notificationUrl: z.string().url('Debe proporcionar una URL válida.').min(1, 'La URL de notificación es requerida.'),
 });
 
-export type QyvooSettings = z.infer<typeof QyvooSettingsSchema>;
-export type QyvooSettingsFormInput = QyvooSettings;
+export type NotificationSettings = z.infer<typeof NotificationSettingsSchema>;
+export type NotificationSettingsFormInput = NotificationSettings;
 
 
 // --- Message Template Settings ---

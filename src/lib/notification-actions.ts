@@ -1,9 +1,8 @@
 
-
 'use server';
 
-import { getMessageTemplatesForUser, getQyvooSettingsForUser } from './settings-actions';
-import { sendQyvooMessage } from './qyvoo-actions';
+import { getMessageTemplatesForUser, getNotificationUrlForUser } from './settings-actions';
+import { sendNotificationMessage } from './qyvoo-actions';
 import { getDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Client } from './schema';
@@ -125,9 +124,9 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene nombre de empresa.`};
     }
     
-    const qyvooSettings = await getQyvooSettingsForUser(ownerId);
-    if (!qyvooSettings?.apiKey || !qyvooSettings.userId) {
-        return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene QV configurado.` };
+    const notificationSettings = await getNotificationUrlForUser(ownerId);
+    if (!notificationSettings?.notificationUrl) {
+        return { success: true, message: `Operación omitida: Propietario ${ownerData.nombre} no tiene URL de notificación configurada.` };
     }
     
     const allTemplates = await getMessageTemplatesForUser(ownerId);
@@ -158,15 +157,15 @@ export async function sendGroupedTemplatedWhatsAppMessage(
         clientName: client.nomSujeto 
     };
 
-    return await sendQyvooMessage(client.telefono, messageToSend, qyvooSettings, logMetadata);
+    return await sendNotificationMessage(client.telefono, messageToSend, notificationSettings, logMetadata);
 }
 
 
 export async function triggerManualNotificationCheck(user: User): Promise<{ success: boolean; message: string }> {
     try {
-        const qyvooSettings = await getQyvooSettingsForUser(user.id);
-        if (!qyvooSettings?.apiKey) {
-            return { success: false, message: "La integración de QV no está configurada para su usuario. Vaya a Configuración para añadir su API key." };
+        const notificationSettings = await getNotificationUrlForUser(user.id);
+        if (!notificationSettings?.notificationUrl) {
+            return { success: false, message: "La URL de notificaciones no está configurada para su usuario. Vaya a Configuración para añadirla." };
         }
 
         const allUnits = await getAllUnits(user);

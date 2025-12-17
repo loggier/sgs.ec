@@ -28,7 +28,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        // Replace old QV fields with new notificationUrl for backwards compatibility
+        if (parsedUser.qyvooApiKey || parsedUser.qyvooUserId) {
+            delete parsedUser.qyvooApiKey;
+            delete parsedUser.qyvooUserId;
+            localStorage.setItem('user', JSON.stringify(parsedUser));
+        }
+        setUser(parsedUser);
       }
     } catch (error) {
       console.error("Fallo al leer el usuario de localStorage", error);
