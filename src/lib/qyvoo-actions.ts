@@ -41,7 +41,8 @@ export async function sendNotificationMessage(
     try {
         if (!settings?.notificationUrl) {
             const errorMsg = 'La URL de notificaciones no está configurada.';
-            // Do not create a log here, as the UI will prevent this action.
+            // Do not create a log here because the calling function should handle the skip.
+            // This is a safeguard.
             return { success: false, message: errorMsg };
         }
 

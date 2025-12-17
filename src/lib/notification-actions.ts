@@ -205,6 +205,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
         
         let sentCount = 0;
         let errorCount = 0;
+        let skippedCount = 0;
 
         for (const clientId in unitsByClient) {
             const groups = unitsByClient[clientId];
@@ -214,17 +215,23 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             
             if (groups.dueInThreeDays.length > 0) {
                 const result = await sendGroupedTemplatedWhatsAppMessage(clientData, groups.dueInThreeDays, 'payment_reminder');
-                if (result.success) sentCount++; else errorCount++;
+                if (result.success && !result.message.startsWith('Operación omitida')) sentCount++;
+                else if (!result.success) errorCount++;
+                else skippedCount++;
             }
 
             if (groups.dueToday.length > 0) {
                 const result = await sendGroupedTemplatedWhatsAppMessage(clientData, groups.dueToday, 'payment_due_today');
-                if (result.success) sentCount++; else errorCount++;
+                if (result.success && !result.message.startsWith('Operación omitida')) sentCount++;
+                else if (!result.success) errorCount++;
+                else skippedCount++;
             }
 
             if (groups.overdue.length > 0) {
                 const result = await sendGroupedTemplatedWhatsAppMessage(clientData, groups.overdue, 'payment_overdue');
-                if (result.success) sentCount++; else errorCount++;
+                if (result.success && !result.message.startsWith('Operación omitida')) sentCount++;
+                else if (!result.success) errorCount++;
+                else skippedCount++;
             }
         }
         
@@ -237,7 +244,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
 
         return {
             success: true,
-            message: `Proceso finalizado. Se enviaron ${sentCount} notificaciones agrupadas. Hubo ${errorCount} errores.`
+            message: `Proceso finalizado. ${sentCount} notificaciones enviadas, ${errorCount} errores, ${skippedCount} omitidas por configuración.`
         };
 
     } catch (error) {
