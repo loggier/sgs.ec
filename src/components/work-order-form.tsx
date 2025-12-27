@@ -40,6 +40,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+
 
 type WorkOrderFormProps = {
   order: WorkOrder | null;
@@ -54,6 +56,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  const [isConfirmingComplete, setIsConfirmingComplete] = React.useState(false);
   
   const isEditing = !!order;
   const isTechnician = user?.role === 'tecnico';
@@ -82,8 +85,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
   
   const estado = form.watch('estado');
   const observacion = form.watch('observacion');
-  const showObservationWarning = isTechnician && estado === 'completada' && !observacion;
-
+  
   React.useEffect(() => {
     if (user && !isTechnician) {
         getUsers(user).then(allUsers => {
@@ -102,7 +104,6 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
             tecnicoId: order.tecnicoId || undefined,
             observacion: order.observacion || '',
         });
-        // Find the client in the already fetched list to set the combobox state
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
         if (client) {
             setSelectedClientId(client.id);
@@ -146,54 +147,77 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
       label: c.nomSujeto,
   }));
   
-  const handleStatusChange = (newStatus: 'en-progreso' | 'completada') => {
-      form.setValue('estado', newStatus, { shouldValidate: true, shouldDirty: true });
+  const proceedToSubmit = async () => {
+    await form.handleSubmit(async (values) => {
+        if (!user) return;
+        setIsSubmitting(true);
+        try {
+            const result = await saveWorkOrder(values, user, order?.id);
+            if (result.success) {
+                toast({ title: 'Éxito', description: result.message });
+                onSave();
+            } else {
+                toast({ title: 'Error', description: result.message, variant: 'destructive' });
+            }
+        } catch (error) {
+            toast({ title: 'Error', description: 'Ocurrió un error inesperado.', variant: 'destructive' });
+        } finally {
+            setIsSubmitting(false);
+            setIsConfirmingComplete(false);
+        }
+    })();
   }
+  
+  const handleTechnicianSubmit = async () => {
+      const isValid = await form.trigger();
+      if (!isValid) return;
 
-  async function onSubmit(values: WorkOrderFormInput) {
-    if (!user) return;
-    setIsSubmitting(true);
-    try {
-      const result = await saveWorkOrder(values, user, order?.id);
-      if (result.success) {
-        toast({ title: 'Éxito', description: result.message });
-        onSave();
-      } else {
-        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+      if (estado === 'pendiente') {
+          form.setValue('estado', 'en-progreso', { shouldValidate: true });
+          await proceedToSubmit();
+      } else if (estado === 'en-progreso') {
+          if (!observacion) {
+              setIsConfirmingComplete(true);
+          } else {
+              form.setValue('estado', 'completada', { shouldValidate: true });
+              await proceedToSubmit();
+          }
+      } else { // estado es 'completada'
+          await proceedToSubmit();
       }
-    } catch (error) {
-      toast({ title: 'Error', description: 'Ocurrió un error inesperado.', variant: 'destructive' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+  };
+
+  const handleConfirmComplete = async () => {
+      form.setValue('estado', 'completada', { shouldValidate: true });
+      await proceedToSubmit();
+  };
 
   const getTechnicianSubmitButton = () => {
     switch(estado) {
         case 'pendiente':
             return (
-                <Button type="submit" disabled={isSubmitting} onClick={() => handleStatusChange('en-progreso')}>
+                <Button type="button" onClick={handleTechnicianSubmit} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Iniciar Trabajo y Guardar
                 </Button>
             );
         case 'en-progreso':
             return (
-                <Button type="submit" disabled={isSubmitting} className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange('completada')}>
+                <Button type="button" onClick={handleTechnicianSubmit} disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Completar Orden y Guardar
                 </Button>
             );
         case 'completada':
              return (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="button" onClick={handleTechnicianSubmit} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Guardar Observación
                 </Button>
             );
         default:
              return (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="button" onClick={handleTechnicianSubmit} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Guardar Cambios
                 </Button>
@@ -204,7 +228,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
+      <form onSubmit={proceedToSubmit} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
             <div className="space-y-6 py-6">
                 <FormItem>
@@ -293,7 +317,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                           <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician} />
                         </FormControl>
                         {field.value && (
-                          <Button asChild variant="secondary" size="icon">
+                          <Button asChild variant="secondary" size="icon" className="shrink-0">
                             <Link href={field.value} target="_blank" rel="noopener noreferrer">
                               <ExternalLink className="h-4 w-4" />
                               <span className="sr-only">Ir a mapa</span>
@@ -329,11 +353,6 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                       <FormControl>
                         <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
                       </FormControl>
-                       {showObservationWarning && (
-                        <p className="text-sm font-medium text-yellow-600 pt-1">
-                          Recomendación: Por favor, añada una observación detallando el trabajo completado.
-                        </p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -466,9 +485,23 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
           )}
         </div>
       </form>
+      <AlertDialog open={isConfirmingComplete} onOpenChange={setIsConfirmingComplete}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Completar sin observación?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Se recomienda añadir una observación detallando el trabajo realizado antes de completar la orden. ¿Desea completarla de todas formas?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setIsConfirmingComplete(false)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmComplete}>
+                    Sí, completar sin observación
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </FormProvider>
   );
 }
-
-
     
