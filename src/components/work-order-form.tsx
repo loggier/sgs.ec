@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
-import { Loader2, Calendar as CalendarIcon, ExternalLink } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, ExternalLink, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -60,7 +60,12 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
-    defaultValues: {
+    defaultValues: order ? {
+      ...order,
+      fechaProgramada: new Date(order.fechaProgramada),
+      tecnicoId: order.tecnicoId || undefined,
+      observacion: order.observacion || '',
+    } : {
         placaVehiculo: '',
         nombreCliente: '',
         ciudad: '',
@@ -74,11 +79,10 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         estado: 'pendiente',
     },
   });
-
+  
   const estado = form.watch('estado');
   const observacion = form.watch('observacion');
   const showObservationWarning = isTechnician && estado === 'completada' && !observacion;
-
 
   React.useEffect(() => {
     if (user && !isTechnician) {
@@ -92,21 +96,17 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
   React.useEffect(() => {
     if (order) {
-      // Reset the form with the order's data
       form.reset({
         ...order,
         fechaProgramada: new Date(order.fechaProgramada),
         tecnicoId: order.tecnicoId || undefined,
         observacion: order.observacion || '',
       });
-
-      // Find and set the client ID for the combobox if it exists
       const client = clients.find(c => c.nomSujeto === order.nombreCliente);
       if (client) {
         setSelectedClientId(client.id);
       }
     } else {
-      // Reset for a new order
       form.reset({
         placaVehiculo: '',
         nombreCliente: '',
@@ -123,7 +123,6 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
       setSelectedClientId(undefined);
     }
   }, [order, clients, form]);
-
 
   const handleClientChange = (clientId: string) => {
       setSelectedClientId(clientId);
@@ -144,6 +143,10 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
       value: c.id,
       label: c.nomSujeto,
   }));
+  
+  const handleStatusChange = (newStatus: 'en-progreso' | 'completada') => {
+      form.setValue('estado', newStatus, { shouldValidate: true, shouldDirty: true });
+  }
 
   async function onSubmit(values: WorkOrderFormInput) {
     if (!user) return;
@@ -290,7 +293,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                       <FormControl>
                         <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
                       </FormControl>
-                      {showObservationWarning && (
+                       {showObservationWarning && (
                         <p className="text-sm font-medium text-yellow-600 pt-1">
                           Recomendación: Por favor, añada una observación detallando el trabajo completado.
                         </p>
@@ -347,8 +350,8 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     )}
                     />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
                         name="fechaProgramada"
@@ -388,8 +391,26 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                             <FormMessage />
                             </FormItem>
                         )}
-                        />
-                        
+                    />
+
+                    {isTechnician ? (
+                        <FormItem>
+                            <FormLabel>Actualizar Estado</FormLabel>
+                             <div className="space-y-2">
+                                {estado === 'pendiente' && (
+                                    <Button type="button" className="w-full" onClick={() => handleStatusChange('en-progreso')}>
+                                        Iniciar Trabajo <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
+                                )}
+                                {estado === 'en-progreso' && (
+                                     <Button type="button" className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange('completada')}>
+                                        Marcar como Completada <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
+                                )}
+                                <Input value={estado.replace('-', ' ')} className="capitalize bg-muted" disabled />
+                            </div>
+                        </FormItem>
+                    ) : (
                         <FormField
                             control={form.control}
                             name="estado"
@@ -412,6 +433,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                                 </FormItem>
                             )}
                         />
+                    )}
                 </div>
             </div>
         </ScrollArea>
