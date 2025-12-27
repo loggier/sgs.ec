@@ -18,7 +18,8 @@ import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput, UserRole } from './user-schema';
 import bcrypt from 'bcryptjs';
 import { createSession, deleteSession, getCurrentUser as getCurrentUserFromCookie } from './auth';
-import { getAllUnits } from './unit-actions';
+import { getClients } from './actions';
+import type { Client } from './schema';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
@@ -99,12 +100,24 @@ export async function getUsers(currentUser: User | null): Promise<User[]> {
         return [];
     }
     
-    // Enrich managers with their unit counts
-    const allUnits = await getAllUnits(currentUser);
-    const unitCountsByOwner: Record<string, number> = {};
-    for (const unit of allUnits) {
-        if (unit.ownerId) {
-            unitCountsByOwner[unit.ownerId] = (unitCountsByOwner[unit.ownerId] || 0) + 1;
+    // To correctly calculate unit counts, fetch all clients and sum their unit counts per manager.
+    const allClientsSnapshot = await getDocs(collection(db, 'clients'));
+    const allClients = allClientsSnapshot.docs.map(doc => doc.data() as Client);
+    
+    const clientCountsByOwner: Record<string, number> = {};
+    for (const client of allClients) {
+        if (client.ownerId) {
+            clientCountsByOwner[client.ownerId] = (clientCountsByOwner[client.ownerId] || 0) + 1;
+        }
+    }
+    
+    // We need unit counts, not client counts. Let's get all clients with their unit counts.
+    const clientsWithData = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
+    
+    const unitCountsByManager: Record<string, number> = {};
+    for (const client of clientsWithData) {
+        if (client.ownerId) {
+            unitCountsByManager[client.ownerId] = (unitCountsByManager[client.ownerId] || 0) + (client.unitCount || 0);
         }
     }
 
@@ -112,7 +125,7 @@ export async function getUsers(currentUser: User | null): Promise<User[]> {
         if (user.role === 'manager') {
             return {
                 ...user,
-                unitCount: unitCountsByOwner[user.id] || 0,
+                unitCount: unitCountsByManager[user.id] || 0,
             };
         }
         return user;
