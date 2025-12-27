@@ -44,6 +44,7 @@ type DashboardDataType = {
   installationsByCategory: Record<string, number>;
   installationsByVehicle: Record<string, number>;
   installationsBySegment: Record<string, number>;
+  workOrdersByPriority: Record<string, number>;
 }
 
 function DashboardPageContent() {
@@ -85,6 +86,7 @@ function DashboardPageContent() {
     const installationsByCategoryChartData = Object.entries(data.installationsByCategory).map(([name, value]) => ({ name, total: value }));
     const installationsByVehicleChartData = Object.entries(data.installationsByVehicle).map(([name, value]) => ({ name, total: value }));
     const installationsBySegmentChartData = Object.entries(data.installationsBySegment).map(([name, value]) => ({ name, total: value }));
+    const workOrdersByPriorityChartData = Object.entries(data.workOrdersByPriority).map(([name, value]) => ({ name, total: value }));
 
 
     return {
@@ -93,6 +95,7 @@ function DashboardPageContent() {
       installationsByCategoryChartData,
       installationsByVehicleChartData,
       installationsBySegmentChartData,
+      workOrdersByPriorityChartData,
     };
   }, [data]);
 
@@ -238,11 +241,14 @@ function DashboardPageContent() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             {renderBarChart(chartData.unitsByPlanChartData, "Unidades por Plan")}
-            {renderBarChart(chartData.installationsByCategoryChartData, "Instalaciones por Categoría")}
+            {renderBarChart(chartData.workOrdersByPriorityChartData, "Órdenes de Soporte por Prioridad")}
         </div>
          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+            {renderBarChart(chartData.installationsByCategoryChartData, "Instalaciones por Categoría")}
             {renderBarChart(chartData.installationsByVehicleChartData, "Instalaciones por Tipo de Vehículo")}
-            {renderBarChart(chartData.installationsBySegmentChartData, "Instalaciones por Segmento")}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-1">
+             {renderBarChart(chartData.installationsBySegmentChartData, "Instalaciones por Segmento")}
         </div>
       </div>
     </>

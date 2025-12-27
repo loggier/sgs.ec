@@ -22,6 +22,7 @@ import type { User } from './user-schema';
 import { getPgpsClients } from './pgps-actions';
 import { getAllUnits } from './unit-actions';
 import { getInstallationOrders } from './installation-order-actions';
+import { getWorkOrders } from './work-order-actions';
 
 
 // Helper function to convert Firestore Timestamps to a document
@@ -281,10 +282,11 @@ export async function deleteClient(id: string, user: User): Promise<{ success: b
 }
 
 export async function getDashboardData(user: User) {
-    const [allUnits, clients, installationOrders] = await Promise.all([
+    const [allUnits, clients, installationOrders, workOrders] = await Promise.all([
         getAllUnits(user),
         getClients(user.id, user.role, user.creatorId),
         getInstallationOrders(user),
+        getWorkOrders(user),
     ]);
 
     const overdueUnits = allUnits.filter(unit => unit.fechaSiguientePago && new Date(unit.fechaSiguientePago) < new Date()).length;
@@ -334,9 +336,15 @@ export async function getDashboardData(user: User) {
             acc[segment] = (acc[segment] || 0) + 1;
             return acc;
         }, {} as Record<string, number>),
+        workOrdersByPriority: workOrders.reduce((acc, order) => {
+            const priority = order.prioridad || 'desconocido';
+            acc[priority] = (acc[priority] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>),
     };
 }
     
+
 
 
 
