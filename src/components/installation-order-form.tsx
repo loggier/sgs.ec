@@ -7,6 +7,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { Loader2, Calendar as CalendarIcon, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useRouter } from 'next/navigation';
 
 import { 
     InstallationOrderSchema, 
@@ -55,13 +56,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 type InstallationOrderFormProps = {
   order: InstallationOrder | null;
-  onSave: () => void;
-  onCancel: () => void;
 };
 
-export default function InstallationOrderForm({ order, onSave, onCancel }: InstallationOrderFormProps) {
+export default function InstallationOrderForm({ order }: InstallationOrderFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
@@ -72,7 +72,7 @@ export default function InstallationOrderForm({ order, onSave, onCancel }: Insta
   const isTechnician = user?.role === 'tecnico';
 
   const form = useForm<InstallationOrderFormInput>({
-    resolver: zodResolver(InstallationOrderSchema.omit({id: true})),
+    resolver: zodResolver(InstallationOrderSchema.omit({id: true, ownerId: true, tecnicoNombre: true})),
     defaultValues: order ? {
       ...order,
       fechaProgramada: new Date(order.fechaProgramada),
@@ -166,6 +166,10 @@ export default function InstallationOrderForm({ order, onSave, onCancel }: Insta
       label: c.nomSujeto,
   }));
   
+  const onCancel = () => {
+    router.push('/installations');
+  };
+
   const proceedToSubmit = async () => {
     await form.handleSubmit(async (values) => {
         if (!user) return;
@@ -174,7 +178,7 @@ export default function InstallationOrderForm({ order, onSave, onCancel }: Insta
             const result = await saveInstallationOrder(values, user, order?.id);
             if (result.success) {
                 toast({ title: 'Éxito', description: result.message });
-                onSave();
+                onCancel();
             } else {
                 toast({ title: 'Error', description: result.message, variant: 'destructive' });
             }

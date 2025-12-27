@@ -17,6 +17,8 @@ import { db } from './firebase';
 import { InstallationOrderSchema, type InstallationOrder, type InstallationOrderFormInput } from './installation-order-schema';
 import type { User } from './user-schema';
 import { sendNotificationMessage } from './notification-actions';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const INSTALLATION_ORDERS_COLLECTION = 'installation_orders';
 
@@ -82,6 +84,31 @@ export async function getInstallationOrders(currentUser: User): Promise<Installa
   }
 }
 
+export async function getInstallationOrderById(orderId: string): Promise<InstallationOrder | null> {
+    try {
+        const orderDocRef = doc(db, INSTALLATION_ORDERS_COLLECTION, orderId);
+        const docSnap = await getDoc(orderDocRef);
+        if (!docSnap.exists()) {
+            return null;
+        }
+
+        const data = convertTimestamps(docSnap.data()) as Omit<InstallationOrder, 'id'>;
+        const techniciansSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'tecnico')));
+        const techniciansMap = new Map(techniciansSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+        const tecnico = data.tecnicoId ? techniciansMap.get(data.tecnicoId) : null;
+
+        return {
+            id: docSnap.id,
+            ...data,
+            tecnicoNombre: tecnico?.nombre || tecnico?.username,
+        } as InstallationOrder;
+
+    } catch (error) {
+        console.error("Error getting installation order by ID:", error);
+        return null;
+    }
+}
+
 
 export async function saveInstallationOrder(
   data: InstallationOrderFormInput,
@@ -93,7 +120,7 @@ export async function saveInstallationOrder(
         return { success: false, message: 'No tiene permiso para realizar esta acción.' };
     }
   
-    const validation = InstallationOrderSchema.omit({id: true}).safeParse(data);
+    const validation = InstallationOrderSchema.omit({id: true, ownerId: true, tecnicoNombre: true }).safeParse(data);
     if (!validation.success) {
         console.error(validation.error.flatten().fieldErrors);
         return { success: false, message: 'Datos proporcionados no válidos.' };
