@@ -60,19 +60,21 @@ export const InstallationOrderSchema = z.object({
 
 export type InstallationOrder = z.infer<typeof InstallationOrderSchema>;
 
+// The form schema now correctly uses refine on the *omitted* schema.
 export const InstallationOrderFormSchema = InstallationOrderSchema.omit({
     id: true,
     ownerId: true,
     tecnicoNombre: true,
 }).refine(data => {
-    // If status is 'terminado', 'metodoPago' must be defined.
+    // If status is 'terminado', 'metodoPago' must be defined and not undefined.
     if (data.estado === 'terminado') {
-        return data.metodoPago !== undefined;
+        return !!data.metodoPago;
     }
     return true;
 }, {
     message: 'Debe seleccionar un método de pago al completar la orden.',
     path: ['metodoPago'],
 });
+
 
 export type InstallationOrderFormInput = z.infer<typeof InstallationOrderFormSchema>;

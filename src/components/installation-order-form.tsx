@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 
 import { 
     InstallationOrderSchema, 
+    InstallationOrderFormSchema, // Import the correct form schema
     type InstallationOrderFormInput, 
     type InstallationOrder,
     InstallationPlan,
@@ -72,7 +73,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   const isTechnician = user?.role === 'tecnico';
 
   const form = useForm<InstallationOrderFormInput>({
-    resolver: zodResolver(InstallationOrderSchema.omit({id: true, ownerId: true, tecnicoNombre: true})),
+    resolver: zodResolver(InstallationOrderFormSchema), // Use the refined schema
     defaultValues: order ? {
       ...order,
       fechaProgramada: new Date(order.fechaProgramada),
@@ -192,31 +193,40 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   }
   
   const handleTechnicianSubmit = async () => {
-      const isValid = await form.trigger();
-      if (!isValid) return;
+      const currentStatus = form.getValues('estado');
+      let nextState: InstallationStatus | undefined = undefined;
+      
+      if (currentStatus === 'pendiente') {
+          nextState = 'en-curso';
+      } else if (currentStatus === 'en-curso') {
+          nextState = 'terminado';
+      }
+      
+      if (nextState) {
+          form.setValue('estado', nextState, { shouldValidate: true, shouldDirty: true });
+      }
 
-      if (estado === 'pendiente') {
-          form.setValue('estado', 'en-curso', { shouldValidate: true });
-          await proceedToSubmit();
-      } else if (estado === 'en-curso') {
-          if (!observacion) {
-              setIsConfirmingComplete(true);
-          } else {
-              form.setValue('estado', 'terminado', { shouldValidate: true });
-              await proceedToSubmit();
-          }
-      } else { // estado es 'terminado'
-          await proceedToSubmit();
+      // Check for observation only when moving to 'terminado'
+      if (form.getValues('estado') === 'terminado' && !form.getValues('observacion')) {
+          setIsConfirmingComplete(true);
+          return; // Stop execution, wait for dialog confirmation
+      }
+
+      // Trigger validation before submitting
+      const isValid = await form.trigger();
+      if (isValid) {
+        await proceedToSubmit();
       }
   };
 
   const handleConfirmComplete = async () => {
-      form.setValue('estado', 'terminado', { shouldValidate: true });
+      // The state is already set to 'terminado', now we proceed to submit
       await proceedToSubmit();
   };
 
   const getTechnicianSubmitButton = () => {
-    switch(estado) {
+    const currentStatus = form.getValues('estado');
+    switch(currentStatus) {
         case 'pendiente':
             return (
                 <Button type="button" onClick={handleTechnicianSubmit} disabled={isSubmitting}>
@@ -233,7 +243,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             );
         case 'terminado':
              return (
-                <Button type="button" onClick={handleTechnicianSubmit} disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Guardar Cambios
                 </Button>
@@ -431,7 +441,6 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormMessage />
                         </FormItem>
                     )}
-                    />
                 )}
                 
                 {estado === 'terminado' && (
