@@ -51,15 +51,11 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(order ? clients.find(c => c.nomSujeto === order.nombreCliente)?.id : undefined);
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
-    defaultValues: order ? {
-        ...order,
-        tecnicoId: order.tecnicoId || '',
-        fechaProgramada: new Date(order.fechaProgramada),
-    } : {
+    defaultValues: {
         placaVehiculo: '',
         nombreCliente: '',
         ciudad: '',
@@ -89,17 +85,14 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
     if (order) {
         form.reset({
              ...order,
-             tecnicoId: order.tecnicoId || '',
              fechaProgramada: new Date(order.fechaProgramada),
         });
-        if(clients.length > 0){
-            const client = clients.find(c => c.nomSujeto === order.nombreCliente);
-            if (client) {
-                setSelectedClientId(client.id);
-            }
+        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
+        if (client) {
+            setSelectedClientId(client.id);
         }
     }
-  }, [order, form, clients]);
+  }, [order, clients, form]);
 
 
   const handleClientChange = (clientId: string) => {
