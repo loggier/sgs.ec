@@ -10,8 +10,10 @@ import { es } from 'date-fns/locale';
 
 import { WorkOrderSchema, type WorkOrderFormInput, type WorkOrder, WorkOrderPriority } from '@/lib/work-order-schema';
 import { saveWorkOrder } from '@/lib/work-order-actions';
+import { getClients } from '@/lib/actions';
 import { getUsers } from '@/lib/user-actions';
 import type { User } from '@/lib/user-schema';
+import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
@@ -49,6 +51,8 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
+  const [clients, setClients] = React.useState<ClientDisplay[]>([]);
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(order?.nombreCliente); // Use name temporarily
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
@@ -77,12 +81,28 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
             const techUsers = allUsers.filter(u => u.role === 'tecnico');
             setTechnicians(techUsers);
         });
+        getClients(user.id, user.role, user.creatorId).then(setClients);
     }
   }, [user]);
+
+  const handleClientChange = (clientId: string) => {
+      const client = clients.find(c => c.id === clientId);
+      if (client) {
+          form.setValue('nombreCliente', client.nomSujeto);
+          form.setValue('numeroCliente', client.telefono || '');
+          form.setValue('ciudad', client.ciudad || '');
+          setSelectedClientId(clientId);
+      }
+  };
   
   const technicianOptions = technicians.map(t => ({
       value: t.id,
       label: t.nombre || t.username,
+  }));
+  
+  const clientOptions = clients.map(c => ({
+      value: c.id,
+      label: c.nomSujeto,
   }));
 
   async function onSubmit(values: WorkOrderFormInput) {
@@ -108,20 +128,32 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                control={form.control}
-                name="nombreCliente"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Nombre del Cliente</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Juan Pérez" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
+             <FormItem>
+                <FormLabel>Cliente</FormLabel>
+                <Combobox
+                    options={clientOptions}
+                    value={selectedClientId}
+                    onChange={handleClientChange}
+                    placeholder="Seleccione un cliente..."
+                    searchPlaceholder="Buscar cliente..."
+                    emptyPlaceholder="No se encontraron clientes."
+                    disabled={clients.length === 0}
                 />
+            </FormItem>
+
+            <FormField
+            control={form.control}
+            name="nombreCliente"
+            render={({ field }) => (
+                <FormItem className="hidden">
+                    <FormControl>
+                        <Input {...field} />
+                    </FormControl>
+                </FormItem>
+            )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                 control={form.control}
                 name="numeroCliente"
@@ -130,22 +162,6 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     <FormLabel>Número del Cliente</FormLabel>
                     <FormControl>
                         <Input placeholder="0991234567" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                control={form.control}
-                name="placaVehiculo"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Placa del Vehículo</FormLabel>
-                    <FormControl>
-                        <Input placeholder="PCQ-1234" {...field} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -165,6 +181,20 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                 )}
                 />
             </div>
+            
+            <FormField
+                control={form.control}
+                name="placaVehiculo"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Placa del Vehículo</FormLabel>
+                    <FormControl>
+                        <Input placeholder="PCQ-1234" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+            />
 
             <FormField
               control={form.control}
@@ -293,4 +323,3 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
     </FormProvider>
   );
 }
-
