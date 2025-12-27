@@ -55,15 +55,6 @@ export const InstallationOrderSchema = z.object({
   fechaProgramada: dateOrTimestamp,
   estado: InstallationStatus.default('pendiente'),
   metodoPago: PaymentMethod.optional(),
-}).refine(data => {
-    // If status is 'terminado', 'metodoPago' must be defined.
-    if (data.estado === 'terminado') {
-        return data.metodoPago !== undefined;
-    }
-    return true;
-}, {
-    message: 'Debe seleccionar un método de pago al completar la orden.',
-    path: ['metodoPago'],
 });
 
 
@@ -73,6 +64,15 @@ export const InstallationOrderFormSchema = InstallationOrderSchema.omit({
     id: true,
     ownerId: true,
     tecnicoNombre: true,
+}).refine(data => {
+    // If status is 'terminado', 'metodoPago' must be defined.
+    if (data.estado === 'terminado') {
+        return data.metodoPago !== undefined;
+    }
+    return true;
+}, {
+    message: 'Debe seleccionar un método de pago al completar la orden.',
+    path: ['metodoPago'],
 });
 
 export type InstallationOrderFormInput = z.infer<typeof InstallationOrderFormSchema>;
