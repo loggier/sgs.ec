@@ -69,7 +69,6 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
     },
   });
 
-  // Effect to load initial data like technicians and clients
   React.useEffect(() => {
     if (user) {
         getUsers(user).then(allUsers => {
@@ -80,7 +79,6 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
     }
   }, [user]);
 
-  // Effect to populate the form when editing an existing order
   React.useEffect(() => {
     if (order) {
         form.reset({
