@@ -21,6 +21,7 @@ export const UserSchema = z.object({
   nota: z.string().optional(),
   creatorId: z.string().optional(), // ID of the manager who created this user (if role is 'analista')
   notificationUrl: z.string().url().optional(),
+  unitCount: z.number().optional(), // Added field for unit count
 });
 export type User = z.infer<typeof UserSchema>;
 

@@ -18,6 +18,7 @@ import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput, UserRole } from './user-schema';
 import bcrypt from 'bcryptjs';
 import { createSession, deleteSession, getCurrentUser as getCurrentUserFromCookie } from './auth';
+import { getAllUnits } from './unit-actions';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
@@ -88,15 +89,34 @@ export async function getUsers(currentUser: User | null): Promise<User[]> {
     const allUsers = await fetchUsersFromFirestore();
     const usersWithoutPassword = allUsers.map(({ password, ...user }) => user);
 
-    if (currentUser.role === 'master') {
-      return usersWithoutPassword;
-    }
+    let usersToReturn: User[] = [];
 
-    if (currentUser.role === 'manager') {
-      return usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
+    if (currentUser.role === 'master') {
+      usersToReturn = usersWithoutPassword;
+    } else if (currentUser.role === 'manager') {
+      usersToReturn = usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
+    } else {
+        return [];
     }
     
-    return [];
+    // Enrich managers with their unit counts
+    const allUnits = await getAllUnits(currentUser);
+    const unitCountsByOwner: Record<string, number> = {};
+    for (const unit of allUnits) {
+        if (unit.ownerId) {
+            unitCountsByOwner[unit.ownerId] = (unitCountsByOwner[unit.ownerId] || 0) + 1;
+        }
+    }
+
+    return usersToReturn.map(user => {
+        if (user.role === 'manager') {
+            return {
+                ...user,
+                unitCount: unitCountsByOwner[user.id] || 0,
+            };
+        }
+        return user;
+    });
 
   } catch (error) {
     console.error("Error getting users:", error);

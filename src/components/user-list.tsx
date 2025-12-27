@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car } from 'lucide-react';
 import type { User } from '@/lib/user-schema';
 import { useSearch } from '@/context/search-context';
 import { Button } from '@/components/ui/button';
@@ -138,6 +138,7 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
                   <TableHead>Correo</TableHead>
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Rol</TableHead>
+                  <TableHead>Unidades</TableHead>
                   <TableHead>
                     <span className="sr-only">Acciones</span>
                   </TableHead>
@@ -157,6 +158,16 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
                         <Badge variant={getRoleVariant(user.role)}>
                           {displayRole[user.role]}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                          {user.role === 'manager' ? (
+                            <div className="flex items-center gap-2">
+                                <Car className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{user.unitCount || 0}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
                       </TableCell>
                       <TableCell>
                         {canManageUser(user) && (
@@ -182,7 +193,7 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center">
+                    <TableCell colSpan={6} className="text-center">
                       No se encontraron usuarios que coincidan con la búsqueda.
                     </TableCell>
                   </TableRow>
