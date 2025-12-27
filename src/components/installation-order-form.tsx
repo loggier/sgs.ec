@@ -418,19 +418,21 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                     />
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="observacion"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Observación del Técnico</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {isEditing && (
+                    <FormField
+                    control={form.control}
+                    name="observacion"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Observación del Técnico</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                )}
                 
                 {estado === 'terminado' && (
                     <FormField
