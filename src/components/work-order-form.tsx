@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
@@ -39,15 +38,17 @@ import { Textarea } from './ui/textarea';
 import { Combobox } from './ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
+import { ScrollArea } from './ui/scroll-area';
 
 type WorkOrderFormProps = {
   order: WorkOrder | null;
+  onSave: () => void;
+  onCancel: () => void;
 };
 
-export default function WorkOrderForm({ order }: WorkOrderFormProps) {
+export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
@@ -82,16 +83,34 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   }, [user]);
 
   React.useEffect(() => {
-    if (order && clients.length > 0) {
-        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
-        if (client) {
-            setSelectedClientId(client.id);
-        }
-        form.reset({
-             ...order,
-             fechaProgramada: new Date(order.fechaProgramada),
-             tecnicoId: order.tecnicoId || undefined,
-        });
+    if (order) {
+      // Reset the form with the order's data
+      form.reset({
+        ...order,
+        fechaProgramada: new Date(order.fechaProgramada),
+        tecnicoId: order.tecnicoId || undefined,
+      });
+
+      // Find and set the client ID for the combobox
+      const client = clients.find(c => c.nomSujeto === order.nombreCliente);
+      if (client) {
+        setSelectedClientId(client.id);
+      }
+    } else {
+      // Reset for a new order
+      form.reset({
+        placaVehiculo: '',
+        nombreCliente: '',
+        ciudad: '',
+        ubicacionGoogleMaps: '',
+        numeroCliente: '',
+        tecnicoId: undefined,
+        prioridad: 'media',
+        descripcion: '',
+        fechaProgramada: new Date(),
+        estado: 'pendiente',
+      });
+      setSelectedClientId(undefined);
     }
   }, [order, clients, form]);
 
@@ -123,7 +142,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
       const result = await saveWorkOrder(values, user, order?.id);
       if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        router.push('/work-orders');
+        onSave();
       } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
       }
@@ -136,216 +155,222 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormItem>
-                <FormLabel>Cliente</FormLabel>
-                <Combobox
-                    options={clientOptions}
-                    value={selectedClientId}
-                    onChange={handleClientChange}
-                    placeholder="Seleccione un cliente..."
-                    searchPlaceholder="Buscar cliente..."
-                    emptyPlaceholder="No se encontraron clientes."
-                    disabled={clients.length === 0 || isEditing}
-                />
-            </FormItem>
-
-            <FormField
-            control={form.control}
-            name="nombreCliente"
-            render={({ field }) => (
-                <FormItem className="hidden">
-                    <FormControl>
-                        <Input {...field} />
-                    </FormControl>
-                </FormItem>
-            )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                control={form.control}
-                name="numeroCliente"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Número del Cliente</FormLabel>
-                    <FormControl>
-                        <Input placeholder="0991234567" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                 <FormField
-                control={form.control}
-                name="ciudad"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Ciudad</FormLabel>
-                    <FormControl>
-                        <Input placeholder="Quito" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-            </div>
-            
-            <FormField
-                control={form.control}
-                name="placaVehiculo"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Placa del Vehículo</FormLabel>
-                    <FormControl>
-                        <Input placeholder="PCQ-1234" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-            />
-
-            <FormField
-              control={form.control}
-              name="ubicacionGoogleMaps"
-              render={({ field }) => (
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
+        <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-6 py-6">
                 <FormItem>
-                  <FormLabel>Ubicación (URL de Google Maps)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://maps.app.goo.gl/..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-             <FormField
-              control={form.control}
-              name="descripcion"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción de la Tarea</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Describa el trabajo a realizar..." rows={4} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                control={form.control}
-                name="tecnicoId"
-                render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                    <FormLabel>Técnico Asignado</FormLabel>
-                    <Combobox 
-                        options={technicianOptions}
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Seleccione un técnico..."
-                        searchPlaceholder='Buscar técnico...'
-                        emptyPlaceholder='No se encontraron técnicos.'
-                        disabled={technicians.length === 0}
+                    <FormLabel>Cliente</FormLabel>
+                    <Combobox
+                        options={clientOptions}
+                        value={selectedClientId}
+                        onChange={handleClientChange}
+                        placeholder="Seleccione un cliente..."
+                        searchPlaceholder="Buscar cliente..."
+                        emptyPlaceholder="No se encontraron clientes."
+                        disabled={clients.length === 0 || isEditing}
                     />
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                 <FormField
-                control={form.control}
-                name="prioridad"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Prioridad</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Seleccione una prioridad" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        {WorkOrderPriority.options.map(p => (
-                            <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
-                        ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-            </div>
+                     {isEditing && (
+                        <p className="text-sm text-muted-foreground pt-1">El cliente no se puede cambiar al editar una orden.</p>
+                     )}
+                </FormItem>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 <FormField
+                <FormField
+                control={form.control}
+                name="nombreCliente"
+                render={({ field }) => (
+                    <FormItem className="hidden">
+                        <FormControl>
+                            <Input {...field} />
+                        </FormControl>
+                    </FormItem>
+                )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
                     control={form.control}
-                    name="fechaProgramada"
+                    name="numeroCliente"
                     render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel>Fecha Programada</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                variant={'outline'}
-                                className={cn(
-                                    'w-full pl-3 text-left font-normal',
-                                    !field.value && 'text-muted-foreground'
-                                )}
-                                >
-                                {field.value ? (
-                                    format(new Date(field.value), 'PPP', { locale: es })
-                                ) : (
-                                    <span>Elige una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
-                                onSelect={field.onChange}
-                                initialFocus
-                                locale={es}
-                            />
-                            </PopoverContent>
-                        </Popover>
+                        <FormItem>
+                        <FormLabel>Número del Cliente</FormLabel>
+                        <FormControl>
+                            <Input placeholder="0991234567" {...field} />
+                        </FormControl>
                         <FormMessage />
                         </FormItem>
                     )}
                     />
+                    <FormField
+                    control={form.control}
+                    name="ciudad"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Ciudad</FormLabel>
+                        <FormControl>
+                            <Input placeholder="Quito" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </div>
+                
+                <FormField
+                    control={form.control}
+                    name="placaVehiculo"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Placa del Vehículo</FormLabel>
+                        <FormControl>
+                            <Input placeholder="PCQ-1234" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
-                {order && (
+                <FormField
+                control={form.control}
+                name="ubicacionGoogleMaps"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Ubicación (URL de Google Maps)</FormLabel>
+                    <FormControl>
+                        <Input placeholder="https://maps.app.goo.gl/..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+                
+                <FormField
+                control={form.control}
+                name="descripcion"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Descripción de la Tarea</FormLabel>
+                    <FormControl>
+                        <Textarea placeholder="Describa el trabajo a realizar..." rows={4} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                    control={form.control}
+                    name="tecnicoId"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Técnico Asignado</FormLabel>
+                        <Combobox 
+                            options={technicianOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Seleccione un técnico..."
+                            searchPlaceholder='Buscar técnico...'
+                            emptyPlaceholder='No se encontraron técnicos.'
+                            disabled={technicians.length === 0}
+                        />
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="prioridad"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Prioridad</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccione una prioridad" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {WorkOrderPriority.options.map(p => (
+                                <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
-                        name="estado"
+                        name="fechaProgramada"
                         render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Estado</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormItem className="flex flex-col">
+                            <FormLabel>Fecha Programada</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione un estado" />
-                                </SelectTrigger>
+                                    <Button
+                                    variant={'outline'}
+                                    className={cn(
+                                        'w-full pl-3 text-left font-normal',
+                                        !field.value && 'text-muted-foreground'
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(new Date(field.value), 'PPP', { locale: es })
+                                    ) : (
+                                        <span>Elige una fecha</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
                                 </FormControl>
-                                <SelectContent>
-                                {WorkOrderStatus.options.map(s => (
-                                    <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                    locale={es}
+                                />
+                                </PopoverContent>
+                            </Popover>
                             <FormMessage />
                             </FormItem>
                         )}
-                    />
-                )}
-            </div>
+                        />
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={() => router.push('/work-orders')} disabled={isSubmitting}>
+                    {order && (
+                        <FormField
+                            control={form.control}
+                            name="estado"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Estado</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione un estado" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {WorkOrderStatus.options.map(s => (
+                                        <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                </div>
+            </div>
+        </ScrollArea>
+        <div className="flex justify-end gap-2 p-4 border-t">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button type="submit" disabled={isSubmitting}>

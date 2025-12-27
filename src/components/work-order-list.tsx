@@ -27,6 +27,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import WorkOrderForm from './work-order-form';
 // import DeleteWorkOrderDialog from './delete-work-order-dialog';
 
 type WorkOrderListProps = {
@@ -38,17 +40,34 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
   const [orders, setOrders] = React.useState(initialOrders);
-//   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  // const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<WorkOrder | null>(null);
 
   React.useEffect(() => {
     setOrders(initialOrders);
   }, [initialOrders]);
   
+  const handleAddOrder = () => {
+    setSelectedOrder(null);
+    setIsSheetOpen(true);
+  };
+  
+  const handleEditOrder = (order: WorkOrder) => {
+    setSelectedOrder(order);
+    setIsSheetOpen(true);
+  };
+
   const handleDeleteOrder = (order: WorkOrder) => {
     setSelectedOrder(order);
     // setIsDeleteDialogOpen(true);
     alert('Delete functionality to be implemented');
+  };
+
+  const handleFormSave = () => {
+    onDataChange();
+    setIsSheetOpen(false);
+    setSelectedOrder(null);
   };
 
   const onOrderDeleted = () => {
@@ -97,11 +116,9 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                 <CardTitle>Listado de Órdenes</CardTitle>
                 <CardDescription>Cree y gestione las tareas asignadas.</CardDescription>
             </div>
-            <Button asChild size="sm">
-                <Link href="/work-orders/new">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nueva Orden
-                </Link>
+            <Button onClick={handleAddOrder} size="sm">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nueva Orden
             </Button>
           </div>
         </CardHeader>
@@ -150,10 +167,8 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                    <Link href={`/work-orders/${order.id}/edit`}>
-                                        <Edit className="mr-2 h-4 w-4" /> Editar
-                                    </Link>
+                                <DropdownMenuItem onClick={() => handleEditOrder(order)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
                                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
@@ -175,6 +190,19 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
           </div>
         </CardContent>
       </Card>
+      
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="sm:max-w-2xl w-full">
+          <SheetHeader>
+            <SheetTitle>{selectedOrder ? 'Editar Orden de Trabajo' : 'Nueva Orden de Trabajo'}</SheetTitle>
+          </SheetHeader>
+          <WorkOrderForm
+            order={selectedOrder}
+            onSave={handleFormSave}
+            onCancel={() => setIsSheetOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* <DeleteWorkOrderDialog
         isOpen={isDeleteDialogOpen}
