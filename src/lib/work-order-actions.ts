@@ -78,6 +78,21 @@ export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
   }
 }
 
+export async function getWorkOrderById(orderId: string): Promise<WorkOrder | null> {
+    try {
+        const orderDocRef = doc(db, WORK_ORDERS_COLLECTION, orderId);
+        const docSnap = await getDoc(orderDocRef);
+        if (!docSnap.exists()) {
+            return null;
+        }
+        return { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as WorkOrder;
+    } catch (error) {
+        console.error("Error getting work order by ID:", error);
+        return null;
+    }
+}
+
+
 export async function saveWorkOrder(
   data: WorkOrderFormInput,
   currentUser: User,

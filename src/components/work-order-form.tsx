@@ -2,6 +2,7 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
@@ -42,17 +43,16 @@ import { Calendar } from './ui/calendar';
 
 type WorkOrderFormProps = {
   order: WorkOrder | null;
-  onSave: () => void;
-  onCancel: () => void;
 };
 
-export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderFormProps) {
+export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(order?.nombreCliente); // Use name temporarily
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
@@ -74,6 +74,19 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
           estado: 'pendiente',
         },
   });
+  
+  React.useEffect(() => {
+    if (order) {
+        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
+        if (client) {
+            setSelectedClientId(client.id);
+        }
+        form.reset({
+             ...order,
+            fechaProgramada: new Date(order.fechaProgramada),
+        })
+    }
+  }, [order, clients, form]);
 
   React.useEffect(() => {
     if (user) {
@@ -112,7 +125,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
       const result = await saveWorkOrder(values, user, order?.id);
       if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        onSave();
+        router.push('/work-orders');
       } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
       }
@@ -125,10 +138,8 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
-        <ScrollArea className="flex-1 pr-4">
-          <div className="space-y-4 py-4">
-             <FormItem>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormItem>
                 <FormLabel>Cliente</FormLabel>
                 <Combobox
                     options={clientOptions}
@@ -308,10 +319,8 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
               )}
             />
 
-          </div>
-        </ScrollArea>
-        <div className="flex justify-end gap-2 p-4 border-t">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={() => router.push('/work-orders')} disabled={isSubmitting}>
             Cancelar
           </Button>
           <Button type="submit" disabled={isSubmitting}>
