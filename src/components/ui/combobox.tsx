@@ -72,12 +72,8 @@ export function Combobox({
                 <CommandItem
                   key={option.value}
                   value={option.label} // Use label for filtering
-                  onSelect={(currentValue) => {
-                    // Find the option by the label that was selected
-                    const selectedOption = options.find(opt => opt.label.toLowerCase() === currentValue.toLowerCase());
-                    if (selectedOption) {
-                      onChange(selectedOption.value === value ? "" : selectedOption.value)
-                    }
+                  onSelect={() => {
+                    onChange(option.value === value ? "" : option.value)
                     setOpen(false)
                   }}
                 >
