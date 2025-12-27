@@ -52,6 +52,8 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  
+  const isEditing = !!order;
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
@@ -61,7 +63,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
         ciudad: '',
         ubicacionGoogleMaps: '',
         numeroCliente: '',
-        tecnicoId: '',
+        tecnicoId: undefined,
         prioridad: 'media',
         descripcion: '',
         fechaProgramada: new Date(),
@@ -80,26 +82,27 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   }, [user]);
 
   React.useEffect(() => {
-    if (order) {
-        form.reset({
-             ...order,
-             fechaProgramada: new Date(order.fechaProgramada),
-        });
+    if (order && clients.length > 0) {
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
         if (client) {
             setSelectedClientId(client.id);
         }
+        form.reset({
+             ...order,
+             fechaProgramada: new Date(order.fechaProgramada),
+             tecnicoId: order.tecnicoId || undefined,
+        });
     }
   }, [order, clients, form]);
 
 
   const handleClientChange = (clientId: string) => {
+      setSelectedClientId(clientId);
       const client = clients.find(c => c.id === clientId);
       if (client) {
           form.setValue('nombreCliente', client.nomSujeto);
           form.setValue('numeroCliente', client.telefono || '');
           form.setValue('ciudad', client.ciudad || '');
-          setSelectedClientId(clientId);
       }
   };
   
@@ -143,7 +146,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
                     placeholder="Seleccione un cliente..."
                     searchPlaceholder="Buscar cliente..."
                     emptyPlaceholder="No se encontraron clientes."
-                    disabled={clients.length === 0 || !!order}
+                    disabled={clients.length === 0 || isEditing}
                 />
             </FormItem>
 

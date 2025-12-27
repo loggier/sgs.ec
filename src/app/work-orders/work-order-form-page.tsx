@@ -36,8 +36,8 @@ export default function WorkOrderFormPage({ orderId }: WorkOrderFormPageProps) {
     if (isLoading) {
         return (
             <Card>
-                <div className="space-y-4 p-6">
-                    <Skeleton className="h-8 w-1/4" />
+                <div className="space-y-6 p-6">
+                    <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-24 w-full" />
@@ -54,7 +54,6 @@ export default function WorkOrderFormPage({ orderId }: WorkOrderFormPageProps) {
         return <p className="text-destructive">{error}</p>;
     }
 
-    // Pass the loaded order (or null for new) to the form
     return (
         <Card>
             <div className="p-6">
