@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, FormProvider, useWatch } from 'react-hook-form';
+import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
@@ -60,8 +60,6 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
     }
     return [];
   }, [currentUser]);
-
-  const selectedRole = useWatch({ control, name: 'role' });
 
   return (
     <div className="space-y-4 py-4">
@@ -135,6 +133,20 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
         />
       </div>
       
+       <FormField
+          control={control}
+          name="ciudad"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Ciudad (Opcional)</FormLabel>
+              <FormControl>
+                <Input placeholder="ej. Quito" {...field} value={field.value ?? ''} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      
       <FormField
         control={control}
         name="nota"
@@ -185,22 +197,6 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
             )}
           />
       </div>
-      
-      {selectedRole === 'tecnico' && (
-        <FormField
-          control={control}
-          name="ciudad"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Ciudad (Opcional)</FormLabel>
-              <FormControl>
-                <Input placeholder="ej. Quito" {...field} value={field.value ?? ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
     </div>
   )
 }
@@ -213,30 +209,46 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
 
   const form = useForm<UserFormInput>({
     resolver: zodResolver(UserFormSchema(isEditing)),
-    defaultValues: user
-      ? { 
-          username: user.username || '',
-          correo: user.correo || '',
-          nombre: user.nombre || '',
-          telefono: user.telefono || '',
-          empresa: user.empresa || '',
-          nota: user.nota || '',
-          ciudad: user.ciudad || '',
-          role: user.role,
-          password: ''
-        }
-      : {
-          username: '',
-          password: '',
-          role: 'analista', // Default to a common role
-          nombre: '',
-          correo: '',
-          telefono: '',
-          ciudad: '',
-          empresa: '',
-          nota: '',
-        },
+    defaultValues: {
+      username: '',
+      password: '',
+      role: 'analista',
+      nombre: '',
+      correo: '',
+      telefono: '',
+      ciudad: '',
+      empresa: '',
+      nota: '',
+    }
   });
+  
+  React.useEffect(() => {
+    if (user) {
+      form.reset({
+        username: user.username || '',
+        correo: user.correo || '',
+        nombre: user.nombre || '',
+        telefono: user.telefono || '',
+        empresa: user.empresa || '',
+        nota: user.nota || '',
+        ciudad: user.ciudad || '',
+        role: user.role,
+        password: ''
+      });
+    } else {
+      form.reset({
+        username: '',
+        password: '',
+        role: 'analista',
+        nombre: '',
+        correo: '',
+        telefono: '',
+        ciudad: '',
+        empresa: '',
+        nota: '',
+      });
+    }
+  }, [user, form]);
 
   async function onSubmit(values: UserFormInput) {
     if (!currentUser) return;
