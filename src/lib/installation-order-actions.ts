@@ -134,8 +134,11 @@ export async function saveInstallationOrder(
         dataToSave = {
             estado: validation.data.estado,
             observacion: validation.data.observacion,
-            metodoPago: validation.data.metodoPago,
         };
+        // Only include metodoPago if the order is being marked as 'terminado'
+        if (validation.data.estado === 'terminado') {
+            dataToSave.metodoPago = validation.data.metodoPago;
+        }
     } else {
         // Managers/Masters have full control
         if (!['master', 'manager'].includes(currentUser.role)) {
