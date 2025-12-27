@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario', 'tecnico']);
@@ -39,7 +40,7 @@ export const UserFormSchema = (isEditing: boolean) => z.object({
   nombre: z.string().optional(),
   correo: z.string().email('El correo electrónico es obligatorio y debe ser válido.'),
   telefono: z.string().optional(),
-  ciudad: z.string().optional(),
+  ciudad: z.string().optional().default(''),
   empresa: z.string().optional(),
   nota: z.string().optional(),
 });
