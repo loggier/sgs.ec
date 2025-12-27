@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
-import { Loader2, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -39,7 +39,7 @@ import { Combobox } from './ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import Link from 'next/link';
 
 type WorkOrderFormProps = {
   order: WorkOrder | null;
@@ -244,17 +244,27 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                 />
 
                 <FormField
-                control={form.control}
-                name="ubicacionGoogleMaps"
-                render={({ field }) => (
+                  control={form.control}
+                  name="ubicacionGoogleMaps"
+                  render={({ field }) => (
                     <FormItem>
-                    <FormLabel>Ubicación (URL de Google Maps)</FormLabel>
-                    <FormControl>
-                        <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician} />
-                    </FormControl>
-                    <FormMessage />
+                      <FormLabel>Ubicación (URL de Google Maps)</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician} />
+                        </FormControl>
+                        {isTechnician && field.value && (
+                          <Button asChild variant="secondary" size="sm">
+                            <Link href={field.value} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Ir
+                            </Link>
+                          </Button>
+                        )}
+                      </div>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
                 
                 <FormField
