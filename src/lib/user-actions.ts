@@ -17,7 +17,7 @@ import {
 import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput, UserRole } from './user-schema';
 import bcrypt from 'bcryptjs';
-import { createSession, deleteSession, getCurrentUser as getCurrentUserFromCookie } from './auth';
+import { setSessionCookie, deleteSessionCookie, getCurrentUser as getCurrentUserFromCookie } from './auth';
 import { getClients } from './actions';
 import type { Client } from './schema';
 
@@ -65,7 +65,7 @@ export async function loginUser(credentials: {username: string; password: string
         
         const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
         
-        await createSession(userWithoutPassword);
+        await setSessionCookie(userWithoutPassword);
 
 
         return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
@@ -77,7 +77,7 @@ export async function loginUser(credentials: {username: string; password: string
 }
 
 export async function logoutUser() {
-    deleteSession();
+    await deleteSessionCookie();
 }
 
 

@@ -15,7 +15,7 @@ const encodedKey = new TextEncoder().encode(secretKey);
 const TOKEN_NAME = 'user-token';
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
 
-export async function createSession(user: Omit<User, 'password'>) {
+export async function setSessionCookie(user: Omit<User, 'password'>) {
     const token = await new SignJWT(user)
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
@@ -31,7 +31,7 @@ export async function createSession(user: Omit<User, 'password'>) {
     });
 }
 
-export async function deleteSession() {
+export async function deleteSessionCookie() {
     cookies().set(TOKEN_NAME, '', {
         maxAge: -1,
         path: '/',
