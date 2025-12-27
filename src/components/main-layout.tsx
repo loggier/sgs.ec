@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History, Menu } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History, Menu, Wrench } from 'lucide-react';
 import Image from 'next/image';
 
 import { useAuth } from '@/context/auth-context';
@@ -97,6 +97,14 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                     {!isCollapsed && <span>Gestión de Pagos</span>}
                 </NavLink>
             </SidebarMenuItem>
+            {user && ['master', 'manager'].includes(user.role) && (
+                <SidebarMenuItem>
+                    <NavLink href="/work-orders">
+                        <Wrench className="h-4 w-4" />
+                        {!isCollapsed && <span>Órdenes de Trabajo</span>}
+                    </NavLink>
+                </SidebarMenuItem>
+            )}
             {user && ['master', 'manager'].includes(user.role) && (
                 <SidebarMenuItem>
                     <NavLink href="/users">
