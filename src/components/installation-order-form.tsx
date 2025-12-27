@@ -441,6 +441,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormMessage />
                         </FormItem>
                     )}
+                />
                 )}
                 
                 {estado === 'terminado' && (
