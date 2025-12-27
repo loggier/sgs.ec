@@ -15,4 +15,3 @@ export default function EditWorkOrderPage({ params }: { params: { orderId: strin
         </AppContent>
     );
 }
-
