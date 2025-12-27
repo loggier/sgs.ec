@@ -22,7 +22,7 @@ export async function setSessionCookie(user: Omit<User, 'password'>) {
         .setExpirationTime('7d')
         .sign(encodedKey);
 
-    cookies().set(TOKEN_NAME, token, {
+    (await cookies()).set(TOKEN_NAME, token, {
         maxAge: MAX_AGE,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -32,7 +32,7 @@ export async function setSessionCookie(user: Omit<User, 'password'>) {
 }
 
 export async function deleteSessionCookie() {
-    cookies().set(TOKEN_NAME, '', {
+    (await cookies()).set(TOKEN_NAME, '', {
         maxAge: -1,
         path: '/',
     });
@@ -40,7 +40,8 @@ export async function deleteSessionCookie() {
 
 
 export async function getCurrentUser(): Promise<User | null> {
-    const token = cookies().get(TOKEN_NAME)?.value;
+    const tokenCookie = (await cookies()).get(TOKEN_NAME);
+    const token = tokenCookie?.value;
 
     if (!token) return null;
 
