@@ -117,9 +117,10 @@ export async function saveWorkOrder(
     let dataToSave: any;
     
     if (isEditingByTechnician) {
-        // Technicians can only update the status
+        // Technicians can only update the status and observation
         dataToSave = {
             estado: validation.data.estado,
+            observacion: validation.data.observacion,
         };
     } else {
         // Managers/Masters have full control
@@ -163,6 +164,7 @@ export async function saveWorkOrder(
     }
 
     revalidatePath('/work-orders');
+    revalidatePath('/');
 
     const finalDoc = await getDoc(doc(db, WORK_ORDERS_COLLECTION, savedOrderId!));
     const finalData = convertTimestamps(finalDoc.data());

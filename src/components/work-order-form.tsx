@@ -4,7 +4,7 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
-import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -39,6 +39,7 @@ import { Combobox } from './ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 type WorkOrderFormProps = {
   order: WorkOrder | null;
@@ -55,6 +56,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
   const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
   
   const isEditing = !!order;
+  const isTechnician = user?.role === 'tecnico';
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
@@ -67,20 +69,26 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         tecnicoId: undefined,
         prioridad: 'media',
         descripcion: '',
+        observacion: '',
         fechaProgramada: new Date(),
         estado: 'pendiente',
     },
   });
 
+  const estado = form.watch('estado');
+  const observacion = form.watch('observacion');
+  const showObservationWarning = isTechnician && estado === 'completada' && !observacion;
+
+
   React.useEffect(() => {
-    if (user) {
+    if (user && !isTechnician) {
         getUsers(user).then(allUsers => {
             const techUsers = allUsers.filter(u => u.role === 'tecnico');
             setTechnicians(techUsers);
         });
         getClients(user.id, user.role, user.creatorId).then(setClients);
     }
-  }, [user]);
+  }, [user, isTechnician]);
 
   React.useEffect(() => {
     if (order) {
@@ -89,9 +97,10 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         ...order,
         fechaProgramada: new Date(order.fechaProgramada),
         tecnicoId: order.tecnicoId || undefined,
+        observacion: order.observacion || '',
       });
 
-      // Find and set the client ID for the combobox
+      // Find and set the client ID for the combobox if it exists
       const client = clients.find(c => c.nomSujeto === order.nombreCliente);
       if (client) {
         setSelectedClientId(client.id);
@@ -107,6 +116,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         tecnicoId: undefined,
         prioridad: 'media',
         descripcion: '',
+        observacion: '',
         fechaProgramada: new Date(),
         estado: 'pendiente',
       });
@@ -160,16 +170,20 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
             <div className="space-y-6 py-6">
                 <FormItem>
                     <FormLabel>Cliente</FormLabel>
-                    <Combobox
-                        options={clientOptions}
-                        value={selectedClientId}
-                        onChange={handleClientChange}
-                        placeholder="Seleccione un cliente..."
-                        searchPlaceholder="Buscar cliente..."
-                        emptyPlaceholder="No se encontraron clientes."
-                        disabled={clients.length === 0 || isEditing}
-                    />
-                     {isEditing && (
+                    {isTechnician && order ? (
+                         <Input value={order.nombreCliente} disabled />
+                    ) : (
+                        <Combobox
+                            options={clientOptions}
+                            value={selectedClientId}
+                            onChange={handleClientChange}
+                            placeholder="Seleccione un cliente..."
+                            searchPlaceholder="Buscar cliente..."
+                            emptyPlaceholder="No se encontraron clientes."
+                            disabled={clients.length === 0 || isEditing}
+                        />
+                    )}
+                     {isEditing && !isTechnician && (
                         <p className="text-sm text-muted-foreground pt-1">El cliente no se puede cambiar al editar una orden.</p>
                      )}
                 </FormItem>
@@ -194,7 +208,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         <FormItem>
                         <FormLabel>Número del Cliente</FormLabel>
                         <FormControl>
-                            <Input placeholder="0991234567" {...field} />
+                            <Input placeholder="0991234567" {...field} disabled={isTechnician} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -207,7 +221,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         <FormItem>
                         <FormLabel>Ciudad</FormLabel>
                         <FormControl>
-                            <Input placeholder="Quito" {...field} />
+                            <Input placeholder="Quito" {...field} disabled={isTechnician} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -222,7 +236,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         <FormItem>
                         <FormLabel>Placa del Vehículo</FormLabel>
                         <FormControl>
-                            <Input placeholder="PCQ-1234" {...field} />
+                            <Input placeholder="PCQ-1234" {...field} disabled={isTechnician} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -236,7 +250,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     <FormItem>
                     <FormLabel>Ubicación (URL de Google Maps)</FormLabel>
                     <FormControl>
-                        <Input placeholder="https://maps.app.goo.gl/..." {...field} />
+                        <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -250,11 +264,30 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     <FormItem>
                     <FormLabel>Descripción de la Tarea</FormLabel>
                     <FormControl>
-                        <Textarea placeholder="Describa el trabajo a realizar..." rows={4} {...field} />
+                        <Textarea placeholder="Describa el trabajo a realizar..." rows={4} {...field} disabled={isTechnician} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
                 )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="observacion"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Observación del Técnico</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
+                      </FormControl>
+                      {showObservationWarning && (
+                        <p className="text-sm font-medium text-yellow-600 pt-1">
+                          Recomendación: Por favor, añada una observación detallando el trabajo completado.
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -264,15 +297,19 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
                         <FormLabel>Técnico Asignado</FormLabel>
-                        <Combobox 
-                            options={technicianOptions}
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Seleccione un técnico..."
-                            searchPlaceholder='Buscar técnico...'
-                            emptyPlaceholder='No se encontraron técnicos.'
-                            disabled={technicians.length === 0}
-                        />
+                         {isTechnician && user ? (
+                            <Input value={user.nombre || user.username} disabled />
+                        ) : (
+                            <Combobox 
+                                options={technicianOptions}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Seleccione un técnico..."
+                                searchPlaceholder='Buscar técnico...'
+                                emptyPlaceholder='No se encontraron técnicos.'
+                                disabled={technicians.length === 0}
+                            />
+                        )}
                         <FormMessage />
                         </FormItem>
                     )}
@@ -283,7 +320,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Prioridad</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
                             <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Seleccione una prioridad" />
@@ -317,6 +354,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                                         'w-full pl-3 text-left font-normal',
                                         !field.value && 'text-muted-foreground'
                                     )}
+                                    disabled={isTechnician}
                                     >
                                     {field.value ? (
                                         format(new Date(field.value), 'PPP', { locale: es })
@@ -341,8 +379,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                             </FormItem>
                         )}
                         />
-
-                    {order && (
+                        
                         <FormField
                             control={form.control}
                             name="estado"
@@ -365,7 +402,6 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                                 </FormItem>
                             )}
                         />
-                    )}
                 </div>
             </div>
         </ScrollArea>

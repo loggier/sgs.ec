@@ -19,6 +19,7 @@ export const WorkOrderSchema = z.object({
   numeroCliente: z.string().min(1, 'El número del cliente es requerido.'),
   prioridad: WorkOrderPriority,
   descripcion: z.string().min(1, 'La descripción es requerida.'),
+  observacion: z.string().optional(), // Note for the technician
   fechaProgramada: dateOrTimestamp,
   estado: WorkOrderStatus.default('pendiente'),
 });
