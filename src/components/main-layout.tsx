@@ -48,7 +48,8 @@ function NavLink({ href, children }: NavLinkProps) {
 function MainLayoutContent({ children }: { children: React.ReactNode }) {
   const { logout, user, updateUserContext } = useAuth();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
-  const { isCollapsed, isOpen, setIsOpen } = useSidebar();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const { isCollapsed } = useSidebar();
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -175,7 +176,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
       <div className="flex min-h-screen">
-         <Sheet open={isOpen} onOpenChange={setIsOpen}>
+         <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden fixed top-3 left-3 z-50">
                     <Menu className="h-6 w-6" />
@@ -185,7 +186,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
               <SheetHeader>
                  <SheetTitle className="sr-only">Menú Principal</SheetTitle>
               </SheetHeader>
-              {navContent}
+              <div onClick={() => setIsMobileMenuOpen(false)}>{navContent}</div>
             </SheetContent>
          </Sheet>
         

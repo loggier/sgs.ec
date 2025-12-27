@@ -5,15 +5,12 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronLeft } from "lucide-react"
 
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./sheet"
 import { cn } from "@/lib/utils"
 
 import { Button } from "./button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tooltip"
 
 interface SidebarContextProps {
-  isOpen: boolean
-  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>
   isCollapsed: boolean
   setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>
 }
@@ -31,12 +28,11 @@ function useSidebar() {
 }
 
 function SidebarProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = React.useState(false)
   const [isCollapsed, setIsCollapsed] = React.useState(false)
 
   return (
     <SidebarContext.Provider
-      value={{ isOpen, setIsOpen, isCollapsed, setIsCollapsed }}
+      value={{ isCollapsed, setIsCollapsed }}
     >
       <TooltipProvider>{children}</TooltipProvider>
     </SidebarContext.Provider>
