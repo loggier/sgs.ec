@@ -51,7 +51,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(order?.nombreCliente);
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
@@ -69,20 +69,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
     },
   });
 
-  React.useEffect(() => {
-    if (order) {
-        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
-        if (client) {
-            setSelectedClientId(client.id);
-        }
-        form.reset({
-             ...order,
-             tecnicoId: order.tecnicoId || '',
-             fechaProgramada: new Date(order.fechaProgramada),
-        })
-    }
-  }, [order, clients, form]);
-
+  // Effect to load initial data like technicians and clients
   React.useEffect(() => {
     if (user) {
         getUsers(user).then(allUsers => {
@@ -92,6 +79,29 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
         getClients(user.id, user.role, user.creatorId).then(setClients);
     }
   }, [user]);
+
+  // Effect to populate the form when editing an existing order
+  React.useEffect(() => {
+    if (order) {
+        // Reset form with all data from the order
+        form.reset({
+             ...order,
+             tecnicoId: order.tecnicoId || '',
+             fechaProgramada: new Date(order.fechaProgramada),
+        });
+    }
+  }, [order, form]);
+  
+  // Effect to correctly set the selected client ID for the Combobox when editing
+  React.useEffect(() => {
+    if (order && clients.length > 0) {
+        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
+        if (client) {
+            setSelectedClientId(client.id);
+        }
+    }
+  }, [order, clients]);
+
 
   const handleClientChange = (clientId: string) => {
       const client = clients.find(c => c.id === clientId);
