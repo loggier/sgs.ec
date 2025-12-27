@@ -1,5 +1,6 @@
 
-import 'server-only';
+'use server';
+
 import { cookies } from 'next/headers';
 import type { User } from './user-schema';
 import { SignJWT, jwtVerify } from 'jose';
@@ -30,7 +31,7 @@ export async function createSession(user: Omit<User, 'password'>) {
     });
 }
 
-export function deleteSession() {
+export async function deleteSession() {
     cookies().set(TOKEN_NAME, '', {
         maxAge: -1,
         path: '/',
