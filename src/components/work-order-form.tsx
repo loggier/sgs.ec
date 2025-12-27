@@ -96,33 +96,35 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
   React.useEffect(() => {
     if (order) {
-      form.reset({
-        ...order,
-        fechaProgramada: new Date(order.fechaProgramada),
-        tecnicoId: order.tecnicoId || undefined,
-        observacion: order.observacion || '',
-      });
-      const client = clients.find(c => c.nomSujeto === order.nombreCliente);
-      if (client) {
-        setSelectedClientId(client.id);
-      }
+        form.reset({
+            ...order,
+            fechaProgramada: new Date(order.fechaProgramada),
+            tecnicoId: order.tecnicoId || undefined,
+            observacion: order.observacion || '',
+        });
+        // Find the client in the already fetched list to set the combobox state
+        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
+        if (client) {
+            setSelectedClientId(client.id);
+        }
     } else {
-      form.reset({
-        placaVehiculo: '',
-        nombreCliente: '',
-        ciudad: '',
-        ubicacionGoogleMaps: '',
-        numeroCliente: '',
-        tecnicoId: undefined,
-        prioridad: 'media',
-        descripcion: '',
-        observacion: '',
-        fechaProgramada: new Date(),
-        estado: 'pendiente',
-      });
-      setSelectedClientId(undefined);
+        form.reset({
+            placaVehiculo: '',
+            nombreCliente: '',
+            ciudad: '',
+            ubicacionGoogleMaps: '',
+            numeroCliente: '',
+            tecnicoId: undefined,
+            prioridad: 'media',
+            descripcion: '',
+            observacion: '',
+            fechaProgramada: new Date(),
+            estado: 'pendiente',
+        });
+        setSelectedClientId(undefined);
     }
-  }, [order, clients, form]);
+}, [order, clients, form]);
+
 
   const handleClientChange = (clientId: string) => {
       setSelectedClientId(clientId);
@@ -165,6 +167,40 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
       setIsSubmitting(false);
     }
   }
+
+  const getTechnicianSubmitButton = () => {
+    switch(estado) {
+        case 'pendiente':
+            return (
+                <Button type="submit" disabled={isSubmitting} onClick={() => handleStatusChange('en-progreso')}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Iniciar Trabajo y Guardar
+                </Button>
+            );
+        case 'en-progreso':
+            return (
+                <Button type="submit" disabled={isSubmitting} className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange('completada')}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Completar Orden y Guardar
+                </Button>
+            );
+        case 'completada':
+             return (
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Guardar Observación
+                </Button>
+            );
+        default:
+             return (
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Guardar Cambios
+                </Button>
+            );
+    }
+  };
+
 
   return (
     <FormProvider {...form}>
@@ -256,11 +292,11 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         <FormControl>
                           <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician} />
                         </FormControl>
-                        {isTechnician && field.value && (
-                          <Button asChild variant="secondary" size="sm">
+                        {field.value && (
+                          <Button asChild variant="secondary" size="icon">
                             <Link href={field.value} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Ir
+                              <ExternalLink className="h-4 w-4" />
+                              <span className="sr-only">Ir a mapa</span>
                             </Link>
                           </Button>
                         )}
@@ -393,47 +429,28 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         )}
                     />
 
-                    {isTechnician ? (
-                        <FormItem>
-                            <FormLabel>Actualizar Estado</FormLabel>
-                             <div className="space-y-2">
-                                {estado === 'pendiente' && (
-                                    <Button type="button" className="w-full" onClick={() => handleStatusChange('en-progreso')}>
-                                        Iniciar Trabajo <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Button>
-                                )}
-                                {estado === 'en-progreso' && (
-                                     <Button type="button" className="w-full bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange('completada')}>
-                                        Marcar como Completada <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Button>
-                                )}
-                                <Input value={estado.replace('-', ' ')} className="capitalize bg-muted" disabled />
-                            </div>
-                        </FormItem>
-                    ) : (
-                        <FormField
-                            control={form.control}
-                            name="estado"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Estado</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione un estado" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {WorkOrderStatus.options.map(s => (
-                                        <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
+                    <FormField
+                        control={form.control}
+                        name="estado"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Estado</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione un estado" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {WorkOrderStatus.options.map(s => (
+                                    <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </div>
             </div>
         </ScrollArea>
@@ -441,12 +458,17 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isSubmitting ? 'Guardando...' : 'Guardar Orden'}
-          </Button>
+          {isTechnician ? getTechnicianSubmitButton() : (
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting ? 'Guardando...' : 'Guardar Orden'}
+            </Button>
+          )}
         </div>
       </form>
     </FormProvider>
   );
 }
+
+
+    
