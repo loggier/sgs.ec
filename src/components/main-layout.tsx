@@ -79,56 +79,61 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                     {!isCollapsed && <span>Dashboard</span>}
                 </NavLink>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-                <NavLink href="/clients">
-                    <Briefcase className="h-4 w-4" />
-                    {!isCollapsed && <span>Clientes</span>}
-                </NavLink>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <NavLink href="/units">
-                    <Car className="h-4 w-4" />
-                    {!isCollapsed && <span>Unidades</span>}
-                </NavLink>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-                <NavLink href="/payments">
-                    <CreditCard className="h-4 w-4" />
-                    {!isCollapsed && <span>Gestión de Pagos</span>}
-                </NavLink>
-            </SidebarMenuItem>
-            {user && ['master', 'manager'].includes(user.role) && (
-                <SidebarMenuItem>
-                    <NavLink href="/work-orders">
-                        <Wrench className="h-4 w-4" />
-                        {!isCollapsed && <span>Órdenes de Trabajo</span>}
-                    </NavLink>
-                </SidebarMenuItem>
+            
+            {user && user.role !== 'tecnico' && (
+                <>
+                    <SidebarMenuItem>
+                        <NavLink href="/clients">
+                            <Briefcase className="h-4 w-4" />
+                            {!isCollapsed && <span>Clientes</span>}
+                        </NavLink>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <NavLink href="/units">
+                            <Car className="h-4 w-4" />
+                            {!isCollapsed && <span>Unidades</span>}
+                        </NavLink>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <NavLink href="/payments">
+                            <CreditCard className="h-4 w-4" />
+                            {!isCollapsed && <span>Gestión de Pagos</span>}
+                        </NavLink>
+                    </SidebarMenuItem>
+                </>
             )}
+
+            <SidebarMenuItem>
+                <NavLink href="/work-orders">
+                    <Wrench className="h-4 w-4" />
+                    {!isCollapsed && <span>Órdenes de Trabajo</span>}
+                </NavLink>
+            </SidebarMenuItem>
+           
             {user && ['master', 'manager'].includes(user.role) && (
-                <SidebarMenuItem>
-                    <NavLink href="/users">
-                        <UsersRound className="h-4 w-4" />
-                        {!isCollapsed && <span>Usuarios</span>}
-                    </NavLink>
-                </SidebarMenuItem>
-            )}
-            {user && ['master', 'manager'].includes(user.role) && (
-                <SidebarMenuItem>
-                    <NavLink href="/settings">
-                        <Settings className="h-4 w-4" />
-                        {!isCollapsed && <span>Configuración</span>}
-                    </NavLink>
-                </SidebarMenuItem>
+                <>
+                    <SidebarMenuItem>
+                        <NavLink href="/users">
+                            <UsersRound className="h-4 w-4" />
+                            {!isCollapsed && <span>Usuarios</span>}
+                        </NavLink>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <NavLink href="/settings">
+                            <Settings className="h-4 w-4" />
+                            {!isCollapsed && <span>Configuración</span>}
+                        </NavLink>
+                    </SidebarMenuItem>
+                </>
                 )}
-                {user && ['master'].includes(user.role) && (
+            {user && ['master'].includes(user.role) && (
                 <SidebarMenuItem>
                     <NavLink href="/logs">
                         <History className="h-4 w-4" />
                         {!isCollapsed && <span>Logs de Notificaciones</span>}
                     </NavLink>
                 </SidebarMenuItem>
-                )}
+            )}
             </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-2 border-t">

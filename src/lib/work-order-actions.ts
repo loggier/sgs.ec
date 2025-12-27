@@ -42,7 +42,7 @@ const convertTimestamps = (data: any): any => {
 
 export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
   try {
-    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+    if (!currentUser) {
       return [];
     }
 
@@ -51,8 +51,12 @@ export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
 
     if (currentUser.role === 'master') {
         ordersQuery = query(ordersCollectionRef);
-    } else { // manager
+    } else if (currentUser.role === 'manager') {
         ordersQuery = query(ordersCollectionRef, where("ownerId", "==", currentUser.id));
+    } else if (currentUser.role === 'tecnico') {
+        ordersQuery = query(ordersCollectionRef, where("tecnicoId", "==", currentUser.id));
+    } else {
+        return []; // Other roles see nothing
     }
     
     const orderSnapshot = await getDocs(ordersQuery);
@@ -99,7 +103,7 @@ export async function saveWorkOrder(
   orderId?: string
 ): Promise<{ success: boolean; message: string; order?: WorkOrder }> {
 
-    if (!currentUser || !['master', 'manager'].includes(currentUser.role)) {
+    if (!currentUser || !['master', 'manager', 'tecnico'].includes(currentUser.role)) {
         return { success: false, message: 'No tiene permiso para realizar esta acción.' };
     }
   
@@ -108,12 +112,26 @@ export async function saveWorkOrder(
         console.error(validation.error.flatten().fieldErrors);
         return { success: false, message: 'Datos proporcionados no válidos.' };
     }
-
-    const dataToSave: any = { 
-        ...validation.data,
-        ownerId: currentUser.id,
-        fechaProgramada: Timestamp.fromDate(new Date(validation.data.fechaProgramada)),
-    };
+    
+    const isEditingByTechnician = orderId && currentUser.role === 'tecnico';
+    let dataToSave: any;
+    
+    if (isEditingByTechnician) {
+        // Technicians can only update the status
+        dataToSave = {
+            estado: validation.data.estado,
+        };
+    } else {
+        // Managers/Masters have full control
+        if (!['master', 'manager'].includes(currentUser.role)) {
+            return { success: false, message: 'No tiene permiso para crear o editar esta orden.' };
+        }
+        dataToSave = { 
+            ...validation.data,
+            ownerId: currentUser.id,
+            fechaProgramada: Timestamp.fromDate(new Date(validation.data.fechaProgramada)),
+        };
+    }
     
   try {
     const ordersCollection = collection(db, WORK_ORDERS_COLLECTION);
@@ -123,9 +141,19 @@ export async function saveWorkOrder(
     if (orderId) {
       const orderDocRef = doc(db, WORK_ORDERS_COLLECTION, orderId);
       const docSnap = await getDoc(orderDocRef);
-      if(!docSnap.exists() || (currentUser.role === 'manager' && docSnap.data().ownerId !== currentUser.id)) {
-          return { success: false, message: 'Orden no encontrada o sin permisos para editar.' };
+      if(!docSnap.exists()) {
+          return { success: false, message: 'Orden no encontrada.' };
       }
+      
+      const orderData = docSnap.data();
+      const canEdit = currentUser.role === 'master' || 
+                      (currentUser.role === 'manager' && orderData.ownerId === currentUser.id) ||
+                      (isEditingByTechnician && orderData.tecnicoId === currentUser.id);
+
+      if (!canEdit) {
+           return { success: false, message: 'No tiene permisos para editar esta orden.' };
+      }
+
       await updateDoc(orderDocRef, dataToSave);
       message = 'Orden de trabajo actualizada con éxito.';
     } else {

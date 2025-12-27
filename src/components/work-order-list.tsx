@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -116,10 +115,12 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                 <CardTitle>Listado de Órdenes</CardTitle>
                 <CardDescription>Cree y gestione las tareas asignadas.</CardDescription>
             </div>
-            <Button onClick={handleAddOrder} size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nueva Orden
-            </Button>
+            {currentUser?.role !== 'tecnico' && (
+                <Button onClick={handleAddOrder} size="sm">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nueva Orden
+                </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -170,9 +171,11 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                                 <DropdownMenuItem onClick={() => handleEditOrder(order)}>
                                     <Edit className="mr-2 h-4 w-4" /> Editar
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                </DropdownMenuItem>
+                                {currentUser?.role !== 'tecnico' && (
+                                    <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                    </DropdownMenuItem>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

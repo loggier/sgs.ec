@@ -12,6 +12,7 @@ import AppContent from '@/components/app-content';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Car, AlertTriangle, CircleDollarSign } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Pie, PieChart, Cell } from 'recharts';
+import TechnicianDashboard from '@/components/technician-dashboard';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
@@ -47,14 +48,25 @@ function DashboardPageContent() {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (user) {
+    if (user && user.role !== 'tecnico') {
       setIsLoading(true);
       getDashboardData(user)
         .then(setData)
         .catch(error => console.error("Failed to fetch dashboard data:", error))
         .finally(() => setIsLoading(false));
+    } else {
+        setIsLoading(false);
     }
   }, [user]);
+
+  if (user?.role === 'tecnico') {
+      return (
+          <>
+            <Header title="Mis Órdenes de Trabajo" />
+            <TechnicianDashboard />
+          </>
+      )
+  }
 
 
   const chartData = React.useMemo(() => {

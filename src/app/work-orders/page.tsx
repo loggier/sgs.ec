@@ -19,14 +19,8 @@ function WorkOrdersPageContent() {
   const [workOrders, setWorkOrders] = React.useState<WorkOrder[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    if (!isAuthLoading && user?.role && !['master', 'manager'].includes(user.role)) {
-      router.push('/');
-    }
-  }, [user, isAuthLoading, router]);
-
   const fetchWorkOrders = React.useCallback(() => {
-    if (user && ['master', 'manager'].includes(user.role)) {
+    if (user) {
         setIsLoading(true);
         getWorkOrders(user).then(data => {
             setWorkOrders(data);
@@ -51,7 +45,7 @@ function WorkOrdersPageContent() {
     )
   }
   
-  if (!user || !['master', 'manager'].includes(user.role)) {
+  if (!user) {
       return (
         <>
             <Header title="Acceso Denegado" />
@@ -59,7 +53,7 @@ function WorkOrdersPageContent() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>No tienes permiso</AlertTitle>
                 <AlertDescription>
-                    No tienes permiso para acceder a la gestión de órdenes de trabajo.
+                    Debes iniciar sesión para ver esta página.
                 </AlertDescription>
             </Alert>
         </>
