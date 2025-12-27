@@ -9,8 +9,8 @@ import type { ClientDisplay } from '@/lib/schema';
 import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppContent from '@/components/app-content';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Car, AlertTriangle, CircleDollarSign } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Users, Car, AlertTriangle, CircleDollarSign, Building } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Pie, PieChart, Cell } from 'recharts';
 import TechnicianDashboard from '@/components/technician-dashboard';
 
@@ -38,8 +38,12 @@ type DashboardDataType = {
   totalUnits: number;
   overdueUnits: number;
   totalMonthlyRevenue: number;
+  topClients: { name: string; units: number }[];
   unitsByPlan: Record<string, number>;
   clientsByStatus: Record<string, number>;
+  installationsByCategory: Record<string, number>;
+  installationsByVehicle: Record<string, number>;
+  installationsBySegment: Record<string, number>;
 }
 
 function DashboardPageContent() {
@@ -68,7 +72,6 @@ function DashboardPageContent() {
       )
   }
 
-
   const chartData = React.useMemo(() => {
     if (!data) return null;
     
@@ -78,10 +81,18 @@ function DashboardPageContent() {
     const clientsByStatusChartData = Object.entries(data.clientsByStatus)
       .map(([name, value]) => ({ name: statusDisplayNames[name as ClientDisplay['estado']], value }))
       .filter(item => item.name);
+      
+    const installationsByCategoryChartData = Object.entries(data.installationsByCategory).map(([name, value]) => ({ name, total: value }));
+    const installationsByVehicleChartData = Object.entries(data.installationsByVehicle).map(([name, value]) => ({ name, total: value }));
+    const installationsBySegmentChartData = Object.entries(data.installationsBySegment).map(([name, value]) => ({ name, total: value }));
+
 
     return {
       unitsByPlanChartData,
       clientsByStatusChartData,
+      installationsByCategoryChartData,
+      installationsByVehicleChartData,
+      installationsBySegmentChartData,
     };
   }, [data]);
 
@@ -102,6 +113,30 @@ function DashboardPageContent() {
           </>
       )
   }
+
+  const renderBarChart = (chartData: {name: string, total: number}[], title: string) => (
+     <Card>
+        <CardHeader>
+            <CardTitle>{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="pl-2">
+            <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={chartData}>
+                    <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} angle={-45} textAnchor="end" height={60} />
+                    <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                    <Tooltip
+                        contentStyle={{
+                            backgroundColor: 'hsl(var(--background))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 'var(--radius)',
+                        }}
+                    />
+                    <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+            </ResponsiveContainer>
+        </CardContent>
+    </Card>
+  );
 
   return (
     <>
@@ -146,29 +181,28 @@ function DashboardPageContent() {
             </Card>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="lg:col-span-4">
+        <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
+             <Card className="lg:col-span-1">
                 <CardHeader>
-                    <CardTitle>Unidades por Plan</CardTitle>
+                    <CardTitle>Top Clientes por Unidades</CardTitle>
                 </CardHeader>
-                <CardContent className="pl-2">
-                    <ResponsiveContainer width="100%" height={350}>
-                        <BarChart data={chartData.unitsByPlanChartData}>
-                            <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: 'hsl(var(--background))',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: 'var(--radius)',
-                                }}
-                            />
-                            <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <CardContent>
+                    <div className="space-y-4">
+                        {data.topClients.map((client, index) => (
+                            <div key={index} className="flex items-center">
+                                <Building className="h-5 w-5 text-muted-foreground" />
+                                <div className="ml-4 space-y-1">
+                                <p className="text-sm font-medium leading-none">{client.name}</p>
+                                <p className="text-sm text-muted-foreground">{client.units} unidades</p>
+                                </div>
+                                <div className="ml-auto font-medium">#{index + 1}</div>
+                            </div>
+                        ))}
+                         {data.topClients.length === 0 && <p className="text-sm text-muted-foreground">No hay suficientes datos.</p>}
+                    </div>
                 </CardContent>
             </Card>
-             <Card className="lg:col-span-3">
+             <Card className="lg:col-span-2">
                 <CardHeader>
                     <CardTitle>Clientes por Estado</CardTitle>
                 </CardHeader>
@@ -200,6 +234,15 @@ function DashboardPageContent() {
                     </ResponsiveContainer>
                 </CardContent>
             </Card>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+            {renderBarChart(chartData.unitsByPlanChartData, "Unidades por Plan")}
+            {renderBarChart(chartData.installationsByCategoryChartData, "Instalaciones por Categoría")}
+        </div>
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+            {renderBarChart(chartData.installationsByVehicleChartData, "Instalaciones por Tipo de Vehículo")}
+            {renderBarChart(chartData.installationsBySegmentChartData, "Instalaciones por Segmento")}
         </div>
       </div>
     </>

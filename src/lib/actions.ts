@@ -21,6 +21,7 @@ import { ClientSchema, type Client, type ClientDisplay } from './schema';
 import type { User } from './user-schema';
 import { getPgpsClients } from './pgps-actions';
 import { getAllUnits } from './unit-actions';
+import { getInstallationOrders } from './installation-order-actions';
 
 
 // Helper function to convert Firestore Timestamps to a document
@@ -280,8 +281,11 @@ export async function deleteClient(id: string, user: User): Promise<{ success: b
 }
 
 export async function getDashboardData(user: User) {
-    const allUnits = await getAllUnits(user);
-    const clients = await getClients(user.id, user.role, user.creatorId);
+    const [allUnits, clients, installationOrders] = await Promise.all([
+        getAllUnits(user),
+        getClients(user.id, user.role, user.creatorId),
+        getInstallationOrders(user),
+    ]);
 
     const overdueUnits = allUnits.filter(unit => unit.fechaSiguientePago && new Date(unit.fechaSiguientePago) < new Date()).length;
     
@@ -293,11 +297,18 @@ export async function getDashboardData(user: User) {
         return sum + (unit.costoMensual ?? 0);
     }, 0);
     
+    // Top 3 clients by unit count
+    const topClients = [...clients]
+        .sort((a, b) => (b.unitCount ?? 0) - (a.unitCount ?? 0))
+        .slice(0, 3)
+        .map(c => ({ name: c.nomSujeto, units: c.unitCount ?? 0 }));
+
     return {
         totalClients: clients.length,
         totalUnits: allUnits.length,
         overdueUnits,
         totalMonthlyRevenue,
+        topClients,
         unitsByPlan: allUnits.reduce((acc, unit) => {
             const plan = unit.tipoPlan || 'desconocido';
             acc[plan] = (acc[plan] || 0) + 1;
@@ -308,9 +319,25 @@ export async function getDashboardData(user: User) {
             acc[status] = (acc[status] || 0) + 1;
             return acc;
         }, {} as Record<string, number>),
+        installationsByCategory: installationOrders.reduce((acc, order) => {
+            const category = order.categoriaInstalacion || 'desconocido';
+            acc[category] = (acc[category] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>),
+        installationsByVehicle: installationOrders.reduce((acc, order) => {
+            const vehicle = order.tipoVehiculo || 'desconocido';
+            acc[vehicle] = (acc[vehicle] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>),
+        installationsBySegment: installationOrders.reduce((acc, order) => {
+            const segment = order.segmento || 'desconocido';
+            acc[segment] = (acc[segment] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>),
     };
 }
     
+
 
 
 
