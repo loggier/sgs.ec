@@ -57,7 +57,7 @@ export async function loginUser(credentials: {username: string; password: string
              return { success: false, message: 'La cuenta de usuario está mal configurada. Contacte al administrador.' };
         }
 
-        const passwordMatch = await comparePassword(password, userData.password);
+        const passwordMatch = await bcrypt.compare(password, userData.password);
 
         if (!passwordMatch) {
             return { success: false, message: 'Usuario o contraseña incorrectos.' };
@@ -95,23 +95,13 @@ export async function getUsers(currentUser: User | null): Promise<User[]> {
     if (currentUser.role === 'master') {
       usersToReturn = usersWithoutPassword;
     } else if (currentUser.role === 'manager') {
+      // A manager sees the analysts and technicians they have created
       usersToReturn = usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
     } else {
         return [];
     }
     
-    // To correctly calculate unit counts, fetch all clients and sum their unit counts per manager.
-    const allClientsSnapshot = await getDocs(collection(db, 'clients'));
-    const allClients = allClientsSnapshot.docs.map(doc => doc.data() as Client);
-    
-    const clientCountsByOwner: Record<string, number> = {};
-    for (const client of allClients) {
-        if (client.ownerId) {
-            clientCountsByOwner[client.ownerId] = (clientCountsByOwner[client.ownerId] || 0) + 1;
-        }
-    }
-    
-    // We need unit counts, not client counts. Let's get all clients with their unit counts.
+    // To correctly calculate unit counts, fetch all clients with their unit counts.
     const clientsWithData = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
     
     const unitCountsByManager: Record<string, number> = {};
@@ -155,11 +145,11 @@ export async function saveUser(
     return { success: false, message: `Datos no válidos: ${errorMessages}` };
   }
 
-  const { username, password, role, nombre, correo, telefono, empresa, nota } = validation.data;
+  const { username, password, role, ...userData } = validation.data;
 
   // Permission checks for role assignment
-  if (currentUser.role === 'manager' && role !== 'analista') {
-      return { success: false, message: 'Los managers solo pueden crear usuarios de tipo analista.' };
+  if (currentUser.role === 'manager' && !['analista', 'tecnico'].includes(role)) {
+      return { success: false, message: 'Los managers solo pueden crear usuarios de tipo analista o técnico.' };
   }
   
   try {
@@ -172,7 +162,7 @@ export async function saveUser(
     }
 
     // Check for unique email
-    const emailQuery = query(usersCollection, where("correo", "==", correo), limit(1));
+    const emailQuery = query(usersCollection, where("correo", "==", userData.correo), limit(1));
     const emailSnapshot = await getDocs(emailQuery);
     if (!emailSnapshot.empty && emailSnapshot.docs[0].id !== id) {
       return { success: false, message: 'El correo electrónico ya está en uso.' };
@@ -181,7 +171,7 @@ export async function saveUser(
     if (isEditing) {
       // Update existing user
       const userDocRef = doc(db, 'users', id);
-      const userDataToUpdate: Partial<User> = { username, role, nombre, correo, telefono, empresa, nota };
+      const userDataToUpdate: Partial<User> = { username, role, ...userData };
 
       if (password) {
         userDataToUpdate.password = await hashPassword(password);
@@ -201,11 +191,7 @@ export async function saveUser(
           username, 
           password: hashedPassword, 
           role, 
-          nombre, 
-          correo, 
-          telefono, 
-          empresa, 
-          nota,
+          ...userData
       };
 
       if (currentUser.role === 'manager') {

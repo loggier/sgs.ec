@@ -1,7 +1,7 @@
 
 import { z } from 'zod';
 
-export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario']);
+export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario', 'tecnico']);
 export type UserRole = z.infer<typeof UserRole>;
 
 const usernameValidation = z
@@ -17,9 +17,10 @@ export const UserSchema = z.object({
   nombre: z.string().optional(),
   correo: z.string().email('Debe ser un correo electrónico válido.'),
   telefono: z.string().optional(),
+  ciudad: z.string().optional(),
   empresa: z.string().optional(),
   nota: z.string().optional(),
-  creatorId: z.string().optional(), // ID of the manager who created this user (if role is 'analista')
+  creatorId: z.string().optional(), // ID of the manager who created this user (if role is 'analista' or 'tecnico')
   notificationUrl: z.string().url().optional(),
   unitCount: z.number().optional(), // Added field for unit count
 });
@@ -38,6 +39,7 @@ export const UserFormSchema = (isEditing: boolean) => z.object({
   nombre: z.string().optional(),
   correo: z.string().email('El correo electrónico es obligatorio y debe ser válido.'),
   telefono: z.string().optional(),
+  ciudad: z.string().optional(),
   empresa: z.string().optional(),
   nota: z.string().optional(),
 });

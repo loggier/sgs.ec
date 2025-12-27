@@ -79,6 +79,8 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
         return 'default';
       case 'analista':
         return 'outline';
+      case 'tecnico':
+        return 'secondary';
       case 'usuario':
         return 'secondary';
       default:
@@ -90,6 +92,7 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
     'master': 'Master',
     'manager': 'Manager',
     'analista': 'Analista',
+    'tecnico': 'Técnico',
     'usuario': 'Usuario'
   };
 
