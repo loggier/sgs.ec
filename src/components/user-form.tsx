@@ -4,7 +4,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, Control } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
@@ -38,8 +38,7 @@ type UserFormProps = {
   onCancel: () => void;
 };
 
-function UserFormFields({ isEditing }: { isEditing: boolean }) {
-  const { control } = useForm<UserFormInput>();
+function UserFormFields({ isEditing, control }: { isEditing: boolean, control: Control<UserFormInput> }) {
   const { user: currentUser } = useAuth();
 
   const availableRoles: { value: UserRole, label: string }[] = React.useMemo(() => {
@@ -168,7 +167,7 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
               <FormItem>
                 <FormLabel>Contraseña</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder={isEditing ? 'Dejar en blanco para no cambiar' : '******'} {...field} />
+                  <Input type="password" placeholder={isEditing ? 'Dejar en blanco para no cambiar' : '******'} {...field} value={field.value ?? ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -233,7 +232,7 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
         nota: user.nota || '',
         ciudad: user.ciudad || '',
         role: user.role,
-        password: ''
+        password: '',
       });
     } else {
       form.reset({
@@ -284,7 +283,7 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UserFormFields isEditing={isEditing} />
+          <UserFormFields isEditing={isEditing} control={form.control} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
