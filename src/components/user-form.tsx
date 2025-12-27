@@ -72,7 +72,7 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
           <FormItem>
             <FormLabel>Nombre</FormLabel>
             <FormControl>
-              <Input placeholder="ej. Juan Pérez" {...field} />
+              <Input placeholder="ej. Juan Pérez" {...field} value={field.value ?? ''} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -114,7 +114,7 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
             <FormItem>
               <FormLabel>Teléfono</FormLabel>
               <FormControl>
-                <Input placeholder="ej. 0987654321" {...field} />
+                <Input placeholder="ej. 0987654321" {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -127,7 +127,7 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
             <FormItem>
               <FormLabel>Empresa</FormLabel>
               <FormControl>
-                <Input placeholder="ej. Mi Empresa" {...field} />
+                <Input placeholder="ej. Mi Empresa" {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -142,7 +142,7 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
           <FormItem>
             <FormLabel>Nota Adicional</FormLabel>
             <FormControl>
-              <Textarea placeholder="Escriba aquí cualquier nota adicional..." {...field} />
+              <Textarea placeholder="Escriba aquí cualquier nota adicional..." {...field} value={field.value ?? ''}/>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -194,7 +194,7 @@ function UserFormFields({ isEditing }: { isEditing: boolean }) {
             <FormItem>
               <FormLabel>Ciudad (Opcional)</FormLabel>
               <FormControl>
-                <Input placeholder="ej. Quito" {...field} />
+                <Input placeholder="ej. Quito" {...field} value={field.value ?? ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -215,12 +215,14 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
     resolver: zodResolver(UserFormSchema(isEditing)),
     defaultValues: user
       ? { 
-          ...user,
+          username: user.username || '',
+          correo: user.correo || '',
           nombre: user.nombre || '',
           telefono: user.telefono || '',
           empresa: user.empresa || '',
           nota: user.nota || '',
           ciudad: user.ciudad || '',
+          role: user.role,
           password: ''
         }
       : {

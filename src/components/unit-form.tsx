@@ -816,6 +816,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           ultimoPago: unit.ultimoPago ? new Date(unit.ultimoPago) : null,
           fechaSiguientePago: unit.fechaSiguientePago ? new Date(unit.fechaSiguientePago) : new Date(),
           diasCorte: unit.diasCorte ?? 0,
+          observacion: unit.observacion ?? '',
           urlContrato: unit.urlContrato ?? '',
         }
       : {
