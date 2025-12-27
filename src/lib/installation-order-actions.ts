@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -10,16 +9,16 @@ import {
   getDoc,
   addDoc,
   updateDoc,
-  deleteDoc,
   query,
   where,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { WorkOrderSchema, type WorkOrder, type WorkOrderFormInput } from './work-order-schema';
+import { InstallationOrderSchema, type InstallationOrder, type InstallationOrderFormInput } from './installation-order-schema';
 import type { User } from './user-schema';
+import { sendNotificationMessage } from './notification-actions';
 
-const WORK_ORDERS_COLLECTION = 'work_orders';
+const INSTALLATION_ORDERS_COLLECTION = 'installation_orders';
 
 // Helper to convert Timestamps
 const convertTimestamps = (data: any): any => {
@@ -41,13 +40,13 @@ const convertTimestamps = (data: any): any => {
 };
 
 
-export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
+export async function getInstallationOrders(currentUser: User): Promise<InstallationOrder[]> {
   try {
     if (!currentUser) {
       return [];
     }
 
-    const ordersCollectionRef = collection(db, WORK_ORDERS_COLLECTION);
+    const ordersCollectionRef = collection(db, INSTALLATION_ORDERS_COLLECTION);
     let ordersQuery;
 
     if (currentUser.role === 'master') {
@@ -66,49 +65,35 @@ export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
     const techniciansMap = new Map(techniciansSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
 
     const orders = orderSnapshot.docs.map(doc => {
-      const data = convertTimestamps(doc.data()) as Omit<WorkOrder, 'id'>;
+      const data = convertTimestamps(doc.data()) as Omit<InstallationOrder, 'id'>;
       const tecnico = data.tecnicoId ? techniciansMap.get(data.tecnicoId) : null;
       return {
         id: doc.id,
         ...data,
         tecnicoNombre: tecnico?.nombre || tecnico?.username,
-      } as WorkOrder;
+      } as InstallationOrder;
     });
 
     return orders.sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime());
 
   } catch (error) {
-    console.error("Error getting work orders:", error);
+    console.error("Error getting installation orders:", error);
     return [];
   }
 }
 
-export async function getWorkOrderById(orderId: string): Promise<WorkOrder | null> {
-    try {
-        const orderDocRef = doc(db, WORK_ORDERS_COLLECTION, orderId);
-        const docSnap = await getDoc(orderDocRef);
-        if (!docSnap.exists()) {
-            return null;
-        }
-        return { id: docSnap.id, ...convertTimestamps(docSnap.data()) } as WorkOrder;
-    } catch (error) {
-        console.error("Error getting work order by ID:", error);
-        return null;
-    }
-}
 
-
-export async function saveWorkOrder(
-  data: WorkOrderFormInput,
+export async function saveInstallationOrder(
+  data: InstallationOrderFormInput,
   currentUser: User,
   orderId?: string
-): Promise<{ success: boolean; message: string; order?: WorkOrder }> {
+): Promise<{ success: boolean; message: string; order?: InstallationOrder }> {
 
     if (!currentUser || !['master', 'manager', 'tecnico'].includes(currentUser.role)) {
         return { success: false, message: 'No tiene permiso para realizar esta acción.' };
     }
   
-    const validation = WorkOrderSchema.omit({id: true}).safeParse(data);
+    const validation = InstallationOrderSchema.omit({id: true}).safeParse(data);
     if (!validation.success) {
         console.error(validation.error.flatten().fieldErrors);
         return { success: false, message: 'Datos proporcionados no válidos.' };
@@ -118,10 +103,11 @@ export async function saveWorkOrder(
     let dataToSave: any;
     
     if (isEditingByTechnician) {
-        // Technicians can only update the status and observation
+        // Technicians can only update the status, observation and payment method
         dataToSave = {
             estado: validation.data.estado,
             observacion: validation.data.observacion,
+            metodoPago: validation.data.metodoPago,
         };
     } else {
         // Managers/Masters have full control
@@ -136,18 +122,21 @@ export async function saveWorkOrder(
     }
     
   try {
-    const ordersCollection = collection(db, WORK_ORDERS_COLLECTION);
+    const ordersCollection = collection(db, INSTALLATION_ORDERS_COLLECTION);
     let savedOrderId = orderId;
     let message = '';
+    let notificationSent = false;
+    let oldTecnicoId: string | undefined = undefined;
 
     if (orderId) {
-      const orderDocRef = doc(db, WORK_ORDERS_COLLECTION, orderId);
+      const orderDocRef = doc(db, INSTALLATION_ORDERS_COLLECTION, orderId);
       const docSnap = await getDoc(orderDocRef);
       if(!docSnap.exists()) {
           return { success: false, message: 'Orden no encontrada.' };
       }
       
       const orderData = docSnap.data();
+      oldTecnicoId = orderData.tecnicoId;
       const canEdit = currentUser.role === 'master' || 
                       (currentUser.role === 'manager' && orderData.ownerId === currentUser.id) ||
                       (isEditingByTechnician && orderData.tecnicoId === currentUser.id);
@@ -157,26 +146,45 @@ export async function saveWorkOrder(
       }
 
       await updateDoc(orderDocRef, dataToSave);
-      message = 'Orden de trabajo actualizada con éxito.';
+      message = 'Orden de instalación actualizada con éxito.';
     } else {
       const newOrderRef = await addDoc(ordersCollection, dataToSave);
       savedOrderId = newOrderRef.id;
-      message = 'Orden de trabajo creada con éxito.';
+      message = 'Orden de instalación creada con éxito.';
     }
 
-    revalidatePath('/work-orders');
+    // --- Send notification to technician ---
+    if (dataToSave.tecnicoId && dataToSave.tecnicoId !== oldTecnicoId) {
+        const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
+        if (tecnicoDoc.exists()) {
+            const tecnico = tecnicoDoc.data() as User;
+            if (tecnico.telefono && tecnico.notificationUrl) {
+                const notifMessage = `Nueva orden de instalación asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
+                
+                await sendNotificationMessage(
+                    tecnico.telefono, 
+                    notifMessage, 
+                    { notificationUrl: tecnico.notificationUrl },
+                    { ownerId: currentUser.id, clientId: 'N/A', clientName: data.nombreCliente }
+                );
+                notificationSent = true;
+            }
+        }
+    }
+
+    revalidatePath('/installations');
     revalidatePath('/');
 
-    const finalDoc = await getDoc(doc(db, WORK_ORDERS_COLLECTION, savedOrderId!));
+    const finalDoc = await getDoc(doc(db, INSTALLATION_ORDERS_COLLECTION, savedOrderId!));
     const finalData = convertTimestamps(finalDoc.data());
 
     return {
       success: true,
-      message,
-      order: { id: savedOrderId!, ...finalData } as WorkOrder,
+      message: message + (notificationSent ? ' Notificación enviada al técnico.' : ''),
+      order: { id: savedOrderId!, ...finalData } as InstallationOrder,
     };
   } catch (error) {
-    console.error("Error saving work order:", error);
+    console.error("Error saving installation order:", error);
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
     return { success: false, message: `Error al guardar la orden: ${errorMessage}` };
   }

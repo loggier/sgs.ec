@@ -6,7 +6,7 @@ import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import type { WorkOrder } from '@/lib/work-order-schema';
+import type { InstallationOrder } from '@/lib/installation-order-schema';
 import { useSearch } from '@/context/search-context';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
@@ -27,21 +27,21 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import WorkOrderForm from './work-order-form';
+import InstallationOrderForm from './installation-order-form';
 // import DeleteWorkOrderDialog from './delete-work-order-dialog';
 
-type WorkOrderListProps = {
-  initialOrders: WorkOrder[];
+type InstallationOrderListProps = {
+  initialOrders: InstallationOrder[];
   onDataChange: () => void;
 };
 
-export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrderListProps) {
+export default function InstallationOrderList({ initialOrders, onDataChange }: InstallationOrderListProps) {
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
   const [orders, setOrders] = React.useState(initialOrders);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   // const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [selectedOrder, setSelectedOrder] = React.useState<WorkOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = React.useState<InstallationOrder | null>(null);
 
   React.useEffect(() => {
     setOrders(initialOrders);
@@ -52,12 +52,12 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     setIsSheetOpen(true);
   };
   
-  const handleEditOrder = (order: WorkOrder) => {
+  const handleEditOrder = (order: InstallationOrder) => {
     setSelectedOrder(order);
     setIsSheetOpen(true);
   };
 
-  const handleDeleteOrder = (order: WorkOrder) => {
+  const handleDeleteOrder = (order: InstallationOrder) => {
     setSelectedOrder(order);
     // setIsDeleteDialogOpen(true);
     alert('Delete functionality to be implemented');
@@ -75,15 +75,10 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     setSelectedOrder(null);
   };
 
-  const priorityVariants: Record<WorkOrder['prioridad'], 'destructive' | 'default' | 'secondary'> = {
-    alta: 'destructive',
-    media: 'default',
-    baja: 'secondary',
-  };
-  const statusVariants: Record<WorkOrder['estado'], 'default' | 'secondary' | 'outline'> = {
+  const statusVariants: Record<InstallationOrder['estado'], 'default' | 'secondary' | 'outline'> = {
     pendiente: 'secondary',
-    'en-progreso': 'default',
-    completada: 'outline',
+    'en-curso': 'default',
+    terminado: 'outline',
   };
   
   const formatDate = (date: Date | string) => {
@@ -112,13 +107,13 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
         <CardHeader>
           <div className="flex items-center justify-between gap-4">
             <div>
-                <CardTitle>Listado de Órdenes de Soporte</CardTitle>
-                <CardDescription>Cree y gestione las tareas asignadas.</CardDescription>
+                <CardTitle>Listado de Instalaciones</CardTitle>
+                <CardDescription>Cree y gestione las tareas de instalación.</CardDescription>
             </div>
             {currentUser?.role !== 'tecnico' && (
                 <Button onClick={handleAddOrder} size="sm">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Nueva Orden
+                  Nueva Orden de Instalación
                 </Button>
             )}
           </div>
@@ -132,7 +127,7 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                   <TableHead>Vehículo</TableHead>
                   <TableHead>Técnico</TableHead>
                   <TableHead>Fecha Programada</TableHead>
-                  <TableHead>Prioridad</TableHead>
+                  <TableHead>Plan</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>
                     <span className="sr-only">Acciones</span>
@@ -154,7 +149,7 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                        <TableCell>{order.tecnicoNombre || 'No asignado'}</TableCell>
                       <TableCell>{formatDate(order.fechaProgramada)}</TableCell>
                       <TableCell>
-                        <Badge variant={priorityVariants[order.prioridad]} className="capitalize">{order.prioridad}</Badge>
+                        <Badge variant="outline" className="capitalize">{order.tipoPlan}</Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusVariants[order.estado]} className="capitalize">{order.estado.replace('-', ' ')}</Badge>
@@ -184,7 +179,7 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center h-24">
-                      No se encontraron órdenes de trabajo.
+                      No se encontraron órdenes de instalación.
                     </TableCell>
                   </TableRow>
                 )}
@@ -197,9 +192,9 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-2xl w-full">
           <SheetHeader>
-            <SheetTitle>{selectedOrder ? 'Detalles de la Orden' : 'Nueva Orden de Soporte'}</SheetTitle>
+            <SheetTitle>{selectedOrder ? 'Detalles de la Orden' : 'Nueva Orden de Instalación'}</SheetTitle>
           </SheetHeader>
-          <WorkOrderForm
+          <InstallationOrderForm
             order={selectedOrder}
             onSave={handleFormSave}
             onCancel={() => setIsSheetOpen(false)}

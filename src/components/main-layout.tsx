@@ -4,7 +4,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History, Menu, Wrench } from 'lucide-react';
+import { Banknote, Briefcase, UsersRound, Car, LogOut, Edit, CreditCard, Settings, LayoutDashboard, History, Menu, Wrench, HardHat, BarChart } from 'lucide-react';
 import Image from 'next/image';
 
 import { useAuth } from '@/context/auth-context';
@@ -107,7 +107,13 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
             <SidebarMenuItem>
                 <NavLink href="/work-orders">
                     <Wrench className="h-4 w-4" />
-                    {!isCollapsed && <span>Órdenes de Trabajo</span>}
+                    {!isCollapsed && <span>Órd. de Soporte</span>}
+                </NavLink>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+                <NavLink href="/installations">
+                    <HardHat className="h-4 w-4" />
+                    {!isCollapsed && <span>Instalaciones</span>}
                 </NavLink>
             </SidebarMenuItem>
            
@@ -123,6 +129,12 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
                         <NavLink href="/settings">
                             <Settings className="h-4 w-4" />
                             {!isCollapsed && <span>Configuración</span>}
+                        </NavLink>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <NavLink href="/reports">
+                            <BarChart className="h-4 w-4" />
+                            {!isCollapsed && <span>Reportes</span>}
                         </NavLink>
                     </SidebarMenuItem>
                 </>
