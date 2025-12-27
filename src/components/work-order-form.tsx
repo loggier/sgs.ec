@@ -51,11 +51,15 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(order ? clients.find(c => c.nomSujeto === order.nombreCliente)?.id : undefined);
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
-    defaultValues: {
+    defaultValues: order ? {
+        ...order,
+        tecnicoId: order.tecnicoId || '',
+        fechaProgramada: new Date(order.fechaProgramada),
+    } : {
         placaVehiculo: '',
         nombreCliente: '',
         ciudad: '',
@@ -83,24 +87,19 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   // Effect to populate the form when editing an existing order
   React.useEffect(() => {
     if (order) {
-        // Reset form with all data from the order
         form.reset({
              ...order,
              tecnicoId: order.tecnicoId || '',
              fechaProgramada: new Date(order.fechaProgramada),
         });
-    }
-  }, [order, form]);
-  
-  // Effect to correctly set the selected client ID for the Combobox when editing
-  React.useEffect(() => {
-    if (order && clients.length > 0) {
-        const client = clients.find(c => c.nomSujeto === order.nombreCliente);
-        if (client) {
-            setSelectedClientId(client.id);
+        if(clients.length > 0){
+            const client = clients.find(c => c.nomSujeto === order.nombreCliente);
+            if (client) {
+                setSelectedClientId(client.id);
+            }
         }
     }
-  }, [order, clients]);
+  }, [order, form, clients]);
 
 
   const handleClientChange = (clientId: string) => {
@@ -302,7 +301,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
                                 )}
                                 >
                                 {field.value ? (
-                                    format(field.value, 'PPP', { locale: es })
+                                    format(new Date(field.value), 'PPP', { locale: es })
                                 ) : (
                                     <span>Elige una fecha</span>
                                 )}
@@ -313,7 +312,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
                             <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                                 mode="single"
-                                selected={field.value}
+                                selected={field.value ? new Date(field.value) : undefined}
                                 onSelect={field.onChange}
                                 initialFocus
                                 locale={es}

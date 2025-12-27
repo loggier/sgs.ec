@@ -54,6 +54,7 @@ export default function WorkOrderFormPage({ orderId }: WorkOrderFormPageProps) {
         return <p className="text-destructive">{error}</p>;
     }
 
+    // Pass the loaded order (or null for new) to the form
     return (
         <Card>
             <div className="p-6">
@@ -62,4 +63,3 @@ export default function WorkOrderFormPage({ orderId }: WorkOrderFormPageProps) {
         </Card>
     );
 }
-
