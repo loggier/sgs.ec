@@ -214,7 +214,15 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
   const form = useForm<UserFormInput>({
     resolver: zodResolver(UserFormSchema(isEditing)),
     defaultValues: user
-      ? { ...user, password: '', ciudad: user.ciudad || '' }
+      ? { 
+          ...user,
+          nombre: user.nombre || '',
+          telefono: user.telefono || '',
+          empresa: user.empresa || '',
+          nota: user.nota || '',
+          ciudad: user.ciudad || '',
+          password: ''
+        }
       : {
           username: '',
           password: '',
