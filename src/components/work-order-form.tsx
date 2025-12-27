@@ -9,7 +9,7 @@ import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { WorkOrderSchema, type WorkOrderFormInput, type WorkOrder, WorkOrderPriority } from '@/lib/work-order-schema';
+import { WorkOrderSchema, type WorkOrderFormInput, type WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/lib/work-order-schema';
 import { saveWorkOrder } from '@/lib/work-order-actions';
 import { getClients } from '@/lib/actions';
 import { getUsers } from '@/lib/user-actions';
@@ -35,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from './ui/textarea';
 import { Combobox } from './ui/combobox';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
@@ -52,29 +51,24 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
-  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
+  const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(order?.nombreCliente);
 
   const form = useForm<WorkOrderFormInput>({
     resolver: zodResolver(WorkOrderSchema.omit({id: true})),
-    defaultValues: order
-      ? {
-          ...order,
-          fechaProgramada: new Date(order.fechaProgramada),
-        }
-      : {
-          placaVehiculo: '',
-          nombreCliente: '',
-          ciudad: '',
-          ubicacionGoogleMaps: '',
-          numeroCliente: '',
-          tecnicoId: '',
-          prioridad: 'media',
-          descripcion: '',
-          fechaProgramada: new Date(),
-          estado: 'pendiente',
-        },
+    defaultValues: {
+        placaVehiculo: '',
+        nombreCliente: '',
+        ciudad: '',
+        ubicacionGoogleMaps: '',
+        numeroCliente: '',
+        tecnicoId: '',
+        prioridad: 'media',
+        descripcion: '',
+        fechaProgramada: new Date(),
+        estado: 'pendiente',
+    },
   });
-  
+
   React.useEffect(() => {
     if (order) {
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
@@ -83,7 +77,8 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
         }
         form.reset({
              ...order,
-            fechaProgramada: new Date(order.fechaProgramada),
+             tecnicoId: order.tecnicoId || '',
+             fechaProgramada: new Date(order.fechaProgramada),
         })
     }
   }, [order, clients, form]);
@@ -148,7 +143,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
                     placeholder="Seleccione un cliente..."
                     searchPlaceholder="Buscar cliente..."
                     emptyPlaceholder="No se encontraron clientes."
-                    disabled={clients.length === 0}
+                    disabled={clients.length === 0 || !!order}
                 />
             </FormItem>
 
@@ -261,7 +256,7 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
                 render={({ field }) => (
                     <FormItem>
                     <FormLabel>Prioridad</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                         <SelectTrigger>
                             <SelectValue placeholder="Seleccione una prioridad" />
@@ -279,45 +274,72 @@ export default function WorkOrderForm({ order }: WorkOrderFormProps) {
                 />
             </div>
 
-             <FormField
-              control={form.control}
-              name="fechaProgramada"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Fecha Programada</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={'outline'}
-                          className={cn(
-                            'w-full pl-3 text-left font-normal',
-                            !field.value && 'text-muted-foreground'
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, 'PPP', { locale: es })
-                          ) : (
-                            <span>Elige una fecha</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        initialFocus
-                        locale={es}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <FormField
+                    control={form.control}
+                    name="fechaProgramada"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Fecha Programada</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                variant={'outline'}
+                                className={cn(
+                                    'w-full pl-3 text-left font-normal',
+                                    !field.value && 'text-muted-foreground'
+                                )}
+                                >
+                                {field.value ? (
+                                    format(field.value, 'PPP', { locale: es })
+                                ) : (
+                                    <span>Elige una fecha</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                initialFocus
+                                locale={es}
+                            />
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+
+                {order && (
+                    <FormField
+                        control={form.control}
+                        name="estado"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Estado</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione un estado" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {WorkOrderStatus.options.map(s => (
+                                    <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+            </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
           <Button type="button" variant="outline" onClick={() => router.push('/work-orders')} disabled={isSubmitting}>

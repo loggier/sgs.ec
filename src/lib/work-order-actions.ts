@@ -70,7 +70,7 @@ export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
       } as WorkOrder;
     });
 
-    return orders;
+    return orders.sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime());
 
   } catch (error) {
     console.error("Error getting work orders:", error);
