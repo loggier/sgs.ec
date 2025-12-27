@@ -282,12 +282,18 @@ export async function deleteClient(id: string, user: User): Promise<{ success: b
 }
 
 export async function getDashboardData(user: User) {
-    const [allUnits, clients, installationOrders, workOrders] = await Promise.all([
+    const [allUnits, clients, installationOrders, workOrders, allUsersSnapshot] = await Promise.all([
         getAllUnits(user),
         getClients(user.id, user.role, user.creatorId),
         getInstallationOrders(user),
         getWorkOrders(user),
+        getDocs(collection(db, 'users')),
     ]);
+
+    const techniciansMap = new Map(allUsersSnapshot.docs
+        .filter(doc => doc.data().role === 'tecnico')
+        .map(doc => [doc.id, doc.data() as User])
+    );
 
     const overdueUnits = allUnits.filter(unit => unit.fechaSiguientePago && new Date(unit.fechaSiguientePago) < new Date()).length;
     
@@ -299,11 +305,40 @@ export async function getDashboardData(user: User) {
         return sum + (unit.costoMensual ?? 0);
     }, 0);
     
-    // Top 3 clients by unit count
     const topClients = [...clients]
         .sort((a, b) => (b.unitCount ?? 0) - (a.unitCount ?? 0))
         .slice(0, 3)
         .map(c => ({ name: c.nomSujeto, units: c.unitCount ?? 0 }));
+
+    const completedWorkOrders = workOrders.filter(o => o.estado === 'completada');
+    const completedInstallations = installationOrders.filter(o => o.estado === 'terminado');
+
+    const techWorkCounts = [...completedWorkOrders, ...completedInstallations].reduce((acc, order) => {
+        if (order.tecnicoId) {
+            acc[order.tecnicoId] = (acc[order.tecnicoId] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<string, number>);
+
+    const topTechnicians = Object.entries(techWorkCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([techId, count]) => ({
+            name: techniciansMap.get(techId)?.nombre || techniciansMap.get(techId)?.username || 'Desconocido',
+            jobs: count,
+        }));
+        
+    const recentActivity = [...completedWorkOrders, ...completedInstallations]
+        .sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime())
+        .slice(0, 5)
+        .map(order => ({
+            id: order.id,
+            type: 'descripcion' in order ? 'Soporte' : 'Instalación', // Check if it's a work order or installation
+            clientName: order.nombreCliente,
+            plate: order.placaVehiculo,
+            date: new Date(order.fechaProgramada).toISOString(),
+        }));
+
 
     return {
         totalClients: clients.length,
@@ -311,6 +346,8 @@ export async function getDashboardData(user: User) {
         overdueUnits,
         totalMonthlyRevenue,
         topClients,
+        topTechnicians,
+        recentActivity,
         unitsByPlan: allUnits.reduce((acc, unit) => {
             const plan = unit.tipoPlan || 'desconocido';
             acc[plan] = (acc[plan] || 0) + 1;
@@ -344,6 +381,7 @@ export async function getDashboardData(user: User) {
     };
 }
     
+
 
 
 

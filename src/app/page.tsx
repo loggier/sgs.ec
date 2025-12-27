@@ -10,9 +10,11 @@ import type { Unit } from '@/lib/unit-schema';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppContent from '@/components/app-content';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Users, Car, AlertTriangle, CircleDollarSign, Building } from 'lucide-react';
+import { Users, Car, AlertTriangle, CircleDollarSign, Building, History, UserCheck, Wrench, HardHat } from 'lucide-react';
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Pie, PieChart, Cell } from 'recharts';
 import TechnicianDashboard from '@/components/technician-dashboard';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
@@ -45,6 +47,8 @@ type DashboardDataType = {
   installationsByVehicle: Record<string, number>;
   installationsBySegment: Record<string, number>;
   workOrdersByPriority: Record<string, number>;
+  topTechnicians: { name: string, jobs: number }[];
+  recentActivity: { id: string; type: string; clientName: string; plate: string; date: string; }[];
 }
 
 function DashboardPageContent() {
@@ -235,6 +239,52 @@ function DashboardPageContent() {
                             </Pie>
                         </PieChart>
                     </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        </div>
+        
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Top Técnicos por Trabajos Completados</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        {data.topTechnicians.map((tech, index) => (
+                            <div key={index} className="flex items-center">
+                                <UserCheck className="h-5 w-5 text-muted-foreground" />
+                                <div className="ml-4 space-y-1">
+                                <p className="text-sm font-medium leading-none">{tech.name}</p>
+                                <p className="text-sm text-muted-foreground">{tech.jobs} trabajos completados</p>
+                                </div>
+                                <div className="ml-auto font-medium">#{index + 1}</div>
+                            </div>
+                        ))}
+                         {data.topTechnicians.length === 0 && <p className="text-sm text-muted-foreground">No hay trabajos completados.</p>}
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Actividad Reciente (Completadas)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                   <div className="space-y-4">
+                        {data.recentActivity.map((activity) => (
+                            <div key={activity.id} className="flex items-center">
+                                {activity.type === 'Soporte' ? <Wrench className="h-5 w-5 text-muted-foreground" /> : <HardHat className="h-5 w-5 text-muted-foreground" />}
+                                <div className="ml-4 space-y-1">
+                                    <p className="text-sm font-medium leading-none">
+                                        {activity.type} para <span className="font-bold">{activity.clientName}</span> ({activity.plate})
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                       Completado el {format(new Date(activity.date), 'PPP', { locale: es })}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                        {data.recentActivity.length === 0 && <p className="text-sm text-muted-foreground">No hay actividad reciente.</p>}
+                    </div>
                 </CardContent>
             </Card>
         </div>
