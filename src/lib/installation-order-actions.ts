@@ -144,6 +144,15 @@ export async function saveInstallationOrder(
             } else {
               technicianUpdatableFields.lugarCorteMotor = null;
             }
+
+            technicianUpdatableFields.instalacionAccesorios = validation.data.instalacionAccesorios;
+            if (validation.data.instalacionAccesorios) {
+                technicianUpdatableFields.accesorioBotonPanico = validation.data.accesorioBotonPanico;
+                technicianUpdatableFields.accesorioAperturaSeguro = validation.data.accesorioAperturaSeguro;
+            } else {
+                technicianUpdatableFields.accesorioBotonPanico = false;
+                technicianUpdatableFields.accesorioAperturaSeguro = false;
+            }
         }
         dataToSave = technicianUpdatableFields;
     } else {

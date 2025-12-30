@@ -54,7 +54,8 @@ import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { Switch } from './ui/switch';
-import { Card, CardContent } from './ui/card';
+import { Card, CardContent, CardDescription } from './ui/card';
+import { Checkbox } from './ui/checkbox';
 
 
 type InstallationOrderFormProps = {
@@ -84,6 +85,9 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
       metodoPago: order.metodoPago || undefined,
       corteDeMotor: order.corteDeMotor || false,
       lugarCorteMotor: order.lugarCorteMotor || undefined,
+      instalacionAccesorios: order.instalacionAccesorios || false,
+      accesorioBotonPanico: order.accesorioBotonPanico || false,
+      accesorioAperturaSeguro: order.accesorioAperturaSeguro || false,
     } : {
         placaVehiculo: '',
         nombreCliente: '',
@@ -101,12 +105,16 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         metodoPago: undefined,
         corteDeMotor: false,
         lugarCorteMotor: undefined,
+        instalacionAccesorios: false,
+        accesorioBotonPanico: false,
+        accesorioAperturaSeguro: false,
     },
   });
   
   const estado = form.watch('estado');
   const observacion = form.watch('observacion');
   const corteDeMotor = form.watch('corteDeMotor');
+  const instalacionAccesorios = form.watch('instalacionAccesorios');
   
   React.useEffect(() => {
     if (user && !isTechnician) {
@@ -128,6 +136,9 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             metodoPago: order.metodoPago || undefined,
             corteDeMotor: order.corteDeMotor || false,
             lugarCorteMotor: order.lugarCorteMotor || undefined,
+            instalacionAccesorios: order.instalacionAccesorios || false,
+            accesorioBotonPanico: order.accesorioBotonPanico || false,
+            accesorioAperturaSeguro: order.accesorioAperturaSeguro || false,
         });
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
         if (client) {
@@ -151,6 +162,9 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             metodoPago: undefined,
             corteDeMotor: false,
             lugarCorteMotor: undefined,
+            instalacionAccesorios: false,
+            accesorioBotonPanico: false,
+            accesorioAperturaSeguro: false,
         });
         setSelectedClientId(undefined);
     }
@@ -452,34 +466,33 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormMessage />
                         </FormItem>
                     )}
-                />
                 )}
                 
                 {estado === 'terminado' && (
                   <Card className="p-4 border rounded-lg bg-secondary/50">
                     <CardContent className="p-0 space-y-4">
-                      <FormField
-                          control={form.control}
-                          name="metodoPago"
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel className="font-semibold">Confirmación de Pago</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                  <SelectTrigger>
-                                      <SelectValue placeholder="Seleccione el método de pago recibido..." />
-                                  </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                  {PaymentMethod.options.map(m => (
-                                      <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>
-                                  ))}
-                                  </SelectContent>
-                              </Select>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                      />
+                        <FormField
+                            control={form.control}
+                            name="metodoPago"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel className="font-semibold">Confirmación de Pago</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione el método de pago recibido..." />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {PaymentMethod.options.map(m => (
+                                        <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                        <FormField
                           control={form.control}
@@ -523,6 +536,71 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                               )}
                           />
                         )}
+                        
+                        <FormField
+                            control={form.control}
+                            name="instalacionAccesorios"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                                <div className="space-y-0.5">
+                                    <FormLabel>¿Se instalaron accesorios?</FormLabel>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        {instalacionAccesorios && (
+                            <Card className="p-4 bg-background">
+                                <CardDescription className="mb-4">Seleccione los accesorios instalados:</CardDescription>
+                                <div className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="accesorioBotonPanico"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                        <FormLabel>
+                                            Botón de Pánico
+                                        </FormLabel>
+                                        </div>
+                                    </FormItem>
+                                    )}
+                                />
+                                 <FormField
+                                    control={form.control}
+                                    name="accesorioAperturaSeguro"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                        <FormControl>
+                                        <Checkbox
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
+                                        <div className="space-y-1 leading-none">
+                                        <FormLabel>
+                                            Apertura de Seguro
+                                        </FormLabel>
+                                        </div>
+                                    </FormItem>
+                                    )}
+                                />
+                                </div>
+                            </Card>
+                        )}
+
 
                     </CardContent>
                   </Card>

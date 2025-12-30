@@ -62,6 +62,10 @@ export const InstallationOrderSchema = z.object({
   metodoPago: PaymentMethod.optional(),
   corteDeMotor: z.boolean().optional(),
   lugarCorteMotor: LugarCorteMotor.optional(),
+  
+  instalacionAccesorios: z.boolean().optional(),
+  accesorioBotonPanico: z.boolean().optional(),
+  accesorioAperturaSeguro: z.boolean().optional(),
 });
 
 
