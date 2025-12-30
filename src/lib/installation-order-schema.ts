@@ -59,6 +59,7 @@ export const InstallationOrderSchema = z.object({
   segmento: InstallationSegment,
   observacion: z.string().optional(),
   fechaProgramada: dateOrTimestamp,
+  horaProgramada: z.string().regex(/^\d{2}:\d{2}$/, 'Formato de hora inválido.').optional(),
   estado: InstallationStatus.default('pendiente'),
   
   // Fields for completion

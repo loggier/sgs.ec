@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -130,7 +131,10 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                          <div className="text-sm text-muted-foreground">{order.ciudad}</div>
                        </TableCell>
                        <TableCell>{order.tecnicoNombre || 'No asignado'}</TableCell>
-                      <TableCell>{formatDate(order.fechaProgramada)}</TableCell>
+                      <TableCell>
+                        <div>{formatDate(order.fechaProgramada)}</div>
+                        <div className="text-sm text-muted-foreground">{order.horaProgramada}</div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">{order.tipoPlan}</Badge>
                       </TableCell>

@@ -79,6 +79,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
     defaultValues: order ? {
       ...order,
       fechaProgramada: new Date(order.fechaProgramada),
+      horaProgramada: order.horaProgramada || '09:00',
       tecnicoId: order.tecnicoId || undefined,
       observacion: order.observacion || '',
       metodoPago: order.metodoPago || undefined,
@@ -100,6 +101,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         segmento: 'personal',
         observacion: '',
         fechaProgramada: new Date(),
+        horaProgramada: '09:00',
         estado: 'pendiente',
         metodoPago: undefined,
         corteDeMotor: false,
@@ -130,6 +132,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         form.reset({
             ...order,
             fechaProgramada: new Date(order.fechaProgramada),
+            horaProgramada: order.horaProgramada || '09:00',
             tecnicoId: order.tecnicoId || undefined,
             observacion: order.observacion || '',
             metodoPago: order.metodoPago || undefined,
@@ -157,6 +160,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             segmento: 'personal',
             observacion: '',
             fechaProgramada: new Date(),
+            horaProgramada: '09:00',
             estado: 'pendiente',
             metodoPago: undefined,
             corteDeMotor: false,
@@ -452,21 +456,19 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                     />
                 </div>
 
-                {isEditing && (
-                    <FormField
-                    control={form.control}
-                    name="observacion"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Observación del Técnico</FormLabel>
-                        <FormControl>
-                            <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <FormField
+                control={form.control}
+                name="observacion"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Observación del Técnico</FormLabel>
+                    <FormControl>
+                        <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
                 )}
+                />
                 
                 {estado === 'terminado' && (
                   <Card className="p-4 border rounded-lg bg-secondary/50">
@@ -626,39 +628,54 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                             </FormItem>
                         )}
                     />
-                    <FormField
-                        control={form.control}
-                        name="fechaProgramada"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                            <FormLabel>Fecha Programada</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant={'outline'}
-                                    className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}
-                                    disabled={isTechnician}
-                                    >
-                                    {field.value ? (format(new Date(field.value), 'PPP', { locale: es })) : (<span>Elige una fecha</span>)}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={field.onChange}
-                                    initialFocus
-                                    locale={es}
-                                />
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                    <div className="grid grid-cols-2 gap-2">
+                        <FormField
+                            control={form.control}
+                            name="fechaProgramada"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Fecha Programada</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={'outline'}
+                                        className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}
+                                        disabled={isTechnician}
+                                        >
+                                        {field.value ? (format(new Date(field.value), 'PPP', { locale: es })) : (<span>Elige una fecha</span>)}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value ? new Date(field.value) : undefined}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                        locale={es}
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="horaProgramada"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Hora</FormLabel>
+                                    <FormControl>
+                                        <Input type="time" {...field} value={field.value || ''} disabled={isTechnician} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
                  
                  { !isTechnician && (
@@ -714,5 +731,3 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
     </FormProvider>
   );
 }
-
-    

@@ -136,7 +136,10 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                          <div className="text-sm text-muted-foreground">{order.ciudad}</div>
                        </TableCell>
                        <TableCell>{order.tecnicoNombre || 'No asignado'}</TableCell>
-                      <TableCell>{formatDate(order.fechaProgramada)}</TableCell>
+                      <TableCell>
+                        <div>{formatDate(order.fechaProgramada)}</div>
+                        <div className="text-sm text-muted-foreground">{order.horaProgramada}</div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={priorityVariants[order.prioridad]} className="capitalize">{order.prioridad}</Badge>
                       </TableCell>

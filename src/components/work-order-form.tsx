@@ -8,7 +8,7 @@ import { Loader2, Calendar as CalendarIcon, ExternalLink, ArrowRight } from 'luc
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { WorkOrderSchema, type WorkOrderFormInput, type WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/lib/work-order-schema';
+import { WorkOrderFormSchema, type WorkOrderFormInput, type WorkOrder, WorkOrderPriority, WorkOrderStatus } from '@/lib/work-order-schema';
 import { saveWorkOrder } from '@/lib/work-order-actions';
 import { getClients } from '@/lib/actions';
 import { getUsers } from '@/lib/user-actions';
@@ -62,10 +62,11 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
   const isTechnician = user?.role === 'tecnico';
 
   const form = useForm<WorkOrderFormInput>({
-    resolver: zodResolver(WorkOrderSchema.omit({id: true})),
+    resolver: zodResolver(WorkOrderFormSchema.omit({id: true})),
     defaultValues: order ? {
       ...order,
       fechaProgramada: new Date(order.fechaProgramada),
+      horaProgramada: order.horaProgramada || '09:00',
       tecnicoId: order.tecnicoId || undefined,
       observacion: order.observacion || '',
     } : {
@@ -79,6 +80,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         descripcion: '',
         observacion: '',
         fechaProgramada: new Date(),
+        horaProgramada: '09:00',
         estado: 'pendiente',
     },
   });
@@ -101,6 +103,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         form.reset({
             ...order,
             fechaProgramada: new Date(order.fechaProgramada),
+            horaProgramada: order.horaProgramada || '09:00',
             tecnicoId: order.tecnicoId || undefined,
             observacion: order.observacion || '',
         });
@@ -120,6 +123,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
             descripcion: '',
             observacion: '',
             fechaProgramada: new Date(),
+            horaProgramada: '09:00',
             estado: 'pendiente',
         });
         setSelectedClientId(undefined);
@@ -228,7 +232,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
   return (
     <FormProvider {...form}>
-      <form onSubmit={proceedToSubmit} className="flex h-full flex-col">
+      <form onSubmit={form.handleSubmit(proceedToSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
             <div className="space-y-6 py-6">
                 <FormItem>
@@ -406,7 +410,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     />
                 </div>
                  
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
                         name="fechaProgramada"
@@ -447,30 +451,43 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                             </FormItem>
                         )}
                     />
-
-                    <FormField
+                     <FormField
                         control={form.control}
-                        name="estado"
+                        name="horaProgramada"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Estado</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                                <FormLabel>Hora Programada</FormLabel>
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione un estado" />
-                                </SelectTrigger>
+                                    <Input type="time" {...field} value={field.value || ''} disabled={isTechnician} />
                                 </FormControl>
-                                <SelectContent>
-                                {WorkOrderStatus.options.map(s => (
-                                    <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
+                                <FormMessage />
                             </FormItem>
                         )}
-                    />
+                     />
                 </div>
+
+                <FormField
+                    control={form.control}
+                    name="estado"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Estado</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Seleccione un estado" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                            {WorkOrderStatus.options.map(s => (
+                                <SelectItem key={s} value={s} className="capitalize">{s.replace('-', ' ')}</SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
             </div>
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
@@ -504,4 +521,3 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
     </FormProvider>
   );
 }
-    
