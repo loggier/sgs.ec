@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useParams } from 'next/navigation';
 import Header from '@/components/header';
 import AppContent from '@/components/app-content';
-import WorkOrderFormPage from '../work-order-form-page';
+import WorkOrderFormPage from '../../work-order-form-page';
 
 export default function EditWorkOrderPage() {
   const params = useParams();
