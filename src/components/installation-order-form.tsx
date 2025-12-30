@@ -10,8 +10,7 @@ import { es } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 
 import { 
-    InstallationOrderSchema, 
-    InstallationOrderFormSchema, // Import the correct form schema
+    InstallationOrderFormSchema,
     type InstallationOrderFormInput, 
     type InstallationOrder,
     InstallationPlan,
@@ -19,7 +18,8 @@ import {
     InstallationVehicle,
     InstallationSegment,
     InstallationStatus,
-    PaymentMethod
+    PaymentMethod,
+    LugarCorteMotor
 } from '@/lib/installation-order-schema';
 import { saveInstallationOrder } from '@/lib/installation-order-actions';
 import { getClients } from '@/lib/actions';
@@ -53,6 +53,8 @@ import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { Switch } from './ui/switch';
+import { Card, CardContent } from './ui/card';
 
 
 type InstallationOrderFormProps = {
@@ -80,6 +82,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
       tecnicoId: order.tecnicoId || undefined,
       observacion: order.observacion || '',
       metodoPago: order.metodoPago || undefined,
+      corteDeMotor: order.corteDeMotor || false,
+      lugarCorteMotor: order.lugarCorteMotor || undefined,
     } : {
         placaVehiculo: '',
         nombreCliente: '',
@@ -95,11 +99,14 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         fechaProgramada: new Date(),
         estado: 'pendiente',
         metodoPago: undefined,
+        corteDeMotor: false,
+        lugarCorteMotor: undefined,
     },
   });
   
   const estado = form.watch('estado');
   const observacion = form.watch('observacion');
+  const corteDeMotor = form.watch('corteDeMotor');
   
   React.useEffect(() => {
     if (user && !isTechnician) {
@@ -119,6 +126,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             tecnicoId: order.tecnicoId || undefined,
             observacion: order.observacion || '',
             metodoPago: order.metodoPago || undefined,
+            corteDeMotor: order.corteDeMotor || false,
+            lugarCorteMotor: order.lugarCorteMotor || undefined,
         });
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
         if (client) {
@@ -140,6 +149,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             fechaProgramada: new Date(),
             estado: 'pendiente',
             metodoPago: undefined,
+            corteDeMotor: false,
+            lugarCorteMotor: undefined,
         });
         setSelectedClientId(undefined);
     }
@@ -445,28 +456,76 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                 )}
                 
                 {estado === 'terminado' && (
-                    <FormField
-                        control={form.control}
-                        name="metodoPago"
-                        render={({ field }) => (
-                            <FormItem className="p-4 border rounded-lg bg-secondary/50">
-                            <FormLabel className="font-semibold">Confirmación de Pago</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione el método de pago recibido..." />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {PaymentMethod.options.map(m => (
-                                    <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
+                  <Card className="p-4 border rounded-lg bg-secondary/50">
+                    <CardContent className="p-0 space-y-4">
+                      <FormField
+                          control={form.control}
+                          name="metodoPago"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel className="font-semibold">Confirmación de Pago</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Seleccione el método de pago recibido..." />
+                                  </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                  {PaymentMethod.options.map(m => (
+                                      <SelectItem key={m} value={m} className="capitalize">{m}</SelectItem>
+                                  ))}
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+
+                       <FormField
+                          control={form.control}
+                          name="corteDeMotor"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                              <div className="space-y-0.5">
+                                <FormLabel>¿Se realizó corte de motor?</FormLabel>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
                             </FormItem>
+                          )}
+                        />
+                        
+                        {corteDeMotor && (
+                           <FormField
+                              control={form.control}
+                              name="lugarCorteMotor"
+                              render={({ field }) => (
+                                  <FormItem>
+                                  <FormLabel>Lugar de Corte de Motor</FormLabel>
+                                  <Select onValueChange={field.onChange} value={field.value}>
+                                      <FormControl>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Seleccione el lugar del corte..." />
+                                      </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                      {LugarCorteMotor.options.map(l => (
+                                          <SelectItem key={l} value={l}>{l}</SelectItem>
+                                      ))}
+                                      </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
                         )}
-                    />
+
+                    </CardContent>
+                  </Card>
                 )}
 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

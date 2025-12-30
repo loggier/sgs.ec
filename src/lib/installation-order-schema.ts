@@ -35,6 +35,9 @@ export const InstallationSegment = z.enum([
 
 export const PaymentMethod = z.enum(['efectivo', 'transferencia']);
 
+export const LugarCorteMotor = z.enum(['Bomba', 'Ignición', 'Arranque']);
+
+
 export const InstallationOrderSchema = z.object({
   id: z.string(),
   ownerId: z.string().optional(), // ID of the manager/master who created it
@@ -54,7 +57,11 @@ export const InstallationOrderSchema = z.object({
   observacion: z.string().optional(),
   fechaProgramada: dateOrTimestamp,
   estado: InstallationStatus.default('pendiente'),
+  
+  // Fields for completion
   metodoPago: PaymentMethod.optional(),
+  corteDeMotor: z.boolean().optional(),
+  lugarCorteMotor: LugarCorteMotor.optional(),
 });
 
 
@@ -74,6 +81,15 @@ export const InstallationOrderFormSchema = InstallationOrderSchema.omit({
 }, {
     message: 'Debe seleccionar un método de pago al completar la orden.',
     path: ['metodoPago'],
+}).refine(data => {
+    // If motor cut is true, the location must be specified.
+    if (data.corteDeMotor) {
+        return !!data.lugarCorteMotor;
+    }
+    return true;
+}, {
+    message: 'Debe seleccionar el lugar del corte de motor.',
+    path: ['lugarCorteMotor'],
 });
 
 

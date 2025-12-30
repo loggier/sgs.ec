@@ -120,24 +120,28 @@ export async function saveInstallationOrder(
         return { success: false, message: 'No tiene permiso para realizar esta acción.' };
     }
   
-    const validation = InstallationOrderSchema.omit({id: true, ownerId: true, tecnicoNombre: true }).safeParse(data);
+    const validation = InstallationOrderFormSchema.safeParse(data);
     if (!validation.success) {
         console.error(validation.error.flatten().fieldErrors);
         return { success: false, message: 'Datos proporcionados no válidos.' };
     }
     
     const isEditingByTechnician = orderId && currentUser.role === 'tecnico';
-    let dataToSave: any;
+    let dataToSave: Partial<InstallationOrderFormInput> = {};
     
     if (isEditingByTechnician) {
-        // Technicians can only update the status, observation and payment method
+        // Technicians can only update the status and completion-related fields
         dataToSave = {
             estado: validation.data.estado,
             observacion: validation.data.observacion,
         };
-        // Only include metodoPago if the order is being marked as 'terminado'
+        // Only include completion fields if the order is being marked as 'terminado'
         if (validation.data.estado === 'terminado') {
             dataToSave.metodoPago = validation.data.metodoPago;
+            dataToSave.corteDeMotor = validation.data.corteDeMotor;
+            if (validation.data.corteDeMotor) {
+              dataToSave.lugarCorteMotor = validation.data.lugarCorteMotor;
+            }
         }
     } else {
         // Managers/Masters have full control
