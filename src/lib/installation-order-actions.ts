@@ -141,6 +141,9 @@ export async function saveInstallationOrder(
             dataToSave.corteDeMotor = validation.data.corteDeMotor;
             if (validation.data.corteDeMotor) {
               dataToSave.lugarCorteMotor = validation.data.lugarCorteMotor;
+            } else {
+              // Ensure this is null if corteDeMotor is false
+              dataToSave.lugarCorteMotor = undefined;
             }
         }
     } else {
@@ -179,7 +182,7 @@ export async function saveInstallationOrder(
            return { success: false, message: 'No tiene permisos para editar esta orden.' };
       }
 
-      await updateDoc(orderDocRef, dataToSave);
+      await updateDoc(orderDocRef, dataToSave as { [x: string]: any });
       message = 'Orden de instalación actualizada con éxito.';
     } else {
       const newOrderRef = await addDoc(ordersCollection, dataToSave);
