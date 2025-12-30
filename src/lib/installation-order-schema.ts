@@ -7,6 +7,9 @@ const dateOrTimestamp = z.union([z.instanceof(Timestamp), z.date(), z.string()])
 export const InstallationStatus = z.enum(['pendiente', 'en-curso', 'terminado']);
 
 export const InstallationPlan = z.enum([
+    'estandar-sc',
+    'avanzado-sc',
+    'total-sc',
     'estandar-cc',
     'avanzado-cc',
     'total-cc',
