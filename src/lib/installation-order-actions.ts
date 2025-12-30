@@ -14,7 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { InstallationOrderSchema, type InstallationOrder, type InstallationOrderFormInput, InstallationOrderFormSchema } from './installation-order-schema';
+import { InstallationOrderFormSchema, type InstallationOrder, type InstallationOrderFormInput } from './installation-order-schema';
 import type { User } from './user-schema';
 import { sendNotificationMessage } from './notification-actions';
 import { format } from 'date-fns';
@@ -142,7 +142,7 @@ export async function saveInstallationOrder(
             if (validation.data.corteDeMotor) {
               technicianUpdatableFields.lugarCorteMotor = validation.data.lugarCorteMotor;
             } else {
-              technicianUpdatableFields.lugarCorteMotor = undefined;
+              technicianUpdatableFields.lugarCorteMotor = null;
             }
         }
         dataToSave = technicianUpdatableFields;
