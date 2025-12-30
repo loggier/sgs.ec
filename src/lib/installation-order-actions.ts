@@ -14,7 +14,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { InstallationOrderSchema, type InstallationOrder, type InstallationOrderFormInput } from './installation-order-schema';
+import { InstallationOrderSchema, type InstallationOrder, type InstallationOrderFormInput, InstallationOrderFormSchema } from './installation-order-schema';
 import type { User } from './user-schema';
 import { sendNotificationMessage } from './notification-actions';
 import { format } from 'date-fns';
@@ -131,7 +131,7 @@ export async function saveInstallationOrder(
 
     if (isEditingByTechnician) {
         // Technicians can only update a subset of fields.
-        const technicianUpdatableFields: Partial<InstallationOrderFormInput> = {
+        const technicianUpdatableFields: { [key: string]: any } = {
             estado: validation.data.estado,
             observacion: validation.data.observacion,
         };
