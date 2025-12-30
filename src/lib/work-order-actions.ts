@@ -208,3 +208,32 @@ export async function saveWorkOrder(
     return { success: false, message: `Error al guardar la orden: ${errorMessage}` };
   }
 }
+
+export async function deleteWorkOrder(id: string, user: User): Promise<{ success: boolean; message: string }> {
+     if (!user) {
+         return { success: false, message: 'Acción no permitida.' };
+     }
+  
+     try {
+      const orderDocRef = doc(db, WORK_ORDERS_COLLECTION, id);
+      const orderDoc = await getDoc(orderDocRef);
+      if (!orderDoc.exists()) {
+        return { success: false, message: 'Orden de trabajo no encontrada.' };
+      }
+     
+      const orderOwnerId = orderDoc.data()?.ownerId;
+      const canDelete = user.role === 'master' || orderOwnerId === user.id;
+
+      if (!canDelete) {
+          return { success: false, message: 'No tiene permiso para eliminar esta orden.' };
+      }
+  
+      await deleteDoc(orderDocRef);
+      
+      revalidatePath('/work-orders');
+      return { success: true, message: 'Orden de trabajo eliminada con éxito.' };
+    } catch (error) {
+      console.error("Error deleting work order:", error);
+      return { success: false, message: 'Error al eliminar la orden de trabajo.' };
+    }
+}

@@ -27,7 +27,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-// import DeleteWorkOrderDialog from './delete-work-order-dialog';
+import DeleteInstallationOrderDialog from './delete-installation-order-dialog';
 
 type InstallationOrderListProps = {
   initialOrders: InstallationOrder[];
@@ -38,7 +38,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
   const [orders, setOrders] = React.useState(initialOrders);
-  // const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<InstallationOrder | null>(null);
 
   React.useEffect(() => {
@@ -47,13 +47,12 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   
   const handleDeleteOrder = (order: InstallationOrder) => {
     setSelectedOrder(order);
-    // setIsDeleteDialogOpen(true);
-    alert('Delete functionality to be implemented');
+    setIsDeleteDialogOpen(true);
   };
 
   const onOrderDeleted = () => {
     onDataChange();
-    // setIsDeleteDialogOpen(false);
+    setIsDeleteDialogOpen(false);
     setSelectedOrder(null);
   };
 
@@ -178,12 +177,12 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
         </CardContent>
       </Card>
       
-      {/* <DeleteWorkOrderDialog
+      <DeleteInstallationOrderDialog
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         order={selectedOrder}
         onDelete={onOrderDeleted}
-      /> */}
+      />
     </>
   );
 }

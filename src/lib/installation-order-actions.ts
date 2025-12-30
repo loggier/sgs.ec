@@ -13,6 +13,7 @@ import {
   query,
   where,
   Timestamp,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { InstallationOrderFormSchema, type InstallationOrder, type InstallationOrderFormInput } from './installation-order-schema';
@@ -128,10 +129,10 @@ export async function saveInstallationOrder(
     }
     
     const isEditingByTechnician = orderId && currentUser.role === 'tecnico';
-    let dataToSave: { [key: string]: any };
+    let dataToSave: any;
 
     if (isEditingByTechnician) {
-        // Technicians can only update a subset of fields.
+        // Technicians can only update a limited set of fields.
         const technicianUpdatableFields: { [key: string]: any } = {
             estado: validation.data.estado,
             observacion: validation.data.observacion,
@@ -143,17 +144,14 @@ export async function saveInstallationOrder(
             if (validation.data.corteDeMotor) {
               technicianUpdatableFields.lugarCorteMotor = validation.data.lugarCorteMotor;
             } else {
+              // Ensure null is saved if corteDeMotor is false
               technicianUpdatableFields.lugarCorteMotor = null;
             }
 
             technicianUpdatableFields.instalacionAccesorios = validation.data.instalacionAccesorios;
-            if (validation.data.instalacionAccesorios) {
-                technicianUpdatableFields.accesorioBotonPanico = validation.data.accesorioBotonPanico;
-                technicianUpdatableFields.accesorioAperturaSeguro = validation.data.accesorioAperturaSeguro;
-            } else {
-                technicianUpdatableFields.accesorioBotonPanico = false;
-                technicianUpdatableFields.accesorioAperturaSeguro = false;
-            }
+            // Always save accessory status, defaulting to false if not provided
+            technicianUpdatableFields.accesorioBotonPanico = validation.data.accesorioBotonPanico ?? false;
+            technicianUpdatableFields.accesorioAperturaSeguro = validation.data.accesorioAperturaSeguro ?? false;
         }
         dataToSave = technicianUpdatableFields;
     } else {
@@ -235,4 +233,33 @@ export async function saveInstallationOrder(
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
     return { success: false, message: `Error al guardar la orden: ${errorMessage}` };
   }
+}
+
+export async function deleteInstallationOrder(id: string, user: User): Promise<{ success: boolean; message: string }> {
+     if (!user) {
+         return { success: false, message: 'Acción no permitida.' };
+     }
+  
+     try {
+      const orderDocRef = doc(db, INSTALLATION_ORDERS_COLLECTION, id);
+      const orderDoc = await getDoc(orderDocRef);
+      if (!orderDoc.exists()) {
+        return { success: false, message: 'Orden de instalación no encontrada.' };
+      }
+     
+      const orderOwnerId = orderDoc.data()?.ownerId;
+      const canDelete = user.role === 'master' || orderOwnerId === user.id;
+
+      if (!canDelete) {
+          return { success: false, message: 'No tiene permiso para eliminar esta orden.' };
+      }
+  
+      await deleteDoc(orderDocRef);
+      
+      revalidatePath('/installations');
+      return { success: true, message: 'Orden de instalación eliminada con éxito.' };
+    } catch (error) {
+      console.error("Error deleting installation order:", error);
+      return { success: false, message: 'Error al eliminar la orden de instalación.' };
+    }
 }
