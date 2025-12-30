@@ -55,7 +55,6 @@ import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
 import { Switch } from './ui/switch';
 import { Card, CardContent, CardDescription } from './ui/card';
-import { Checkbox } from './ui/checkbox';
 
 
 type InstallationOrderFormProps = {
@@ -466,6 +465,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormMessage />
                         </FormItem>
                     )}
+                />
                 )}
                 
                 {estado === 'terminado' && (
@@ -714,3 +714,5 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
     </FormProvider>
   );
 }
+
+    
