@@ -466,7 +466,6 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormMessage />
                         </FormItem>
                     )}
-                />
                 )}
                 
                 {estado === 'terminado' && (
@@ -560,44 +559,40 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                             <Card className="p-4 bg-background">
                                 <CardDescription className="mb-4">Seleccione los accesorios instalados:</CardDescription>
                                 <div className="space-y-4">
-                                <FormField
-                                    control={form.control}
-                                    name="accesorioBotonPanico"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                        <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                        <FormLabel>
-                                            Botón de Pánico
-                                        </FormLabel>
-                                        </div>
-                                    </FormItem>
-                                    )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name="accesorioAperturaSeguro"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                        <FormControl>
-                                        <Checkbox
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                        <FormLabel>
-                                            Apertura de Seguro
-                                        </FormLabel>
-                                        </div>
-                                    </FormItem>
-                                    )}
-                                />
+                                     <FormField
+                                        control={form.control}
+                                        name="accesorioBotonPanico"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                            <div className="space-y-0.5">
+                                                <FormLabel>Botón de Pánico</FormLabel>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
+                                     <FormField
+                                        control={form.control}
+                                        name="accesorioAperturaSeguro"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                            <div className="space-y-0.5">
+                                                <FormLabel>Apertura de Seguro</FormLabel>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                            </FormItem>
+                                        )}
+                                    />
                                 </div>
                             </Card>
                         )}
