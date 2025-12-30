@@ -5,6 +5,7 @@ import * as React from 'react';
 import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Link from 'next/link';
 
 import type { WorkOrder } from '@/lib/work-order-schema';
 import { useSearch } from '@/context/search-context';
@@ -26,8 +27,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import WorkOrderForm from './work-order-form';
 // import DeleteWorkOrderDialog from './delete-work-order-dialog';
 
 type WorkOrderListProps = {
@@ -39,7 +38,6 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
   const [orders, setOrders] = React.useState(initialOrders);
-  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   // const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<WorkOrder | null>(null);
 
@@ -47,26 +45,10 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     setOrders(initialOrders);
   }, [initialOrders]);
   
-  const handleAddOrder = () => {
-    setSelectedOrder(null);
-    setIsSheetOpen(true);
-  };
-  
-  const handleEditOrder = (order: WorkOrder) => {
-    setSelectedOrder(order);
-    setIsSheetOpen(true);
-  };
-
   const handleDeleteOrder = (order: WorkOrder) => {
     setSelectedOrder(order);
     // setIsDeleteDialogOpen(true);
     alert('Delete functionality to be implemented');
-  };
-
-  const handleFormSave = () => {
-    onDataChange();
-    setIsSheetOpen(false);
-    setSelectedOrder(null);
   };
 
   const onOrderDeleted = () => {
@@ -116,9 +98,11 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                 <CardDescription>Cree y gestione las tareas asignadas.</CardDescription>
             </div>
             {currentUser?.role !== 'tecnico' && (
-                <Button onClick={handleAddOrder} size="sm">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Nueva Orden
+                <Button asChild size="sm">
+                  <Link href="/work-orders/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Nueva Orden
+                  </Link>
                 </Button>
             )}
           </div>
@@ -168,8 +152,10 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                             </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditOrder(order)}>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/work-orders/${order.id}/edit`}>
                                     <Edit className="mr-2 h-4 w-4" /> Ver / Editar
+                                  </Link>
                                 </DropdownMenuItem>
                                 {currentUser?.role !== 'tecnico' && (
                                     <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
@@ -194,19 +180,6 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
         </CardContent>
       </Card>
       
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-2xl w-full">
-          <SheetHeader>
-            <SheetTitle>{selectedOrder ? 'Detalles de la Orden' : 'Nueva Orden de Soporte'}</SheetTitle>
-          </SheetHeader>
-          <WorkOrderForm
-            order={selectedOrder}
-            onSave={handleFormSave}
-            onCancel={() => setIsSheetOpen(false)}
-          />
-        </SheetContent>
-      </Sheet>
-
       {/* <DeleteWorkOrderDialog
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
