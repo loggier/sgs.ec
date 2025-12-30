@@ -127,27 +127,27 @@ export async function saveInstallationOrder(
     }
     
     const isEditingByTechnician = orderId && currentUser.role === 'tecnico';
-    let dataToSave: Partial<InstallationOrderFormInput> = {};
-    
+    let dataToSave: { [key: string]: any };
+
     if (isEditingByTechnician) {
-        // Technicians can only update the status and completion-related fields
-        dataToSave = {
+        // Technicians can only update a subset of fields.
+        const technicianUpdatableFields: Partial<InstallationOrderFormInput> = {
             estado: validation.data.estado,
             observacion: validation.data.observacion,
         };
-        // Only include completion fields if the order is being marked as 'terminado'
+        
         if (validation.data.estado === 'terminado') {
-            dataToSave.metodoPago = validation.data.metodoPago;
-            dataToSave.corteDeMotor = validation.data.corteDeMotor;
+            technicianUpdatableFields.metodoPago = validation.data.metodoPago;
+            technicianUpdatableFields.corteDeMotor = validation.data.corteDeMotor;
             if (validation.data.corteDeMotor) {
-              dataToSave.lugarCorteMotor = validation.data.lugarCorteMotor;
+              technicianUpdatableFields.lugarCorteMotor = validation.data.lugarCorteMotor;
             } else {
-              // Ensure this is null if corteDeMotor is false
-              dataToSave.lugarCorteMotor = undefined;
+              technicianUpdatableFields.lugarCorteMotor = undefined;
             }
         }
+        dataToSave = technicianUpdatableFields;
     } else {
-        // Managers/Masters have full control
+        // Managers/Masters have full control when creating or editing.
         if (!['master', 'manager'].includes(currentUser.role)) {
             return { success: false, message: 'No tiene permiso para crear o editar esta orden.' };
         }
@@ -182,7 +182,7 @@ export async function saveInstallationOrder(
            return { success: false, message: 'No tiene permisos para editar esta orden.' };
       }
 
-      await updateDoc(orderDocRef, dataToSave as { [x: string]: any });
+      await updateDoc(orderDocRef, dataToSave);
       message = 'Orden de instalación actualizada con éxito.';
     } else {
       const newOrderRef = await addDoc(ordersCollection, dataToSave);
@@ -191,7 +191,7 @@ export async function saveInstallationOrder(
     }
 
     // --- Send notification to technician ---
-    if (dataToSave.tecnicoId && dataToSave.tecnicoId !== oldTecnicoId) {
+    if ('tecnicoId' in dataToSave && dataToSave.tecnicoId && dataToSave.tecnicoId !== oldTecnicoId) {
         const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
         if (tecnicoDoc.exists()) {
             const tecnico = tecnicoDoc.data() as User;
