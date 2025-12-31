@@ -96,9 +96,9 @@ export async function getNotificationUrlForUser(userId: string): Promise<Notific
         }
         const userData = userDoc.data() as User;
         
-        // If the user is an analyst or technician, get settings from their manager/creator
+        // If the user is an analyst or technician, get settings from their manager/creator recursively
         if ((userData.role === 'analista' || userData.role === 'tecnico') && userData.creatorId) {
-            return getNotificationUrlForUser(userData.creatorId);
+            return await getNotificationUrlForUser(userData.creatorId);
         }
         
         // For master/manager, get their own settings

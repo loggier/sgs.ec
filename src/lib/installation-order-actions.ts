@@ -202,7 +202,7 @@ export async function saveInstallationOrder(
         const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
         if (tecnicoDoc.exists()) {
             const tecnico = tecnicoDoc.data() as User;
-            const notificationSettings = await getNotificationUrlForUser(tecnico.id); // Use the right function to get URL
+            const notificationSettings = await getNotificationUrlForUser(dataToSave.tecnicoId); // Use the right function to get URL
             
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const notifMessage = `Nueva orden de instalación asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
