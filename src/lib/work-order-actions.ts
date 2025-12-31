@@ -18,6 +18,7 @@ import {
 import { db } from './firebase';
 import { WorkOrderSchema, type WorkOrder, type WorkOrderFormInput } from './work-order-schema';
 import type { User } from './user-schema';
+import { getNotificationUrlForUser } from './settings-actions';
 import { sendNotificationMessage } from './notification-actions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -176,14 +177,16 @@ export async function saveWorkOrder(
         const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
         if (tecnicoDoc.exists()) {
             const tecnico = tecnicoDoc.data() as User;
-            if (tecnico.telefono && tecnico.notificationUrl) {
+            const notificationSettings = await getNotificationUrlForUser(tecnico.id); // Use the right function to get URL
+            
+            if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const notifMessage = `Nueva orden de soporte asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
                 
                 await sendNotificationMessage(
                     tecnico.telefono, 
                     notifMessage, 
-                    { notificationUrl: tecnico.notificationUrl },
-                    { ownerId: currentUser.id, clientId: 'N/A', clientName: data.nombreCliente }
+                    notificationSettings,
+                    { ownerId: dataToSave.ownerId || currentUser.id, clientId: 'N/A', clientName: data.nombreCliente }
                 );
                 notificationSent = true;
             }

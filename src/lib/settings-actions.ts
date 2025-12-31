@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, writeBatch, limit } from 'firebase/firestore';
@@ -95,8 +96,8 @@ export async function getNotificationUrlForUser(userId: string): Promise<Notific
         }
         const userData = userDoc.data() as User;
         
-        // If the user is an analyst, get settings from their manager/creator
-        if (userData.role === 'analista' && userData.creatorId) {
+        // If the user is an analyst or technician, get settings from their manager/creator
+        if ((userData.role === 'analista' || userData.role === 'tecnico') && userData.creatorId) {
             return getNotificationUrlForUser(userData.creatorId);
         }
         

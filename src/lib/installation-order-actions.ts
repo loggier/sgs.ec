@@ -18,6 +18,7 @@ import {
 import { db } from './firebase';
 import { InstallationOrderFormSchema, type InstallationOrder, type InstallationOrderFormInput } from './installation-order-schema';
 import type { User } from './user-schema';
+import { getNotificationUrlForUser } from './settings-actions';
 import { sendNotificationMessage } from './notification-actions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -144,12 +145,10 @@ export async function saveInstallationOrder(
             if (validation.data.corteDeMotor) {
               technicianUpdatableFields.lugarCorteMotor = validation.data.lugarCorteMotor;
             } else {
-              // Ensure null is saved if corteDeMotor is false
               technicianUpdatableFields.lugarCorteMotor = null;
             }
 
             technicianUpdatableFields.instalacionAccesorios = validation.data.instalacionAccesorios;
-            // Always save accessory status, defaulting to false if not provided
             technicianUpdatableFields.accesorioBotonPanico = validation.data.accesorioBotonPanico ?? false;
             technicianUpdatableFields.accesorioAperturaSeguro = validation.data.accesorioAperturaSeguro ?? false;
         }
@@ -203,14 +202,16 @@ export async function saveInstallationOrder(
         const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
         if (tecnicoDoc.exists()) {
             const tecnico = tecnicoDoc.data() as User;
-            if (tecnico.telefono && tecnico.notificationUrl) {
+            const notificationSettings = await getNotificationUrlForUser(tecnico.id); // Use the right function to get URL
+            
+            if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const notifMessage = `Nueva orden de instalación asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
                 
                 await sendNotificationMessage(
                     tecnico.telefono, 
                     notifMessage, 
-                    { notificationUrl: tecnico.notificationUrl },
-                    { ownerId: currentUser.id, clientId: 'N/A', clientName: data.nombreCliente }
+                    notificationSettings,
+                    { ownerId: dataToSave.ownerId || currentUser.id, clientId: 'N/A', clientName: data.nombreCliente }
                 );
                 notificationSent = true;
             }
