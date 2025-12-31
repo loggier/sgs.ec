@@ -206,11 +206,13 @@ export async function saveInstallationOrder(
         const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
         if (tecnicoDoc.exists()) {
             const tecnico = tecnicoDoc.data() as User;
-            // Use the ownerId of the order creator to get the notification URL
             const notificationSettings = await getNotificationUrlForUser(ownerIdForNotification);
             
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
-                const notifMessage = `Nueva orden de instalación asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
+                const dateString = format(new Date(data.fechaProgramada), 'PPP', {locale: es});
+                const timeString = data.horaProgramada || '';
+                const fullUrl = `https://sgi-lince.web.app/installations/${savedOrderId}/edit`;
+                const notifMessage = `*Nueva orden de instalación asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n\n*Ver detalles aquí:*\n${fullUrl}`;
                 
                 await sendNotificationMessage(
                     tecnico.telefono, 

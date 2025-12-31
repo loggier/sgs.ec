@@ -112,7 +112,7 @@ export async function saveWorkOrder(
         return { success: false, message: 'No tiene permiso para realizar esta acción.' };
     }
   
-    const validation = WorkOrderSchema.omit({id: true}).safeParse(data);
+    const validation = WorkOrderSchema.omit({id: true, ownerId: true, tecnicoNombre: true}).safeParse(data);
     if (!validation.success) {
         console.error(validation.error.flatten().fieldErrors);
         return { success: false, message: 'Datos proporcionados no válidos.' };
@@ -184,7 +184,10 @@ export async function saveWorkOrder(
             const notificationSettings = await getNotificationUrlForUser(ownerIdForNotification);
             
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
-                const notifMessage = `Nueva orden de soporte asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
+                const dateString = format(new Date(data.fechaProgramada), 'PPP', {locale: es});
+                const timeString = data.horaProgramada || '';
+                const fullUrl = `https://sgi-lince.web.app/work-orders/${savedOrderId}/edit`;
+                const notifMessage = `*Nueva orden de soporte asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n\n*Ver detalles aquí:*\n${fullUrl}`;
                 
                 await sendNotificationMessage(
                     tecnico.telefono, 
