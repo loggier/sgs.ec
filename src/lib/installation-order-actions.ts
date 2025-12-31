@@ -211,7 +211,7 @@ export async function saveInstallationOrder(
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const dateString = format(new Date(data.fechaProgramada), 'PPP', {locale: es});
                 const timeString = data.horaProgramada || '';
-                const fullUrl = `https://sgi-lince.web.app/installations/${savedOrderId}/edit`;
+                const fullUrl = `https://sgi.gpsplataforma.net/installations/${savedOrderId}/edit`;
                 const notifMessage = `*Nueva orden de instalación asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n\n*Ver detalles aquí:*\n${fullUrl}`;
                 
                 await sendNotificationMessage(
