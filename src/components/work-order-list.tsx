@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, User, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -86,18 +86,41 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
       (order.tecnicoNombre && order.tecnicoNombre.toLowerCase().includes(lowercasedTerm))
     );
   }, [searchTerm, orders]);
+  
+  const OrderActions = ({ order }: { order: WorkOrder }) => (
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+        <Button aria-haspopup="true" size="icon" variant="ghost">
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Alternar menú</span>
+        </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+                <Link href={`/work-orders/${order.id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" /> Ver / Editar
+                </Link>
+            </DropdownMenuItem>
+            {currentUser?.role !== 'tecnico' && (
+                <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                </DropdownMenuItem>
+            )}
+        </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <div>
                 <CardTitle>Listado de Órdenes de Soporte</CardTitle>
                 <CardDescription>Cree y gestione las tareas asignadas.</CardDescription>
             </div>
             {currentUser?.role !== 'tecnico' && (
-                <Button asChild size="sm">
+                <Button asChild size="sm" className="w-full sm:w-auto">
                   <Link href="/work-orders/new">
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Nueva Orden
@@ -107,7 +130,43 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Mobile View */}
+           <div className="md:hidden space-y-4">
+                {filteredOrders.length > 0 ? filteredOrders.map(order => (
+                    <Card key={order.id} className="w-full">
+                        <CardHeader>
+                             <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle className="text-lg">{order.nombreCliente}</CardTitle>
+                                    <CardDescription>{order.placaVehiculo} - {order.ciudad}</CardDescription>
+                                </div>
+                                <OrderActions order={order} />
+                            </div>
+                        </CardHeader>
+                        <CardContent className="text-sm space-y-2">
+                             <div className="flex items-center gap-2">
+                                <Badge variant={statusVariants[order.estado]} className="capitalize">{order.estado.replace('-', ' ')}</Badge>
+                                <Badge variant={priorityVariants[order.prioridad]} className="capitalize">{order.prioridad}</Badge>
+                            </div>
+                             <div className="flex items-center gap-2 text-muted-foreground">
+                                <Calendar className="h-4 w-4" />
+                                <span>{formatDate(order.fechaProgramada)} - {order.horaProgramada}</span>
+                            </div>
+                             <div className="flex items-center gap-2 text-muted-foreground">
+                                <User className="h-4 w-4" />
+                                <span>{order.tecnicoNombre || 'No asignado'}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )) : (
+                     <div className="text-center py-10 text-muted-foreground">
+                        No se encontraron órdenes de trabajo.
+                    </div>
+                )}
+           </div>
+
+          {/* Desktop View */}
+          <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -146,26 +205,7 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                         <Badge variant={statusVariants[order.estado]} className="capitalize">{order.estado.replace('-', ' ')}</Badge>
                       </TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Alternar menú</span>
-                            </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/work-orders/${order.id}/edit`}>
-                                    <Edit className="mr-2 h-4 w-4" /> Ver / Editar
-                                  </Link>
-                                </DropdownMenuItem>
-                                {currentUser?.role !== 'tecnico' && (
-                                    <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
-                                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                    </DropdownMenuItem>
-                                )}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <OrderActions order={order} />
                       </TableCell>
                     </TableRow>
                   ))

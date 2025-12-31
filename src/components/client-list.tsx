@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2, MessageSquare } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2, MessageSquare, Building, Mail, Phone } from 'lucide-react';
 import Link from 'next/link';
 
 import type { ClientDisplay } from '@/lib/schema';
@@ -33,6 +33,7 @@ import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
 import SendMessageDialog from './send-qyvoo-message-dialog';
+import { Separator } from './ui/separator';
 
 
 type ClientListProps = {
@@ -162,18 +163,55 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     }
   };
 
+  const ClientActions = ({ client }: { client: ClientDisplay }) => (
+    <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+        <Button aria-haspopup="true" size="icon" variant="ghost">
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Alternar menú</span>
+        </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                <Edit className="mr-2 h-4 w-4" /> Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+                <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
+                <Car className="mr-2 h-4 w-4" /> Ver Unidades
+                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+                <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+            </DropdownMenuItem>
+            {client.telefono && (
+                <DropdownMenuItem onClick={() => handleOpenMessageDialog(client)}>
+                <MessageSquare className="mr-2 h-4 w-4" /> Enviar Mensaje
+                </DropdownMenuItem>
+            )}
+            {user && ['master', 'manager'].includes(user.role) && (
+                <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                </DropdownMenuItem>
+                </>
+            )}
+        </DropdownMenuContent>
+    </DropdownMenu>
+    );
+
   return (
     <>
       <div className="flex flex-col gap-6 mt-4">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle>Gestión Integrar</CardTitle>
                   <CardDescription>Agregue, edite o elimine clientes.</CardDescription>
                 </div>
                 {user && ['master', 'manager', 'analista'].includes(user.role) && (
-                  <Button onClick={handleAddClient} size="sm">
+                  <Button onClick={handleAddClient} size="sm" className="w-full sm:w-auto">
                       <PlusCircle className="mr-2 h-4 w-4" />
                       Nuevo Cliente
                   </Button>
@@ -181,7 +219,70 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            {/* Mobile View */}
+            <div className="md:hidden space-y-4">
+              {paginatedClients.length > 0 ? paginatedClients.map(client => (
+                <Card key={client.id} className="w-full">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                {client.nomSujeto}
+                                {client.pgpsId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
+                            </CardTitle>
+                            <CardDescription>{client.codIdSujeto}</CardDescription>
+                        </div>
+                        <ClientActions client={client} />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                     <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
+                            {displayStatus[client.estado]}
+                        </Badge>
+                         <Badge variant="outline" className={clientTypeBadgeVariants[client.tipoCliente || 'Personal']}>
+                            {client.tipoCliente || 'Personal'}
+                        </Badge>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Unidades</span>
+                      <div className="flex items-center gap-2 font-medium">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                        <span>{client.unitCount ?? 0}</span>
+                      </div>
+                    </div>
+                     <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Pago Mensual</span>
+                        <span className="font-semibold">{formatCurrency(client.totalMonthlyPayment)}</span>
+                    </div>
+                     {(client.totalContractAmount ?? 0) > 0 &&
+                        <>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Total Contratos</span>
+                                <span className="font-semibold">{formatCurrency(client.totalContractAmount)}</span>
+                            </div>
+                             <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Saldo Contratos</span>
+                                <span className="font-semibold text-blue-600">{formatCurrency(client.totalContractBalance)}</span>
+                            </div>
+                        </>
+                    }
+                    <Separator />
+                    {client.correo && <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /> {client.correo}</div>}
+                    {client.telefono && <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /> {client.telefono}</div>}
+                    {user?.role === 'master' && <div className="flex items-center gap-2"><Building className="h-4 w-4 text-muted-foreground" /> {client.ownerName || 'N/A'}</div>}
+                  </CardContent>
+                </Card>
+              )) : (
+                <div className="text-center py-10 text-muted-foreground">
+                    No se encontraron clientes.
+                </div>
+              )}
+            </div>
+
+            {/* Desktop View */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -249,40 +350,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                             <TableCell>{client.ownerName || 'N/A'}</TableCell>
                         )}
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Alternar menú</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                                  <Edit className="mr-2 h-4 w-4" /> Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/clients/${client.id}/units`} className="flex items-center w-full">
-                                    <Car className="mr-2 h-4 w-4" /> Ver Unidades
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
-                                  <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
-                                </DropdownMenuItem>
-                                {client.telefono && (
-                                  <DropdownMenuItem onClick={() => handleOpenMessageDialog(client)}>
-                                    <MessageSquare className="mr-2 h-4 w-4" /> Enviar Mensaje
-                                  </DropdownMenuItem>
-                                )}
-                                {user && ['master', 'manager'].includes(user.role) && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
-                                      <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            <ClientActions client={client} />
                         </TableCell>
                       </TableRow>
                     ))
@@ -298,7 +366,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
             </div>
           </CardContent>
            <CardFooter>
-            <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
+            <div className="flex w-full flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
               <span>
                 Mostrando {Math.min(startIndex + 1, filteredClients.length)} - {Math.min(startIndex + CLIENTS_PER_PAGE, filteredClients.length)} de {filteredClients.length} clientes.
               </span>
