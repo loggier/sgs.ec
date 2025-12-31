@@ -131,6 +131,7 @@ export async function saveInstallationOrder(
     
     const isEditingByTechnician = orderId && currentUser.role === 'tecnico';
     let dataToSave: any;
+    let ownerIdForNotification: string;
 
     if (isEditingByTechnician) {
         // Technicians can only update a limited set of fields.
@@ -153,11 +154,14 @@ export async function saveInstallationOrder(
             technicianUpdatableFields.accesorioAperturaSeguro = validation.data.accesorioAperturaSeguro ?? false;
         }
         dataToSave = technicianUpdatableFields;
+        const existingOrder = await getInstallationOrderById(orderId!);
+        ownerIdForNotification = existingOrder?.ownerId || currentUser.id;
     } else {
         // Managers/Masters have full control when creating or editing.
         if (!['master', 'manager'].includes(currentUser.role)) {
             return { success: false, message: 'No tiene permiso para crear o editar esta orden.' };
         }
+        ownerIdForNotification = currentUser.id;
         dataToSave = { 
             ...validation.data,
             ownerId: currentUser.id,
@@ -202,7 +206,8 @@ export async function saveInstallationOrder(
         const tecnicoDoc = await getDoc(doc(db, 'users', dataToSave.tecnicoId));
         if (tecnicoDoc.exists()) {
             const tecnico = tecnicoDoc.data() as User;
-            const notificationSettings = await getNotificationUrlForUser(dataToSave.tecnicoId); // Use the right function to get URL
+            // Use the ownerId of the order creator to get the notification URL
+            const notificationSettings = await getNotificationUrlForUser(ownerIdForNotification);
             
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const notifMessage = `Nueva orden de instalación asignada:\n- Cliente: ${data.nombreCliente}\n- Placa: ${data.placaVehiculo}\n- Ciudad: ${data.ciudad}\n- Fecha: ${format(new Date(data.fechaProgramada), 'PPP', {locale: es})}`;
@@ -211,7 +216,7 @@ export async function saveInstallationOrder(
                     tecnico.telefono, 
                     notifMessage, 
                     notificationSettings,
-                    { ownerId: dataToSave.ownerId || currentUser.id, clientId: 'N/A', clientName: data.nombreCliente }
+                    { ownerId: ownerIdForNotification, clientId: 'N/A', clientName: data.nombreCliente }
                 );
                 notificationSent = true;
             }
