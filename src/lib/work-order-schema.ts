@@ -14,6 +14,7 @@ export const WorkOrderSchema = z.object({
   tecnicoNombre: z.string().optional(), // Denormalized for easy display
   placaVehiculo: z.string().min(1, 'La placa es requerida.'),
   nombreCliente: z.string().min(1, 'El nombre del cliente es requerido.'),
+  pais: z.string().min(1, 'El país es requerido.'),
   ciudad: z.string().min(1, 'La ciudad es requerida.'),
   ubicacionGoogleMaps: z.string().url('Debe ser una URL válida de Google Maps.').optional().or(z.literal('')),
   numeroCliente: z.string().min(1, 'El número del cliente es requerido.'),

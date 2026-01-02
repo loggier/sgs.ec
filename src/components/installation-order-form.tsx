@@ -24,8 +24,10 @@ import {
 import { saveInstallationOrder } from '@/lib/installation-order-actions';
 import { getClients } from '@/lib/actions';
 import { getUsers } from '@/lib/user-actions';
+import { getCountries, getCities } from '@/lib/catalog-actions';
 import type { User } from '@/lib/user-schema';
 import type { ClientDisplay } from '@/lib/schema';
+import type { Country, City } from '@/lib/catalog-schema';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { cn } from '@/lib/utils';
@@ -68,6 +70,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
+  const [countries, setCountries] = React.useState<Country[]>([]);
+  const [cities, setCities] = React.useState<City[]>([]);
   const [selectedClientId, setSelectedClientId] = React.useState<string | undefined>(undefined);
   const [isConfirmingComplete, setIsConfirmingComplete] = React.useState(false);
   
@@ -88,9 +92,11 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
       instalacionAccesorios: order.instalacionAccesorios || false,
       accesorioBotonPanico: order.accesorioBotonPanico || false,
       accesorioAperturaSeguro: order.accesorioAperturaSeguro || false,
+      pais: order.pais || 'Ecuador',
     } : {
         placaVehiculo: '',
         nombreCliente: '',
+        pais: 'Ecuador',
         ciudad: '',
         ubicacionGoogleMaps: '',
         numeroCliente: '',
@@ -116,15 +122,27 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   const observacion = form.watch('observacion');
   const corteDeMotor = form.watch('corteDeMotor');
   const instalacionAccesorios = form.watch('instalacionAccesorios');
+  const selectedCountryName = form.watch('pais');
+
+  const selectedCountry = countries.find(c => c.name === selectedCountryName);
+  const filteredCities = cities.filter(city => city.countryId === selectedCountry?.id);
   
   React.useEffect(() => {
-    if (user && !isTechnician) {
-        getUsers(user).then(allUsers => {
-            const techUsers = allUsers.filter(u => u.role === 'tecnico');
-            setTechnicians(techUsers);
-        });
-        getClients(user.id, user.role, user.creatorId).then(setClients);
+    async function fetchData() {
+        if (user && !isTechnician) {
+            const [techUsers, clientData, countryData, cityData] = await Promise.all([
+                getUsers(user),
+                getClients(user.id, user.role, user.creatorId),
+                getCountries(),
+                getCities()
+            ]);
+            setTechnicians(techUsers.filter(u => u.role === 'tecnico'));
+            setClients(clientData);
+            setCountries(countryData);
+            setCities(cityData);
+        }
     }
+    fetchData();
   }, [user, isTechnician]);
 
   React.useEffect(() => {
@@ -141,6 +159,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             instalacionAccesorios: order.instalacionAccesorios || false,
             accesorioBotonPanico: order.accesorioBotonPanico || false,
             accesorioAperturaSeguro: order.accesorioAperturaSeguro || false,
+            pais: order.pais || 'Ecuador',
         });
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
         if (client) {
@@ -150,6 +169,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         form.reset({
             placaVehiculo: '',
             nombreCliente: '',
+            pais: 'Ecuador',
             ciudad: '',
             ubicacionGoogleMaps: '',
             numeroCliente: '',
@@ -181,6 +201,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
           form.setValue('nombreCliente', client.nomSujeto);
           form.setValue('numeroCliente', client.telefono || '');
           form.setValue('ciudad', client.ciudad || '');
+          // País se mantiene por defecto a Ecuador, pero se podría ajustar si el cliente tiene país
+          form.setValue('pais', 'Ecuador');
           form.setValue('segmento', (client.tipoCliente as any) || 'personal');
       }
   };
@@ -318,9 +340,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                     </FormItem>
                 )}
                 />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
+                
+                <FormField
                     control={form.control}
                     name="numeroCliente"
                     render={({ field }) => (
@@ -332,19 +353,41 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormMessage />
                         </FormItem>
                     )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="pais"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>País</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {countries.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
                     />
                     <FormField
-                    control={form.control}
-                    name="ciudad"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Ciudad</FormLabel>
-                        <FormControl>
-                            <Input placeholder="Quito" {...field} disabled={isTechnician} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
+                        control={form.control}
+                        name="ciudad"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Ciudad</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || !selectedCountryName}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccione una ciudad"/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {filteredCities.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                {!selectedCountryName && <p className="text-sm text-muted-foreground pt-1">Seleccione un país primero.</p>}
+                                <FormMessage />
+                            </FormItem>
+                        )}
                     />
                 </div>
                 
