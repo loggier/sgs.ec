@@ -306,10 +306,10 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
   const initialStartDate = React.useRef(getValues('fechaInicioContrato'));
 
   React.useEffect(() => {
-    if (showClientSelector && user) {
+    if (user && ['master', 'manager', 'analista'].includes(user.role)) {
       getClients(user.id, user.role, user.creatorId).then(setClients);
     }
-  }, [showClientSelector, user]);
+  }, [user]);
   
   const clientOptions = clients.map(c => ({
     value: c.id!,
