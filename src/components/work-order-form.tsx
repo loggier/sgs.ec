@@ -410,6 +410,30 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
+                        control={form.control}
+                        name="prioridad"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Prioridad</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione una prioridad" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {WorkOrderPriority.options.map(p => (
+                                    <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+
+                <FormField
                     control={form.control}
                     name="tecnicoId"
                     render={({ field }) => (
@@ -431,30 +455,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         <FormMessage />
                         </FormItem>
                     )}
-                    />
-                    <FormField
-                    control={form.control}
-                    name="prioridad"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Prioridad</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
-                            <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Seleccione una prioridad" />
-                            </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                            {WorkOrderPriority.options.map(p => (
-                                <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
-                            ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                </div>
+                />
                  
                  <div className="grid grid-cols-2 gap-4">
                     <FormField

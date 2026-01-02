@@ -647,78 +647,77 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                   </Card>
                 )}
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="tecnicoId"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Técnico Asignado</FormLabel>
+                        {isTechnician && user ? (
+                            <Input value={user.nombre || user.username} disabled />
+                        ) : (
+                            <Combobox 
+                                options={technicianOptions}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Seleccione un técnico..."
+                                searchPlaceholder='Buscar técnico...'
+                                emptyPlaceholder='No se encontraron técnicos.'
+                                disabled={technicians.length === 0}
+                            />
+                        )}
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 
+                 <div className="grid grid-cols-2 gap-4">
                     <FormField
                         control={form.control}
-                        name="tecnicoId"
+                        name="fechaProgramada"
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
-                            <FormLabel>Técnico Asignado</FormLabel>
-                            {isTechnician && user ? (
-                                <Input value={user.nombre || user.username} disabled />
-                            ) : (
-                                <Combobox 
-                                    options={technicianOptions}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    placeholder="Seleccione un técnico..."
-                                    searchPlaceholder='Buscar técnico...'
-                                    emptyPlaceholder='No se encontraron técnicos.'
-                                    disabled={technicians.length === 0}
+                            <FormLabel>Fecha Programada</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant={'outline'}
+                                    className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}
+                                    disabled={isTechnician}
+                                    >
+                                    {field.value ? (format(new Date(field.value), 'PPP', { locale: es })) : (<span>Elige una fecha</span>)}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                    locale={es}
                                 />
-                            )}
+                                </PopoverContent>
+                            </Popover>
                             <FormMessage />
                             </FormItem>
                         )}
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                        <FormField
-                            control={form.control}
-                            name="fechaProgramada"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                <FormLabel>Fecha Programada</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                        variant={'outline'}
-                                        className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}
-                                        disabled={isTechnician}
-                                        >
-                                        {field.value ? (format(new Date(field.value), 'PPP', { locale: es })) : (<span>Elige una fecha</span>)}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value ? new Date(field.value) : undefined}
-                                        onSelect={field.onChange}
-                                        initialFocus
-                                        locale={es}
-                                    />
-                                    </PopoverContent>
-                                </Popover>
+                    <FormField
+                        control={form.control}
+                        name="horaProgramada"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Hora</FormLabel>
+                                <FormControl>
+                                    <Input type="time" {...field} value={field.value || ''} disabled={isTechnician} />
+                                </FormControl>
                                 <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="horaProgramada"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Hora</FormLabel>
-                                    <FormControl>
-                                        <Input type="time" {...field} value={field.value || ''} disabled={isTechnician} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                            </FormItem>
+                        )}
+                    />
                 </div>
                  
                  { !isTechnician && (
