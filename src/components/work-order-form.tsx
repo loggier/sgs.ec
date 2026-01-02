@@ -62,7 +62,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
   const isTechnician = user?.role === 'tecnico';
   
   const form = useForm<WorkOrderFormInput>({
-    resolver: zodResolver(WorkOrderFormSchema.omit({id: true})),
+    resolver: zodResolver(WorkOrderFormSchema),
     defaultValues: order ? {
       ...order,
       fechaProgramada: new Date(order.fechaProgramada),
@@ -349,7 +349,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                 )}
                 />
                 
-                {(isTechnician || (isEditing && order?.observacion)) && (
+                {(isTechnician || isEditing) && (
                     <FormField
                     control={form.control}
                     name="observacion"
