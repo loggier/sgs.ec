@@ -13,6 +13,7 @@ export const InstallationPlan = z.enum([
     'estandar-cc',
     'avanzado-cc',
     'total-cc',
+    'otro',
 ]);
 
 export const InstallationCategory = z.enum([
