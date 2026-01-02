@@ -210,9 +210,9 @@ export async function saveInstallationOrder(
             
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const dateString = format(new Date(data.fechaProgramada), 'PPP', {locale: es});
-                const timeString = data.horaProgramada || '';
+                const timeString = format(new Date(`1970-01-01T${data.horaProgramada || '00:00'}`), 'p', { locale: es });
                 const fullUrl = `https://sgi.gpsplataforma.net/installations/${savedOrderId}/edit`;
-                const notifMessage = `*Nueva orden de instalación asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n\n*Ver detalles aquí:*\n${fullUrl}`;
+                const notifMessage = `*Nueva orden de instalación asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Número del cliente:* ${data.numeroCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n- *Plan a instalar:* ${data.tipoPlan}\n- *Tipo de vehículo:* ${data.tipoVehiculo}\n- *Ubicación:* ${data.ubicacionGoogleMaps || 'No especificada'}\n\n*Ver detalles aquí:*\n${fullUrl}`;
                 
                 await sendNotificationMessage(
                     tecnico.telefono, 

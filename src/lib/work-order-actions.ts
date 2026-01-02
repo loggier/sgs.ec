@@ -185,9 +185,10 @@ export async function saveWorkOrder(
             
             if (tecnico.telefono && notificationSettings?.notificationUrl) {
                 const dateString = format(new Date(data.fechaProgramada), 'PPP', {locale: es});
-                const timeString = data.horaProgramada || '';
+                const timeString = format(new Date(`1970-01-01T${data.horaProgramada || '00:00'}`), 'p', { locale: es });
                 const fullUrl = `https://sgi.gpsplataforma.net/work-orders/${savedOrderId}/edit`;
-                const notifMessage = `*Nueva orden de soporte asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n\n*Ver detalles aquí:*\n${fullUrl}`;
+                
+                const notifMessage = `*Nueva orden de soporte asignada:*\n- *Cliente:* ${data.nombreCliente}\n- *Número del cliente:* ${data.numeroCliente}\n- *Placa:* ${data.placaVehiculo}\n- *Ciudad:* ${data.ciudad}\n- *Fecha:* ${dateString} ${timeString}\n\n*Ver detalles aquí:*\n${fullUrl}`;
                 
                 await sendNotificationMessage(
                     tecnico.telefono, 
