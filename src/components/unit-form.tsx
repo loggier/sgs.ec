@@ -291,7 +291,7 @@ function PgpsInfoDisplay({ pgpsDeviceId }: { pgpsDeviceId: string }) {
     );
 }
 
-function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSelector: boolean, isEditing: boolean, unit: Unit | null }) {
+function UnitFormFields({ showClientSelector, isEditing, unit, clients }: { showClientSelector: boolean, isEditing: boolean, unit: Unit | null, clients: ClientDisplay[] }) {
   const { control, setValue, getValues, watch } = useFormContext<UnitFormInput>();
   
   const tipoContrato = watch('tipoContrato');
@@ -300,17 +300,9 @@ function UnitFormFields({ showClientSelector, isEditing, unit }: { showClientSel
   const fechaSiguientePago = watch('fechaSiguientePago');
   const diasCorte = watch('diasCorte');
 
-  const { user } = useAuth();
-  const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   const [showWarning, setShowWarning] = React.useState(false);
   const initialStartDate = React.useRef(getValues('fechaInicioContrato'));
 
-  React.useEffect(() => {
-    if (user && ['master', 'manager', 'analista'].includes(user.role)) {
-      getClients(user.id, user.role, user.creatorId).then(setClients);
-    }
-  }, [user]);
-  
   const clientOptions = clients.map(c => ({
     value: c.id!,
     label: `${c.nomSujeto} (${c.codIdSujeto})`,
@@ -795,6 +787,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
   const { toast } = useToast();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   
   const isEditing = !!unit;
   const isGlobalAdd = !unit && !clientId;
@@ -842,6 +835,12 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
         },
   });
 
+  React.useEffect(() => {
+    if (isGlobalAdd && user && ['master', 'manager', 'analista'].includes(user.role)) {
+      getClients(user.id, user.role, user.creatorId).then(setClients);
+    }
+  }, [isGlobalAdd, user]);
+
   async function onSubmit(values: UnitFormInput) {
     setIsSubmitting(true);
     const finalClientId = isGlobalAdd ? values.clientId : clientId!;
@@ -886,7 +885,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex h-full flex-col">
         <ScrollArea className="flex-1 pr-4">
-          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} unit={unit} />
+          <UnitFormFields showClientSelector={isGlobalAdd} isEditing={isEditing} unit={unit} clients={clients} />
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
