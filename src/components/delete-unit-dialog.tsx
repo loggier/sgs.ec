@@ -43,6 +43,7 @@ export default function DeleteUnitDialog({
     setIsDeleting(true);
     try {
       const result = await deleteUnit(unit.id, clientId, user);
+      onOpenChange(false); // Close dialog BEFORE revalidating data
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -64,7 +65,6 @@ export default function DeleteUnitDialog({
       });
     } finally {
       setIsDeleting(false);
-      onOpenChange(false);
     }
   };
 

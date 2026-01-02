@@ -155,10 +155,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   const handleSuccess = () => {
     onDataChange();
     setIsPaymentDialogOpen(false);
-    setIsDeleteDialogOpen(false);
-    setIsBulkDeleteDialogOpen(false);
     setIsPgpsStatusDialogOpen(false);
-    setIsBulkStatusDialogOpen(false);
     setSelectedUnit(null);
     setBulkAction(null);
   };
@@ -450,14 +447,20 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
         onOpenChange={setIsDeleteDialogOpen}
         unit={selectedUnit}
         clientId={clientId}
-        onDelete={handleSuccess}
+        onDelete={() => {
+            setIsDeleteDialogOpen(false);
+            handleSuccess();
+        }}
       />
 
        <BulkDeleteUnitDialog
         isOpen={isBulkDeleteDialogOpen}
         onOpenChange={setIsBulkDeleteDialogOpen}
         units={selectedUnitsForBulkAction}
-        onSuccess={handleSuccess}
+        onSuccess={() => {
+            setIsBulkDeleteDialogOpen(false);
+            handleSuccess();
+        }}
       />
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
