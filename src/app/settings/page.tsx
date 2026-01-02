@@ -9,40 +9,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import PgpsSettingsForm from '@/components/pgps-settings-form';
 import { useAuth } from '@/context/auth-context';
-import { Loader2, Database, AlertTriangle } from 'lucide-react';
+import { Loader2, Database, AlertTriangle, Map, Globe } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import NotificationSettingsForm from '@/components/notification-settings-form';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { importCities } from '@/lib/location-actions';
 import { useToast } from '@/hooks/use-toast';
 
 function SettingsPageContent() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
-  const [isImporting, setIsImporting] = React.useState(false);
 
   React.useEffect(() => {
     if (!isLoading && user?.role && !['master', 'manager'].includes(user.role)) {
       router.push('/');
     }
   }, [user, isLoading, router]);
-
-  const handleImportCities = async () => {
-    setIsImporting(true);
-    toast({
-        title: 'Iniciando importación',
-        description: 'Verificando y procesando el archivo de ciudades. Esto puede tardar un momento.',
-    });
-    const result = await importCities();
-    toast({
-        title: result.success ? 'Éxito' : 'Error',
-        description: result.message,
-        variant: result.success ? 'default' : 'destructive',
-    });
-    setIsImporting(false);
-  };
 
   if (isLoading || !user) {
     return (
@@ -75,7 +57,7 @@ function SettingsPageContent() {
           <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="integrations">Integraciones</TabsTrigger>
             <TabsTrigger value="templates">Plantillas</TabsTrigger>
-            <TabsTrigger value="data">Datos</TabsTrigger>
+            {user.role === 'master' && <TabsTrigger value="catalogs">Catálogos</TabsTrigger>}
           </TabsList>
           <TabsContent value="integrations">
             <div className="space-y-6">
@@ -130,29 +112,39 @@ function SettingsPageContent() {
                 )}
              </div>
           </TabsContent>
-           <TabsContent value="data">
+           <TabsContent value="catalogs">
              <div className="space-y-6">
                 {user.role === 'master' && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Importación de Datos</CardTitle>
+                            <CardTitle>Catálogos del Sistema</CardTitle>
                             <CardDescription>
-                               Funciones para la carga inicial de datos en el sistema.
+                               Gestione los datos maestros utilizados en todo el sistema, como países y ciudades.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                           <div className="flex items-center justify-between p-4 border rounded-lg">
-                                <div>
-                                    <h3 className="font-semibold">Importar Catálogo de Ciudades</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Carga la lista de ciudades desde el archivo de sistema. Esta acción solo se ejecutará una vez.
-                                    </p>
+                        <CardContent className="grid md:grid-cols-2 gap-4">
+                           <Link href="/settings/countries" className="block">
+                                <div className="p-4 border rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <Globe className="h-6 w-6 text-primary"/>
+                                        <div>
+                                            <h3 className="font-semibold">Países</h3>
+                                            <p className="text-sm text-muted-foreground">Administrar los países disponibles.</p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <Button onClick={handleImportCities} disabled={isImporting}>
-                                    {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                                    {isImporting ? 'Importando...' : 'Importar Ciudades'}
-                                </Button>
-                           </div>
+                           </Link>
+                            <Link href="/settings/cities" className="block">
+                                <div className="p-4 border rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <Map className="h-6 w-6 text-primary"/>
+                                        <div>
+                                            <h3 className="font-semibold">Ciudades</h3>
+                                            <p className="text-sm text-muted-foreground">Administrar ciudades por país.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                           </Link>
                         </CardContent>
                     </Card>
                 )}
