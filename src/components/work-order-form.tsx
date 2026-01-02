@@ -357,7 +357,7 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                         <FormItem>
                         <FormLabel>Observación del Técnico</FormLabel>
                         <FormControl>
-                            <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
+                            <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} disabled={isCompleted} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
