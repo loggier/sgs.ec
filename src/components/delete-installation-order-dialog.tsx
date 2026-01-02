@@ -42,7 +42,7 @@ export default function DeleteInstallationOrderDialog({
     setIsDeleting(true);
     try {
       const result = await deleteInstallationOrder(order.id, user);
-      onOpenChange(false); // Close dialog BEFORE revalidating data
+      
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -64,6 +64,7 @@ export default function DeleteInstallationOrderDialog({
       });
     } finally {
       setIsDeleting(false);
+      onOpenChange(false);
     }
   };
 

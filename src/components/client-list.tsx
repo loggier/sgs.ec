@@ -101,8 +101,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
       setSelectedClient(null);
   };
 
-  const onClientDeleted = (clientId: string) => {
-    setClients(currentClients => currentClients.filter(c => c.id !== clientId));
+  const onClientDeleted = () => {
     setIsDeleteDialogOpen(false);
     onDataChange();
   }
@@ -410,11 +409,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
             isOpen={isDeleteDialogOpen}
             onOpenChange={setIsDeleteDialogOpen}
             client={selectedClient}
-            onDelete={() => {
-              if (selectedClient) {
-                onClientDeleted(selectedClient.id);
-              }
-            }}
+            onDelete={onClientDeleted}
           />
           
           <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>

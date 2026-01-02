@@ -43,8 +43,6 @@ export default function DeleteClientDialog({
     try {
       const result = await deleteClient(client.id!, user);
       
-      onOpenChange(false); // Close dialog BEFORE revalidating data
-      
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -66,6 +64,7 @@ export default function DeleteClientDialog({
       });
     } finally {
       setIsDeleting(false);
+      onOpenChange(false);
     }
   };
 

@@ -88,7 +88,6 @@ export default function PaymentHistoryList({
   
   const handlePaymentDeleted = () => {
     setIsDeleteDialogOpen(false);
-    setSelectedPayment(null);
     onPaymentDeleted();
   }
 

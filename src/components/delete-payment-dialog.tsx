@@ -40,7 +40,7 @@ export default function DeletePaymentDialog({
     setIsDeleting(true);
     try {
       const result = await deletePayment(payment.id, payment.clientId, payment.unitId);
-      onOpenChange(false);
+      
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -63,6 +63,7 @@ export default function DeletePaymentDialog({
       });
     } finally {
       setIsDeleting(false);
+      onOpenChange(false);
     }
   };
 

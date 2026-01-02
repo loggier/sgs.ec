@@ -42,7 +42,7 @@ export default function DeleteWorkOrderDialog({
     setIsDeleting(true);
     try {
       const result = await deleteWorkOrder(order.id, user);
-      onOpenChange(false); // Close dialog BEFORE revalidating data
+      
       if (result.success) {
         toast({
           title: 'Éxito',
@@ -64,6 +64,7 @@ export default function DeleteWorkOrderDialog({
       });
     } finally {
       setIsDeleting(false);
+      onOpenChange(false);
     }
   };
 

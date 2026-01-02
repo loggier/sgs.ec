@@ -66,9 +66,8 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
   };
 
   const onUserDeleted = () => {
-    onDataChange();
     setIsDeleteDialogOpen(false);
-    setSelectedUser(null);
+    onDataChange();
   };
 
   const getRoleVariant = (role: User['role']) => {

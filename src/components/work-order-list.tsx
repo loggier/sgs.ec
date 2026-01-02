@@ -51,9 +51,8 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
   };
 
   const onOrderDeleted = () => {
-    onDataChange();
     setIsDeleteDialogOpen(false);
-    setSelectedOrder(null);
+    onDataChange();
   };
 
   const priorityVariants: Record<WorkOrder['prioridad'], 'destructive' | 'default' | 'secondary'> = {

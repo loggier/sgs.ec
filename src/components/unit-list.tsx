@@ -154,10 +154,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
 
   const handleSuccess = () => {
     onDataChange();
-    setIsPaymentDialogOpen(false);
-    setIsPgpsStatusDialogOpen(false);
-    setSelectedUnit(null);
-    setBulkAction(null);
   };
   
   const handleSelectAll = (checked: boolean) => {
@@ -475,7 +471,10 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                   <PaymentForm 
                       unit={selectedUnit}
                       clientId={clientId}
-                      onSave={handleSuccess}
+                      onSave={() => {
+                          setIsPaymentDialogOpen(false);
+                          handleSuccess();
+                      }}
                       onCancel={() => setIsPaymentDialogOpen(false)}
                   />
               )}
@@ -486,7 +485,10 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
           isOpen={isPgpsStatusDialogOpen}
           onOpenChange={setIsPgpsStatusDialogOpen}
           unit={selectedUnit}
-          onSuccess={handleSuccess}
+          onSuccess={() => {
+              setIsPgpsStatusDialogOpen(false);
+              handleSuccess();
+          }}
       />
 
       <BulkSetPgpsStatusDialog
@@ -494,7 +496,11 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
         onOpenChange={setIsBulkStatusDialogOpen}
         units={selectedUnitsForBulkAction}
         action={bulkAction}
-        onSuccess={handleSuccess}
+        onSuccess={() => {
+            setIsBulkStatusDialogOpen(false);
+            handleSuccess();
+            setBulkAction(null);
+        }}
       />
     </>
   );

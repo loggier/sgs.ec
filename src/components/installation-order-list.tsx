@@ -51,9 +51,8 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   };
 
   const onOrderDeleted = () => {
-    onDataChange();
     setIsDeleteDialogOpen(false);
-    setSelectedOrder(null);
+    onDataChange();
   };
 
   const statusVariants: Record<InstallationOrder['estado'], 'default' | 'secondary' | 'outline'> = {
