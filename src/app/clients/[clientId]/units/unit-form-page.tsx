@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -7,7 +8,7 @@ import { useAuth } from '@/context/auth-context';
 
 import UnitForm from '@/components/unit-form';
 import { getUnitById } from '@/lib/unit-actions';
-import type { Unit } from '@/lib/unit-schema';
+import type { Unit, SerializableUnit } from '@/lib/unit-schema';
 
 type UnitFormPageProps = {
   clientId: string;
@@ -22,7 +23,7 @@ export default function UnitFormPage({ clientId, unitId }: UnitFormPageProps) {
   const router = useRouter();
 
   React.useEffect(() => {
-    if (unitId) {
+    if (unitId && clientId) {
       getUnitById(clientId, unitId)
         .then((data) => {
           if (data) {
@@ -36,8 +37,11 @@ export default function UnitFormPage({ clientId, unitId }: UnitFormPageProps) {
     }
   }, [clientId, unitId]);
 
-  const handleSave = () => {
-    router.push(`/clients/${clientId}/units`);
+  const handleSave = (savedUnit: SerializableUnit) => {
+    // After saving, redirect to the correct client's unit list.
+    // The savedUnit contains the definitive clientId.
+    router.push(`/clients/${savedUnit.clientId}/units`);
+    router.refresh(); // Refresh the page to ensure data is up to date
   };
 
   const handleCancel = () => {

@@ -12,7 +12,7 @@ import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink, FileText, Up
 import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
-import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
+import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory, type SerializableUnit } from '@/lib/unit-schema';
 import { saveUnit, saveContractUrl } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
@@ -49,7 +49,7 @@ import { addDays, formatDistanceToNow, parseISO } from 'date-fns';
 type UnitFormProps = {
   unit: Unit | null;
   clientId?: string;
-  onSave: () => void;
+  onSave: (savedUnit: SerializableUnit) => void;
   onCancel: () => void;
 };
 
@@ -791,7 +791,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
   const [clients, setClients] = React.useState<ClientDisplay[]>([]);
   
   const isEditing = !!unit;
-  const isGlobalAdd = !unit && !clientId;
+  const isGlobalAdd = !isEditing && !clientId;
 
   const form = useForm<UnitFormInput>({
     resolver: zodResolver(UnitFormSchema),
@@ -862,7 +862,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
           title: 'Éxito',
           description: result.message,
         });
-        onSave();
+        onSave(result.unit);
       } else {
         toast({
           title: 'Error',
@@ -901,5 +901,3 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
     </FormProvider>
   );
 }
-
-    
