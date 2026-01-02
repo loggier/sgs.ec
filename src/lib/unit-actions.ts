@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -101,17 +102,15 @@ export async function getUnitsByClientId(clientId: string): Promise<Unit[]> {
   }
 }
 
-const getUnit = async (clientId: string, unitId: string): Promise<Unit | null> => {
+export async function getUnitById(clientId: string, unitId: string): Promise<Unit | null> {
     const unitDocRef = doc(db, 'clients', clientId, 'units', unitId);
     const unitDoc = await getDoc(unitDocRef);
     if (!unitDoc.exists()) return null;
 
     const data = unitDoc.data();
-    let unit: Unit = { id: unitDoc.id, clientId, ...data } as Unit;
+    let unit: Unit = { id: unitDoc.id, clientId, ...convertTimestamps(data) } as Unit;
 
-    // Enrich with P. GPS device status if linked
     if (unit.pgpsDeviceId) {
-        // IMPORTANT: Await the async call
         const { device } = await getPgpsDeviceDetails(unit.pgpsDeviceId);
         if (device) {
             unit.pgpsDeviceActive = device.active;
@@ -606,5 +605,3 @@ export async function bulkUpdateUnitPgpsStatus(
         failures: failureCount,
     };
 }
-
-    

@@ -7,6 +7,7 @@ import { PlusCircle, MoreHorizontal, Edit, Trash2, CreditCard, Link2, Power, Pow
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
+import Link from 'next/link';
 
 import type { Unit } from '@/lib/unit-schema';
 import { Button } from '@/components/ui/button';
@@ -29,11 +30,9 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/context/auth-context';
 import type { DisplayUnit } from '@/app/clients/[clientId]/units/page';
 
-import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
@@ -83,7 +82,6 @@ function formatDateSafe(date: Date | string | null | undefined): string {
 export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
   const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
-  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
@@ -139,16 +137,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     });
   }, [units, filter, dateRange]);
   
-  const handleAddUnit = () => {
-    setSelectedUnit(null);
-    setIsSheetOpen(true);
-  };
-
-  const handleEditUnit = (unit: DisplayUnit) => {
-    setSelectedUnit(unit);
-    setIsSheetOpen(true);
-  };
-
   const handleDeleteUnit = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
     setIsDeleteDialogOpen(true);
@@ -166,7 +154,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
 
   const handleSuccess = () => {
     onDataChange();
-    setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
     setIsBulkDeleteDialogOpen(false);
@@ -268,9 +255,11 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
               setDateRange={setDateRange}
             />
             {user && ['master', 'manager', 'analista'].includes(user.role) && (
-              <Button onClick={handleAddUnit} size="sm" className="w-full sm:w-auto">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nueva Unidad
+              <Button asChild size="sm" className="w-full sm:w-auto">
+                <Link href={`/clients/${clientId}/units/new`}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nueva Unidad
+                </Link>
               </Button>
             )}
           </div>
@@ -427,8 +416,10 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                               {!unit.estaSuspendido ? 'Suspender Servicio' : 'Activar Servicio'}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
-                            <Edit className="mr-2 h-4 w-4" /> Editar
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clients/${clientId}/units/${unit.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar
+                            </Link>
                           </DropdownMenuItem>
                           {user && ['master', 'manager'].includes(user.role) && (
                             <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
@@ -454,20 +445,6 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
       </CardContent>
       </Card>
       
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-2xl w-full">
-          <SheetHeader>
-            <SheetTitle>{selectedUnit ? 'Editar Unidad' : 'Agregar Nueva Unidad'}</SheetTitle>
-          </SheetHeader>
-          <UnitForm
-            unit={selectedUnit}
-            clientId={clientId}
-            onSave={handleSuccess}
-            onCancel={() => setIsSheetOpen(false)}
-          />
-        </SheetContent>
-      </Sheet>
-
       <DeleteUnitDialog
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

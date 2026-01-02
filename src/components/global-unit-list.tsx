@@ -31,9 +31,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
-import UnitForm from './unit-form';
 import DeleteUnitDialog from './delete-unit-dialog';
 import PaymentForm from './payment-form';
 import PaymentStatusBadge from './payment-status-badge';
@@ -84,7 +82,6 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
   const { user } = useAuth();
   const { searchTerm } = useSearch();
   const [units, setUnits] = React.useState(initialUnits);
-  const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [isUnitStatusDialogOpen, setIsUnitStatusDialogOpen] = React.useState(false);
@@ -102,16 +99,6 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     setUnits(initialUnits);
   }, [initialUnits]);
   
-  const handleAddUnit = () => {
-    setSelectedUnit(null);
-    setIsSheetOpen(true);
-  };
-
-  const handleEditUnit = (unit: GlobalUnit) => {
-    setSelectedUnit(unit);
-    setIsSheetOpen(true);
-  };
-
   const handleDeleteUnit = (unit: GlobalUnit) => {
     setSelectedUnit(unit);
     setIsDeleteDialogOpen(true);
@@ -129,7 +116,6 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
 
   const handleSuccess = () => {
     onDataChange();
-    setIsSheetOpen(false);
     setIsPaymentDialogOpen(false);
     setIsDeleteDialogOpen(false);
     setIsUnitStatusDialogOpen(false);
@@ -278,9 +264,11 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                   setDateRange={setDateRange}
                 />
                 {user && ['master', 'manager'].includes(user.role) && (
-                <Button onClick={handleAddUnit} size="sm" className="w-full sm:w-auto">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nueva Unidad
+                <Button asChild size="sm" className="w-full sm:w-auto">
+                    <Link href="/units/new">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nueva Unidad
+                    </Link>
                 </Button>
                 )}
             </div>
@@ -390,8 +378,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                               {!unit.estaSuspendido ? 'Suspender Servicio' : 'Activar Servicio'}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleEditUnit(unit)}>
-                            <Edit className="mr-2 h-4 w-4" /> Editar
+                          <DropdownMenuItem asChild>
+                            <Link href={`/clients/${unit.clientId}/units/${unit.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar
+                            </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
                             <Trash2 className="mr-2 h-4 w-4" /> Eliminar
@@ -415,20 +405,6 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
       </CardContent>
       </Card>
       
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="sm:max-w-2xl w-full">
-          <SheetHeader>
-            <SheetTitle>{selectedUnit ? 'Editar Unidad' : 'Agregar Nueva Unidad'}</SheetTitle>
-          </SheetHeader>
-           <UnitForm
-              unit={selectedUnit}
-              clientId={selectedUnit?.clientId} 
-              onSave={handleSuccess}
-              onCancel={() => setIsSheetOpen(false)}
-          />
-        </SheetContent>
-      </Sheet>
-
       <DeleteUnitDialog
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

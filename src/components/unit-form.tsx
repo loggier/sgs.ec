@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { format, addMonths, isBefore, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2, AlertTriangle, Link2, ExternalLink, FileText, Upload, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory } from '@/lib/unit-schema';
@@ -47,7 +48,7 @@ import { addDays, formatDistanceToNow, parseISO } from 'date-fns';
 
 type UnitFormProps = {
   unit: Unit | null;
-  clientId?: string; // Optional: provided when adding/editing from a client's page
+  clientId?: string;
   onSave: () => void;
   onCancel: () => void;
 };
@@ -843,7 +844,7 @@ export default function UnitForm({ unit, clientId, onSave, onCancel }: UnitFormP
 
   async function onSubmit(values: UnitFormInput) {
     setIsSubmitting(true);
-    const finalClientId = isGlobalAdd ? values.clientId : clientId!;
+    const finalClientId = isGlobalAdd ? values.clientId : clientId;
     if (!finalClientId) {
       toast({
         title: 'Error',
