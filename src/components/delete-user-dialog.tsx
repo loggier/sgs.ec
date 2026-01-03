@@ -2,9 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { deleteUser } from '@/lib/user-actions';
-import type { User } from '@/lib/user-schema';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,53 +14,35 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
+import type { User } from '@/lib/user-schema';
 
 type DeleteUserDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   user: User | null;
-  onDelete: () => void;
+  onConfirm: () => Promise<void>;
 };
 
 export default function DeleteUserDialog({
   isOpen,
   onOpenChange,
   user,
-  onDelete,
+  onConfirm,
 }: DeleteUserDialogProps) {
-  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const handleDelete = async () => {
-    if (!user || !user.id) return;
-
+  const handleConfirm = async () => {
     setIsDeleting(true);
-    try {
-      const result = await deleteUser(user.id);
-      if (result.success) {
-        toast({
-          title: 'Éxito',
-          description: result.message,
-        });
-        onDelete();
-      } else {
-        toast({
-          title: 'Error',
-          description: result.message,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-       toast({
-        title: 'Error',
-        description: 'Ocurrió un error inesperado.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
-      onOpenChange(false);
-    }
+    await onConfirm();
+    setIsDeleting(false);
   };
+  
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsDeleting(false);
+    }
+  }, [isOpen]);
+
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -80,7 +59,7 @@ export default function DeleteUserDialog({
           <AlertDialogAction asChild>
             <Button
                 variant="destructive"
-                onClick={handleDelete}
+                onClick={handleConfirm}
                 disabled={isDeleting}
             >
                 {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -114,14 +114,14 @@ export default function LogList() {
 
 
   const handleClearLogs = async () => {
+    setIsClearDialogOpen(false);
     const result = await clearAllLogs();
     if (result.success) {
       toast({ title: 'Éxito', description: result.message });
+      refetchData();
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
-    setIsClearDialogOpen(false);
-    refetchData();
   };
   
   const formatDate = (date: any) => {

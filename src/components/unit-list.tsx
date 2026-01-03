@@ -143,11 +143,13 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
   
   const onDeletionConfirmed = async () => {
     if (!selectedUnit || !user) return;
+    
+    setIsDeleteDialogOpen(false); 
     const result = await deleteUnit(selectedUnit.id, clientId, user);
+    
     if (result.success) {
       toast({ title: 'Éxito', description: result.message });
-      setIsDeleteDialogOpen(false); // Close dialog first
-      onDataChange(); // Then refresh data
+      onDataChange();
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }

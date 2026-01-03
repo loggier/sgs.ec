@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -26,6 +27,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import UserForm from './user-form';
 import DeleteUserDialog from './delete-user-dialog';
 import { useAuth } from '@/context/auth-context';
+import { useToast } from '@/hooks/use-toast';
+import { deleteUser } from '@/lib/user-actions';
+
 
 type UserListProps = {
   initialUsers: User[];
@@ -35,6 +39,7 @@ type UserListProps = {
 export default function UserList({ initialUsers, onDataChange }: UserListProps) {
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const [users, setUsers] = React.useState(initialUsers);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -65,9 +70,24 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
     setSelectedUser(null);
   };
 
-  const onUserDeleted = () => {
+  const onDeletionConfirmed = async () => {
+    if (!selectedUser?.id) return;
     setIsDeleteDialogOpen(false);
-    onDataChange();
+
+    const result = await deleteUser(selectedUser.id);
+    if (result.success) {
+      toast({
+        title: 'Éxito',
+        description: result.message,
+      });
+      onDataChange();
+    } else {
+      toast({
+        title: 'Error',
+        description: result.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const getRoleVariant = (role: User['role']) => {
@@ -223,7 +243,7 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         user={selectedUser}
-        onDelete={onUserDeleted}
+        onConfirm={onDeletionConfirmed}
       />
     </>
   );

@@ -57,14 +57,15 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
 
   const onDeletionConfirmed = async () => {
     if (!selectedOrder || !currentUser) return;
+    
+    setIsDeleteDialogOpen(false);
     const result = await deleteWorkOrder(selectedOrder.id, currentUser);
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
+        onDataChange();
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
-    setIsDeleteDialogOpen(false);
-    onDataChange();
   };
 
   const priorityVariants: Record<WorkOrder['prioridad'], 'destructive' | 'default' | 'secondary'> = {
