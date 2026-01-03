@@ -2,9 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { deletePayment } from '@/lib/payment-actions';
-import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,55 +14,34 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
+import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 
 type DeletePaymentDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   payment: PaymentHistoryEntry | null;
-  onDelete: () => void;
+  onConfirm: () => Promise<void>;
 };
 
 export default function DeletePaymentDialog({
   isOpen,
   onOpenChange,
   payment,
-  onDelete,
+  onConfirm,
 }: DeletePaymentDialogProps) {
-  const { toast } = useToast();
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const handleDelete = async () => {
-    if (!payment) return;
-
+  const handleConfirm = async () => {
     setIsDeleting(true);
-    try {
-      const result = await deletePayment(payment.id, payment.clientId, payment.unitId);
-      
-      if (result.success) {
-        toast({
-          title: 'Éxito',
-          description: result.message,
-        });
-        onDelete();
-      } else {
-        toast({
-          title: 'Error al eliminar',
-          description: result.message, // This will now show the detailed error from the server
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-       const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error inesperado al eliminar el pago.';
-       toast({
-        title: 'Error Inesperado',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
-      onOpenChange(false);
-    }
+    await onConfirm();
+    setIsDeleting(false);
   };
+  
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsDeleting(false);
+    }
+  }, [isOpen]);
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -83,7 +59,7 @@ export default function DeletePaymentDialog({
           <AlertDialogAction asChild>
             <Button
                 variant="destructive"
-                onClick={handleDelete}
+                onClick={handleConfirm}
                 disabled={isDeleting}
             >
                 {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

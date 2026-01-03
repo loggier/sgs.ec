@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -28,6 +29,9 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import DeleteWorkOrderDialog from './delete-work-order-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { deleteWorkOrder } from '@/lib/work-order-actions';
+
 
 type WorkOrderListProps = {
   initialOrders: WorkOrder[];
@@ -37,6 +41,7 @@ type WorkOrderListProps = {
 export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrderListProps) {
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = React.useState(initialOrders);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<WorkOrder | null>(null);
@@ -45,14 +50,21 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     setOrders(initialOrders);
   }, [initialOrders]);
   
-  const handleDeleteOrder = (order: WorkOrder) => {
+  const handleOpenDeleteDialog = (order: WorkOrder) => {
     setSelectedOrder(order);
     setIsDeleteDialogOpen(true);
   };
 
-  const onOrderDeleted = () => {
-    setIsDeleteDialogOpen(false);
-    onDataChange();
+  const onDeletionConfirmed = async () => {
+    if (!selectedOrder || !currentUser) return;
+    const result = await deleteWorkOrder(selectedOrder.id, currentUser);
+    if (result.success) {
+        toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false); // Close dialog first
+        onDataChange(); // Then refresh data
+    } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
   };
 
   const priorityVariants: Record<WorkOrder['prioridad'], 'destructive' | 'default' | 'secondary'> = {
@@ -101,7 +113,7 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
                 </Link>
             </DropdownMenuItem>
             {currentUser?.role !== 'tecnico' && (
-                <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
+                <DropdownMenuItem onClick={() => handleOpenDeleteDialog(order)} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                 </DropdownMenuItem>
             )}
@@ -225,7 +237,7 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         order={selectedOrder}
-        onDelete={onOrderDeleted}
+        onConfirm={onDeletionConfirmed}
       />
     </>
   );

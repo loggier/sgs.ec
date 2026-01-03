@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -28,6 +29,9 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import DeleteInstallationOrderDialog from './delete-installation-order-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { deleteInstallationOrder } from '@/lib/installation-order-actions';
+
 
 type InstallationOrderListProps = {
   initialOrders: InstallationOrder[];
@@ -37,6 +41,7 @@ type InstallationOrderListProps = {
 export default function InstallationOrderList({ initialOrders, onDataChange }: InstallationOrderListProps) {
   const { searchTerm } = useSearch();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = React.useState(initialOrders);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<InstallationOrder | null>(null);
@@ -45,14 +50,21 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
     setOrders(initialOrders);
   }, [initialOrders]);
   
-  const handleDeleteOrder = (order: InstallationOrder) => {
+  const handleOpenDeleteDialog = (order: InstallationOrder) => {
     setSelectedOrder(order);
     setIsDeleteDialogOpen(true);
   };
 
-  const onOrderDeleted = () => {
-    setIsDeleteDialogOpen(false);
-    onDataChange();
+  const onDeletionConfirmed = async () => {
+    if (!selectedOrder || !currentUser) return;
+    const result = await deleteInstallationOrder(selectedOrder.id, currentUser);
+    if (result.success) {
+        toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false); // Close dialog first
+        onDataChange(); // Then refresh data
+    } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
   };
 
   const statusVariants: Record<InstallationOrder['estado'], 'default' | 'secondary' | 'outline'> = {
@@ -96,7 +108,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                 </Link>
             </DropdownMenuItem>
             {currentUser?.role !== 'tecnico' && (
-                <DropdownMenuItem onClick={() => handleDeleteOrder(order)} className="text-red-600">
+                <DropdownMenuItem onClick={() => handleOpenDeleteDialog(order)} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                 </DropdownMenuItem>
             )}
@@ -220,7 +232,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         order={selectedOrder}
-        onDelete={onOrderDeleted}
+        onConfirm={onDeletionConfirmed}
       />
     </>
   );

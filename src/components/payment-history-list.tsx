@@ -24,6 +24,8 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
 import DeletePaymentDialog from './delete-payment-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { deletePayment } from '@/lib/payment-actions';
 
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
@@ -61,6 +63,7 @@ export default function PaymentHistoryList({
   onPrevPage,
 }: PaymentHistoryListProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { searchTerm } = useSearch();
   const [payments, setPayments] = React.useState(initialPayments);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -81,14 +84,21 @@ export default function PaymentHistoryList({
     );
   }, [searchTerm, payments]);
   
-  const handleDeletePayment = (payment: PaymentHistoryEntry) => {
+  const handleOpenDeleteDialog = (payment: PaymentHistoryEntry) => {
     setSelectedPayment(payment);
     setIsDeleteDialogOpen(true);
   };
   
-  const handlePaymentDeleted = () => {
-    setIsDeleteDialogOpen(false);
-    onPaymentDeleted();
+  const onDeletionConfirmed = async () => {
+    if (!selectedPayment) return;
+    const result = await deletePayment(selectedPayment.id, selectedPayment.clientId, selectedPayment.unitId);
+    if (result.success) {
+        toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false); // Close dialog first
+        onPaymentDeleted(); // Then refresh data
+    } else {
+        toast({ title: 'Error al eliminar', description: result.message, variant: 'destructive' });
+    }
   }
 
   return (
@@ -155,7 +165,7 @@ export default function PaymentHistoryList({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleDeletePayment(payment)} className="text-red-600">
+                                <DropdownMenuItem onClick={() => handleOpenDeleteDialog(payment)} className="text-red-600">
                                   <Trash2 className="mr-2 h-4 w-4" /> Eliminar Pago
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -202,7 +212,7 @@ export default function PaymentHistoryList({
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         payment={selectedPayment}
-        onDelete={handlePaymentDeleted}
+        onConfirm={onDeletionConfirmed}
       />
     </>
   );

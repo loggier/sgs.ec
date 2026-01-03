@@ -20,7 +20,7 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
@@ -42,6 +42,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import SetPgpsStatusDialog from './set-pgps-status-dialog';
 import BulkSetPgpsStatusDialog from './bulk-set-pgps-status-dialog';
 import BulkDeleteUnitDialog from './bulk-delete-unit-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { deleteUnit } from '@/lib/unit-actions';
+
 
 type UnitListProps = {
   initialUnits: DisplayUnit[];
@@ -56,11 +59,6 @@ const planDisplayNames: Record<Unit['tipoPlan'], string> = {
   'estandar-cc': 'Estándar CC',
   'avanzado-cc': 'Avanzado CC',
   'total-cc': 'Total CC',
-};
-
-const badgeVariants = {
-    info: 'bg-blue-100 text-blue-800 border-blue-200',
-    danger: 'bg-red-100 text-red-800 border-red-200',
 };
 
 function formatCurrency(amount?: number | null) {
@@ -81,6 +79,7 @@ function formatDateSafe(date: Date | string | null | undefined): string {
 
 export default function UnitList({ initialUnits, clientId, onDataChange }: UnitListProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [units, setUnits] = React.useState<DisplayUnit[]>(initialUnits);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = React.useState(false);
@@ -137,9 +136,21 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
     });
   }, [units, filter, dateRange]);
   
-  const handleDeleteUnit = (unit: DisplayUnit) => {
+  const handleOpenDeleteDialog = (unit: DisplayUnit) => {
     setSelectedUnit(unit);
     setIsDeleteDialogOpen(true);
+  };
+  
+  const onDeletionConfirmed = async () => {
+    if (!selectedUnit || !user) return;
+    const result = await deleteUnit(selectedUnit.id, clientId, user);
+    if (result.success) {
+      toast({ title: 'Éxito', description: result.message });
+      setIsDeleteDialogOpen(false); // Close dialog first
+      onDataChange(); // Then refresh data
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
   };
   
   const handleRegisterPayment = (unit: DisplayUnit) => {
@@ -415,7 +426,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
                             </Link>
                           </DropdownMenuItem>
                           {user && ['master', 'manager'].includes(user.role) && (
-                            <DropdownMenuItem onClick={() => handleDeleteUnit(unit)} className="text-red-600">
+                            <DropdownMenuItem onClick={() => handleOpenDeleteDialog(unit)} className="text-red-600">
                                 <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                             </DropdownMenuItem>
                           )}
@@ -442,11 +453,7 @@ export default function UnitList({ initialUnits, clientId, onDataChange }: UnitL
         isOpen={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         unit={selectedUnit}
-        clientId={clientId}
-        onDelete={() => {
-            setIsDeleteDialogOpen(false);
-            handleSuccess();
-        }}
+        onConfirm={onDeletionConfirmed}
       />
 
        <BulkDeleteUnitDialog

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import * as React from 'react';
@@ -18,7 +19,7 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Badge, badgeVariants } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -34,6 +35,8 @@ import DeleteClientDialog from './delete-client-dialog';
 import ClientPaymentForm from './client-payment-form';
 import SendMessageDialog from './send-qyvoo-message-dialog';
 import { Separator } from './ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { deleteClient } from '@/lib/actions';
 
 
 type ClientListProps = {
@@ -50,6 +53,7 @@ function formatCurrency(amount?: number) {
 
 export default function ClientList({ initialClients, onDataChange }: ClientListProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { searchTerm } = useSearch();
   const [clients, setClients] = React.useState(initialClients);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
@@ -74,9 +78,21 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     setIsSheetOpen(true);
   };
 
-  const handleDeleteClient = (client: ClientDisplay) => {
+  const handleOpenDeleteDialog = (client: ClientDisplay) => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
+  };
+  
+  const onDeletionConfirmed = async () => {
+    if (!selectedClient || !user) return;
+    const result = await deleteClient(selectedClient.id!, user);
+    if (result.success) {
+        toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false); // Close dialog first
+        onDataChange(); // Then refresh data
+    } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
   };
   
   const handleRegisterPayment = (client: ClientDisplay) => {
@@ -101,11 +117,6 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
       setSelectedClient(null);
   };
 
-  const onClientDeleted = () => {
-    setIsDeleteDialogOpen(false);
-    onDataChange();
-  }
-
   const getStatusVariant = (status: ClientDisplay['estado']) => {
     switch (status) {
       case 'al dia':
@@ -119,7 +130,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     }
   };
 
-  const badgeVariants = {
+  const badgeStatusVariants = {
     success: 'bg-green-100 text-green-800 border-green-200',
     warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     destructive: 'bg-red-100 text-red-800 border-red-200',
@@ -190,7 +201,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
             {user && ['master', 'manager'].includes(user.role) && (
                 <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleDeleteClient(client)} className="text-red-600">
+                <DropdownMenuItem onClick={() => handleOpenDeleteDialog(client)} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                 </DropdownMenuItem>
                 </>
@@ -227,7 +238,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                         <div>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 {client.nomSujeto}
-                                {client.pgpsId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
+                                {client.pgpsId && <Badge variant="outline" className={badgeStatusVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
                             </CardTitle>
                             <CardDescription>{client.codIdSujeto}</CardDescription>
                         </div>
@@ -236,7 +247,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
+                        <Badge variant="outline" className={badgeStatusVariants[getStatusVariant(client.estado)]}>
                             {displayStatus[client.estado]}
                         </Badge>
                          <Badge variant="outline" className={clientTypeBadgeVariants[client.tipoCliente || 'Personal']}>
@@ -303,7 +314,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                         <TableCell>
                             <div className="font-medium flex items-center gap-2">
                               {client.nomSujeto}
-                              {client.pgpsId && <Badge variant="outline" className={badgeVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
+                              {client.pgpsId && <Badge variant="outline" className={badgeStatusVariants.info}><Link2 className="h-3 w-3 mr-1"/>P. GPS</Badge>}
                             </div>
                             <div className="text-sm text-muted-foreground">{client.codIdSujeto}</div>
                              <div className="flex items-center gap-2 mt-1">
@@ -341,7 +352,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                            </Badge>
                         </TableCell>
                         <TableCell>
-                           <Badge variant="outline" className={badgeVariants[getStatusVariant(client.estado)]}>
+                           <Badge variant="outline" className={badgeStatusVariants[getStatusVariant(client.estado)]}>
                               {displayStatus[client.estado]}
                            </Badge>
                         </TableCell>
@@ -409,7 +420,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
             isOpen={isDeleteDialogOpen}
             onOpenChange={setIsDeleteDialogOpen}
             client={selectedClient}
-            onDelete={onClientDeleted}
+            onConfirm={onDeletionConfirmed}
           />
           
           <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>

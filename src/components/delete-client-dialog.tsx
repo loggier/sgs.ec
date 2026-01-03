@@ -2,10 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { deleteClient } from '@/lib/actions';
-import type { Client } from '@/lib/schema';
-import { useAuth } from '@/context/auth-context';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,51 +18,29 @@ import { Loader2 } from 'lucide-react';
 type DeleteClientDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  client: Omit<Client, 'placaVehiculo'> | null;
-  onDelete: () => void;
+  client: { nomSujeto?: string } | null;
+  onConfirm: () => Promise<void>;
 };
 
 export default function DeleteClientDialog({
   isOpen,
   onOpenChange,
   client,
-  onDelete,
+  onConfirm,
 }: DeleteClientDialogProps) {
-  const { toast } = useToast();
-  const { user } = useAuth();
   const [isDeleting, setIsDeleting] = React.useState(false);
 
-  const handleDelete = async () => {
-    if (!client || !user) return;
-
+  const handleConfirm = async () => {
     setIsDeleting(true);
-    try {
-      const result = await deleteClient(client.id!, user);
-      
-      if (result.success) {
-        toast({
-          title: 'Éxito',
-          description: result.message,
-        });
-        onDelete();
-      } else {
-        toast({
-          title: 'Error',
-          description: result.message,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-       toast({
-        title: 'Error',
-        description: 'Ocurrió un error inesperado.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsDeleting(false);
-      onOpenChange(false);
-    }
+    await onConfirm();
+    setIsDeleting(false);
   };
+  
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsDeleting(false);
+    }
+  }, [isOpen]);
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -75,7 +49,7 @@ export default function DeleteClientDialog({
           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del cliente{' '}
-            <span className="font-semibold">{client?.nomSujeto}</span>.
+            <span className="font-semibold">{client?.nomSujeto}</span> y todas sus unidades asociadas.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -83,7 +57,7 @@ export default function DeleteClientDialog({
           <AlertDialogAction asChild>
             <Button
                 variant="destructive"
-                onClick={handleDelete}
+                onClick={handleConfirm}
                 disabled={isDeleting}
             >
                 {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
