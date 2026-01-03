@@ -58,13 +58,15 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
   const onDeletionConfirmed = async () => {
     if (!selectedOrder || !currentUser) return;
     
-    setIsDeleteDialogOpen(false);
     const result = await deleteWorkOrder(selectedOrder.id, currentUser);
+    
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false);
         onDataChange();
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
+        setIsDeleteDialogOpen(false);
     }
   };
 
@@ -243,5 +245,3 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     </>
   );
 }
-
-    

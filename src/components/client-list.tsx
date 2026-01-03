@@ -86,16 +86,15 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
   const onDeletionConfirmed = async () => {
     if (!selectedClient || !user) return;
 
-    // First, close the dialog
-    setIsDeleteDialogOpen(false);
-
-    // Then, perform the deletion
     const result = await deleteClient(selectedClient.id!, user);
+    
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        onDataChange(); // Refresh data after successful deletion
+        setIsDeleteDialogOpen(false); // Close dialog first
+        onDataChange(); // Then refresh data
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
+        setIsDeleteDialogOpen(false); // Still close dialog on error
     }
   };
   
@@ -455,5 +454,3 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     </>
   );
 }
-
-    

@@ -14,11 +14,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
+import type { ClientDisplay } from '@/lib/schema';
 
 type DeleteClientDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  client: { nomSujeto?: string } | null;
+  client: ClientDisplay | null;
   onConfirm: () => Promise<void>;
 };
 
@@ -33,11 +34,11 @@ export default function DeleteClientDialog({
   const handleConfirm = async () => {
     setIsDeleting(true);
     await onConfirm();
-    setIsDeleting(false);
+    // The parent component is now responsible for closing the dialog
   };
   
+  // Reset local loading state when the dialog is closed externally
   React.useEffect(() => {
-    // Reset deleting state if the dialog is closed from the outside
     if (!isOpen) {
       setIsDeleting(false);
     }
@@ -70,5 +71,3 @@ export default function DeleteClientDialog({
     </AlertDialog>
   );
 }
-
-    

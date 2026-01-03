@@ -34,7 +34,6 @@ export default function DeleteUserDialog({
   const handleConfirm = async () => {
     setIsDeleting(true);
     await onConfirm();
-    setIsDeleting(false);
   };
   
   React.useEffect(() => {

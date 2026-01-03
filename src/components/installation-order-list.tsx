@@ -58,13 +58,15 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   const onDeletionConfirmed = async () => {
     if (!selectedOrder || !currentUser) return;
     
-    setIsDeleteDialogOpen(false);
     const result = await deleteInstallationOrder(selectedOrder.id, currentUser);
+    
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false);
         onDataChange();
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
+        setIsDeleteDialogOpen(false);
     }
   };
 
@@ -238,5 +240,3 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
     </>
   );
 }
-
-    

@@ -92,14 +92,15 @@ export default function PaymentHistoryList({
   const onDeletionConfirmed = async () => {
     if (!selectedPayment) return;
 
-    setIsDeleteDialogOpen(false);
     const result = await deletePayment(selectedPayment.id, selectedPayment.clientId, selectedPayment.unitId);
     
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
+        setIsDeleteDialogOpen(false);
         onPaymentDeleted();
     } else {
         toast({ title: 'Error al eliminar', description: result.message, variant: 'destructive' });
+        setIsDeleteDialogOpen(false);
     }
   }
 
@@ -219,5 +220,3 @@ export default function PaymentHistoryList({
     </>
   );
 }
-
-    

@@ -31,14 +31,16 @@ export default function ClearLogsDialog({
   const handleConfirm = async () => {
     setIsClearing(true);
     await onConfirm();
-    setIsClearing(false);
+    // The parent component will handle closing the dialog
+    // and resetting the state.
   };
 
+  // Reset state when dialog is closed from outside
   React.useEffect(() => {
-    if(!isOpen) {
+    if (!isOpen) {
       setIsClearing(false);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
@@ -67,5 +69,3 @@ export default function ClearLogsDialog({
     </AlertDialog>
   );
 }
-
-    

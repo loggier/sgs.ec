@@ -34,7 +34,6 @@ export default function DeleteInstallationOrderDialog({
   const handleConfirm = async () => {
     setIsDeleting(true);
     await onConfirm();
-    setIsDeleting(false);
   };
   
   React.useEffect(() => {
@@ -70,5 +69,3 @@ export default function DeleteInstallationOrderDialog({
     </AlertDialog>
   );
 }
-
-    

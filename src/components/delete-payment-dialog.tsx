@@ -34,7 +34,6 @@ export default function DeletePaymentDialog({
   const handleConfirm = async () => {
     setIsDeleting(true);
     await onConfirm();
-    setIsDeleting(false);
   };
   
   React.useEffect(() => {
@@ -71,5 +70,3 @@ export default function DeletePaymentDialog({
     </AlertDialog>
   );
 }
-
-    
