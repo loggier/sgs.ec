@@ -48,7 +48,6 @@ export default function LogList() {
   const { toast } = useToast();
   const [logs, setLogs] = React.useState<MessageLog[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isClearing, setIsClearing] = React.useState(false);
   const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -85,12 +84,16 @@ export default function LogList() {
       }
   }, [filter]);
   
-  React.useEffect(() => {
+  const refetchData = React.useCallback(() => {
     // Reset and fetch when filter changes
     setPage(1);
     setPageHistory([null]);
     fetchLogs(null, 'next');
-  }, [filter, fetchLogs]);
+  }, [fetchLogs]);
+
+  React.useEffect(() => {
+    refetchData();
+  }, [filter, refetchData]);
 
   const handleNextPage = () => {
     if (!currentPageInfo.lastVisibleId) return;
@@ -111,19 +114,14 @@ export default function LogList() {
 
 
   const handleClearLogs = async () => {
-    setIsClearing(true);
     const result = await clearAllLogs();
     if (result.success) {
       toast({ title: 'Éxito', description: result.message });
-      setLogs([]);
-      setCurrentPageInfo({ lastVisibleId: null, firstVisibleId: null, hasMore: false });
-      setPage(1);
-      setPageHistory([null]);
     } else {
       toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
-    setIsClearing(false);
     setIsClearDialogOpen(false);
+    refetchData();
   };
   
   const formatDate = (date: any) => {
@@ -286,10 +284,11 @@ export default function LogList() {
         <ClearLogsDialog
           isOpen={isClearDialogOpen}
           onOpenChange={setIsClearDialogOpen}
-          isClearing={isClearing}
           onConfirm={handleClearLogs}
         />
       </div>
     </TooltipProvider>
   );
 }
+
+    

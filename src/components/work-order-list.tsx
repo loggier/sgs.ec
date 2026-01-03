@@ -60,11 +60,11 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     const result = await deleteWorkOrder(selectedOrder.id, currentUser);
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        setIsDeleteDialogOpen(false); // Close dialog first
-        onDataChange(); // Then refresh data
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
+    setIsDeleteDialogOpen(false);
+    onDataChange();
   };
 
   const priorityVariants: Record<WorkOrder['prioridad'], 'destructive' | 'default' | 'secondary'> = {
@@ -242,3 +242,5 @@ export default function WorkOrderList({ initialOrders, onDataChange }: WorkOrder
     </>
   );
 }
+
+    

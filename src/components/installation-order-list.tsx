@@ -60,11 +60,11 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
     const result = await deleteInstallationOrder(selectedOrder.id, currentUser);
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        setIsDeleteDialogOpen(false); // Close dialog first
-        onDataChange(); // Then refresh data
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
+    setIsDeleteDialogOpen(false);
+    onDataChange();
   };
 
   const statusVariants: Record<InstallationOrder['estado'], 'default' | 'secondary' | 'outline'> = {
@@ -237,3 +237,5 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
     </>
   );
 }
+
+    

@@ -18,16 +18,28 @@ import { Loader2 } from 'lucide-react';
 type ClearLogsDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  isClearing: boolean;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
 };
 
 export default function ClearLogsDialog({
   isOpen,
   onOpenChange,
-  isClearing,
   onConfirm,
 }: ClearLogsDialogProps) {
+  const [isClearing, setIsClearing] = React.useState(false);
+
+  const handleConfirm = async () => {
+    setIsClearing(true);
+    await onConfirm();
+    setIsClearing(false);
+  };
+
+  React.useEffect(() => {
+    if(!isOpen) {
+      setIsClearing(false);
+    }
+  }, [isOpen])
+
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -43,7 +55,7 @@ export default function ClearLogsDialog({
           <AlertDialogAction asChild>
             <Button
                 variant="destructive"
-                onClick={onConfirm}
+                onClick={handleConfirm}
                 disabled={isClearing}
             >
                 {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -55,3 +67,5 @@ export default function ClearLogsDialog({
     </AlertDialog>
   );
 }
+
+    

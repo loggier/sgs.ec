@@ -37,6 +37,7 @@ export default function DeleteClientDialog({
   };
   
   React.useEffect(() => {
+    // Reset deleting state if the dialog is closed from the outside
     if (!isOpen) {
       setIsDeleting(false);
     }
@@ -69,3 +70,5 @@ export default function DeleteClientDialog({
     </AlertDialog>
   );
 }
+
+    

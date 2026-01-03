@@ -88,11 +88,12 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     const result = await deleteClient(selectedClient.id!, user);
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        setIsDeleteDialogOpen(false); // Close dialog first
-        onDataChange(); // Then refresh data
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
     }
+    // Close the dialog first, then refresh data
+    setIsDeleteDialogOpen(false);
+    onDataChange();
   };
   
   const handleRegisterPayment = (client: ClientDisplay) => {
@@ -451,3 +452,5 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     </>
   );
 }
+
+    
