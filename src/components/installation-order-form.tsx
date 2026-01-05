@@ -123,6 +123,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   const corteDeMotor = form.watch('corteDeMotor');
   const instalacionAccesorios = form.watch('instalacionAccesorios');
   const selectedCountryName = form.watch('pais');
+  const isCompleted = estado === 'terminado';
 
   const selectedCountry = countries.find(c => c.name === selectedCountryName);
   const filteredCities = cities.filter(city => city.countryId === selectedCountry?.id);
@@ -293,7 +294,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             );
         case 'terminado':
              return (
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting || isCompleted}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Guardar Cambios
                 </Button>
@@ -321,7 +322,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                             placeholder="Seleccione un cliente..."
                             searchPlaceholder="Buscar cliente..."
                             emptyPlaceholder="No se encontraron clientes."
-                            disabled={clients.length === 0 || isEditing}
+                            disabled={clients.length === 0 || isEditing || isCompleted}
                         />
                     )}
                      {isEditing && !isTechnician && (
@@ -348,7 +349,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormItem>
                         <FormLabel>Número del Cliente</FormLabel>
                         <FormControl>
-                            <Input placeholder="0991234567" {...field} disabled={isTechnician} />
+                            <Input placeholder="0991234567" {...field} disabled={isTechnician || isCompleted} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -362,7 +363,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>País</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
                                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {countries.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
@@ -378,7 +379,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Ciudad</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || !selectedCountryName}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted || !selectedCountryName}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccione una ciudad"/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {filteredCities.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
@@ -398,7 +399,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         <FormItem>
                         <FormLabel>Placa del Vehículo</FormLabel>
                         <FormControl>
-                            <Input placeholder="PCQ-1234" {...field} disabled={isTechnician} />
+                            <Input placeholder="PCQ-1234" {...field} disabled={isTechnician || isCompleted} />
                         </FormControl>
                         <FormMessage />
                         </FormItem>
@@ -413,7 +414,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                       <FormLabel>Ubicación (URL de Google Maps)</FormLabel>
                       <div className="flex items-center gap-2">
                         <FormControl>
-                          <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician} />
+                          <Input placeholder="https://maps.app.goo.gl/..." {...field} disabled={isTechnician || isCompleted} />
                         </FormControl>
                         {field.value && (
                           <Button asChild variant="secondary" size="icon" className="shrink-0">
@@ -436,7 +437,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Tipo de Plan</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {InstallationPlan.options.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -452,7 +453,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Segmento</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {InstallationSegment.options.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
@@ -471,7 +472,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Categoría</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {InstallationCategory.options.map(c => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}
@@ -487,7 +488,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Tipo de Vehículo</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isTechnician || isCompleted}>
                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {InstallationVehicle.options.map(v => <SelectItem key={v} value={v} className="capitalize">{v}</SelectItem>)}
@@ -506,7 +507,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                     <FormItem>
                     <FormLabel>Observación del Técnico</FormLabel>
                     <FormControl>
-                        <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} />
+                        <Textarea placeholder="Añada aquí sus notas sobre el trabajo realizado..." rows={4} {...field} disabled={isCompleted} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -522,7 +523,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel className="font-semibold">Confirmación de Pago</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={isCompleted}>
                                     <FormControl>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seleccione el método de pago recibido..." />
@@ -551,6 +552,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                 <Switch
                                   checked={field.value}
                                   onCheckedChange={field.onChange}
+                                  disabled={isCompleted}
                                 />
                               </FormControl>
                             </FormItem>
@@ -564,7 +566,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                               render={({ field }) => (
                                   <FormItem>
                                   <FormLabel>Lugar de Corte de Motor</FormLabel>
-                                  <Select onValueChange={field.onChange} value={field.value}>
+                                  <Select onValueChange={field.onChange} value={field.value} disabled={isCompleted}>
                                       <FormControl>
                                       <SelectTrigger>
                                           <SelectValue placeholder="Seleccione el lugar del corte..." />
@@ -594,6 +596,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                     <Switch
                                     checked={field.value}
                                     onCheckedChange={field.onChange}
+                                    disabled={isCompleted}
                                     />
                                 </FormControl>
                                 </FormItem>
@@ -616,6 +619,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                                 <Switch
                                                 checked={field.value}
                                                 onCheckedChange={field.onChange}
+                                                disabled={isCompleted}
                                                 />
                                             </FormControl>
                                             </FormItem>
@@ -633,6 +637,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                                 <Switch
                                                 checked={field.value}
                                                 onCheckedChange={field.onChange}
+                                                disabled={isCompleted}
                                                 />
                                             </FormControl>
                                             </FormItem>
@@ -663,7 +668,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                 placeholder="Seleccione un técnico..."
                                 searchPlaceholder='Buscar técnico...'
                                 emptyPlaceholder='No se encontraron técnicos.'
-                                disabled={technicians.length === 0}
+                                disabled={technicians.length === 0 || isCompleted}
                             />
                         )}
                         <FormMessage />
@@ -684,7 +689,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                     <Button
                                     variant={'outline'}
                                     className={cn('w-full pl-3 text-left font-normal',!field.value && 'text-muted-foreground')}
-                                    disabled={isTechnician}
+                                    disabled={isTechnician || isCompleted}
                                     >
                                     {field.value ? (format(new Date(field.value), 'PPP', { locale: es })) : (<span>Elige una fecha</span>)}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -712,7 +717,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                             <FormItem>
                                 <FormLabel>Hora</FormLabel>
                                 <FormControl>
-                                    <Input type="time" {...field} value={field.value || ''} disabled={isTechnician} />
+                                    <Input type="time" {...field} value={field.value || ''} disabled={isTechnician || isCompleted} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -727,7 +732,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel>Estado</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={isCompleted}>
                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                 <SelectContent>
                                 {InstallationStatus.options.map(s => (
@@ -744,13 +749,15 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         </ScrollArea>
         <div className="flex justify-end gap-2 p-4 border-t">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            Cancelar
+            {isCompleted ? 'Cerrar' : 'Cancelar'}
           </Button>
-          {isTechnician ? getTechnicianSubmitButton() : (
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Guardando...' : 'Guardar Orden'}
-            </Button>
+          {!isCompleted && (
+            isTechnician ? getTechnicianSubmitButton() : (
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Guardando...' : 'Guardar Orden'}
+              </Button>
+            )
           )}
         </div>
       </form>
