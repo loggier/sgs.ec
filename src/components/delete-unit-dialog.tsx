@@ -2,9 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { deleteUnit } from '@/lib/unit-actions';
-import type { Unit } from '@/lib/unit-schema';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
+import type { Unit } from '@/lib/unit-schema';
 
 type DeleteUnitDialogProps = {
   isOpen: boolean;
@@ -37,7 +34,6 @@ export default function DeleteUnitDialog({
   const handleConfirm = async () => {
     setIsDeleting(true);
     await onConfirm();
-    setIsDeleting(false);
   };
   
   React.useEffect(() => {

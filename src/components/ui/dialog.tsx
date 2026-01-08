@@ -33,7 +33,18 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => {
+    
+    React.useEffect(() => {
+    // Cuando el componente se monta (se abre el diálogo), Radix añade `pointer-events: none` al body.
+    // Esta función de limpieza se ejecutará SIEMPRE que el componente se desmonte,
+    // ya sea de forma normal o abrupta por un re-render del padre.
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
+  }, []);
+
+  return (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -57,7 +68,8 @@ const DialogContent = React.forwardRef<
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+  )
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({

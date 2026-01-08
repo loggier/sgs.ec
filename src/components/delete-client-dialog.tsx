@@ -34,10 +34,10 @@ export default function DeleteClientDialog({
   const handleConfirm = async () => {
     setIsDeleting(true);
     await onConfirm();
-    // The parent component is now responsible for closing the dialog
+    // La lógica de cierre y estado de carga se maneja en el componente padre.
   };
   
-  // Reset local loading state when the dialog is closed externally
+  // Reset local loading state when the dialog is closed externally or on mount
   React.useEffect(() => {
     if (!isOpen) {
       setIsDeleting(false);

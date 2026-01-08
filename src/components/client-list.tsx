@@ -82,9 +82,13 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
   const onDeletionConfirmed = async () => {
     if (!selectedClient || !user) return;
 
+    // Primero cierra el diálogo
+    setIsDeleteDialogOpen(false);
+
+    // Luego, ejecuta la acción de eliminación
     const result = await deleteClient(selectedClient.id!, user);
     
-    setIsDeleteDialogOpen(false);
+    // Finalmente, muestra el resultado y refresca los datos si es necesario
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
         onDataChange();

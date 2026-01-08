@@ -32,6 +32,14 @@ const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
 >(({ className, ...props }, ref) => {
+  React.useEffect(() => {
+    // Cuando el componente se monta (se abre el diálogo), Radix añade `pointer-events: none` al body.
+    // Esta función de limpieza se ejecutará SIEMPRE que el componente se desmonte,
+    // ya sea de forma normal o abrupta por un re-render del padre.
+    return () => {
+      document.body.style.pointerEvents = 'auto';
+    };
+  }, []);
   
   return (
     <AlertDialogPortal>

@@ -72,14 +72,14 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
 
   const onDeletionConfirmed = async () => {
     if (!selectedUser?.id) return;
-
+    
+    setIsDeleteDialogOpen(false);
     const result = await deleteUser(selectedUser.id);
     if (result.success) {
       toast({
         title: 'Éxito',
         description: result.message,
       });
-      setIsDeleteDialogOpen(false);
       onDataChange();
     } else {
       toast({
@@ -87,7 +87,6 @@ export default function UserList({ initialUsers, onDataChange }: UserListProps) 
         description: result.message,
         variant: 'destructive',
       });
-      setIsDeleteDialogOpen(false);
     }
   };
 
