@@ -59,16 +59,18 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [units, setUnits] = React.useState<Unit[]>([]);
 
-  const form = useForm<BatchPaymentFormInput>({
-    resolver: zodResolver(BatchPaymentFormSchema),
-    defaultValues: {
+  const defaultFormValues = {
       unitIds: [],
       fechaPago: new Date(),
       numeroFactura: '',
       monto: 0,
       formaPago: 'transferencia',
       mesesPagados: 1,
-    },
+  };
+
+  const form = useForm<BatchPaymentFormInput>({
+    resolver: zodResolver(BatchPaymentFormSchema),
+    defaultValues: defaultFormValues,
   });
 
   React.useEffect(() => {
@@ -121,7 +123,8 @@ export default function ClientPaymentForm({ clientId, clientName, onSave, onCanc
           title: 'Éxito',
           description: result.message,
         });
-        onSave();
+        form.reset(defaultFormValues); // Reset the form to its initial state
+        onSave(); // Notify parent to refetch data
       } else {
         toast({
           title: 'Error al Registrar Pago',

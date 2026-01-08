@@ -20,22 +20,33 @@ export default function RegisterPaymentPage() {
   
   const [clientName, setClientName] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [formKey, setFormKey] = React.useState(Date.now()); // State to force re-render
 
-  React.useEffect(() => {
+  const fetchData = React.useCallback(async () => {
     if (clientId && user) {
       setIsLoading(true);
-      getClientById(clientId, user)
-        .then(client => {
-          if (client) {
-            setClientName(client.nomSujeto);
-          }
-        })
-        .finally(() => setIsLoading(false));
+      try {
+        const client = await getClientById(clientId, user);
+        if (client) {
+          setClientName(client.nomSujeto);
+        }
+      } catch (error) {
+        console.error("Error fetching client data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   }, [clientId, user]);
 
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const handleSave = () => {
-    router.push('/clients');
+    // Regenerate the key to force the form to re-mount with fresh data and reset state
+    setFormKey(Date.now());
+    // Refetch client data in case something changed that affects the display
+    fetchData();
   };
 
   const handleCancel = () => {
@@ -75,6 +86,7 @@ export default function RegisterPaymentPage() {
             </CardHeader>
             <CardContent>
                 <ClientPaymentForm
+                    key={formKey} // Use key to force re-mounting
                     clientId={clientId}
                     clientName={clientName}
                     onSave={handleSave}
