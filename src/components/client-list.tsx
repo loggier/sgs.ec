@@ -28,11 +28,8 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-
 import ClientForm from './client-form';
 import DeleteClientDialog from './delete-client-dialog';
-import ClientPaymentForm from './client-payment-form';
 import SendMessageDialog from './send-qyvoo-message-dialog';
 import { Separator } from './ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -58,7 +55,6 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
   const [clients, setClients] = React.useState(initialClients);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientDisplay | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -88,21 +84,15 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
 
     const result = await deleteClient(selectedClient.id!, user);
     
+    setIsDeleteDialogOpen(false);
     if (result.success) {
         toast({ title: 'Éxito', description: result.message });
-        setIsDeleteDialogOpen(false); // Close dialog first
-        onDataChange(); // Then refresh data
+        onDataChange();
     } else {
         toast({ title: 'Error', description: result.message, variant: 'destructive' });
-        setIsDeleteDialogOpen(false); // Still close dialog on error
     }
   };
   
-  const handleRegisterPayment = (client: ClientDisplay) => {
-    setSelectedClient(client);
-    setIsPaymentDialogOpen(true);
-  }
-
   const handleOpenMessageDialog = (client: ClientDisplay) => {
     setSelectedClient(client);
     setIsMessageDialogOpen(true);
@@ -114,12 +104,6 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     setSelectedClient(null);
   };
   
-  const handlePaymentSave = () => {
-      onDataChange();
-      setIsPaymentDialogOpen(false);
-      setSelectedClient(null);
-  };
-
   const getStatusVariant = (status: ClientDisplay['estado']) => {
     switch (status) {
       case 'al dia':
@@ -193,8 +177,10 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                 <Car className="mr-2 h-4 w-4" /> Ver Unidades
                 </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleRegisterPayment(client)}>
+            <DropdownMenuItem asChild>
+              <Link href={`/clients/${client.id}/register-payment`} className="flex items-center w-full">
                 <CreditCard className="mr-2 h-4 w-4" /> Registrar Pago
+              </Link>
             </DropdownMenuItem>
             {client.telefono && (
                 <DropdownMenuItem onClick={() => handleOpenMessageDialog(client)}>
@@ -426,25 +412,6 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
             onConfirm={onDeletionConfirmed}
           />
           
-          <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-              <DialogContent className="sm:max-w-xl">
-                  <DialogHeader>
-                      <DialogTitle>Registrar Pago para {selectedClient?.nomSujeto}</DialogTitle>
-                      <DialogDescription>
-                          Seleccione una o más unidades y complete los detalles del pago. El monto total se calculará automáticamente.
-                      </DialogDescription>
-                  </DialogHeader>
-                  {selectedClient?.id && (
-                      <ClientPaymentForm 
-                          clientId={selectedClient.id}
-                          clientName={selectedClient.nomSujeto}
-                          onSave={handlePaymentSave}
-                          onCancel={() => setIsPaymentDialogOpen(false)}
-                      />
-                  )}
-              </DialogContent>
-          </Dialog>
-
           <SendMessageDialog
             isOpen={isMessageDialogOpen}
             onOpenChange={setIsMessageDialogOpen}

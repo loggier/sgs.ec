@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { z } from 'zod';
+import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import { PaymentFormSchema } from '@/lib/payment-schema';
@@ -54,6 +55,7 @@ type BatchPaymentFormInput = z.infer<typeof BatchPaymentFormSchema>;
 
 export default function ClientPaymentForm({ clientId, clientName, onSave, onCancel }: ClientPaymentFormProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [units, setUnits] = React.useState<Unit[]>([]);
 
