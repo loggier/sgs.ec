@@ -16,7 +16,6 @@ import { getNotificationUrlForUser } from '@/lib/settings-actions';
 import { sendNotificationMessage } from '@/lib/notification-actions';
 import { type NotificationSettings } from '@/lib/settings-schema';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
-import { DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 
 type SendMessageDialogProps = {
   isOpen: boolean;
@@ -173,12 +172,12 @@ export default function SendMessageDialog({
         contentLabel="Enviar Mensaje"
     >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <DialogHeader>
-                <DialogTitle>Enviar mensaje a {client.nomSujeto}</DialogTitle>
-                <DialogDescription>
+            <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+                <h2 className="text-lg font-semibold leading-none tracking-tight">Enviar mensaje a {client.nomSujeto}</h2>
+                <p className="text-sm text-muted-foreground">
                     El mensaje se enviará al número {client.telefono} a través del servicio de notificaciones configurado.
-                </DialogDescription>
-            </DialogHeader>
+                </p>
+            </div>
             {renderContent()}
         </div>
     </Modal>

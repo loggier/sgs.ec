@@ -43,7 +43,6 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
-import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 if (typeof window !== 'undefined') {
@@ -564,12 +563,12 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
         contentLabel="Confirmar Completar Orden"
       >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <DialogHeader>
-                <DialogTitle>¿Completar sin observación?</DialogTitle>
-                <DialogDescription>
+            <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+                <h2 className="text-lg font-semibold leading-none tracking-tight">¿Completar sin observación?</h2>
+                <p className="text-sm text-muted-foreground">
                     Se recomienda añadir una observación detallando el trabajo realizado antes de completar la orden. ¿Desea completarla de todas formas?
-                </DialogDescription>
-            </DialogHeader>
+                </p>
+            </div>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel onClick={() => setIsConfirmingComplete(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleConfirmComplete}>

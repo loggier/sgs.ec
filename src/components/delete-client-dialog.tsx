@@ -6,7 +6,6 @@ import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import type { ClientDisplay } from '@/lib/schema';
-import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 
@@ -49,13 +48,13 @@ export default function DeleteClientDialog({
         contentLabel="Confirmar Eliminación"
     >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <DialogHeader>
-            <DialogTitle>¿Estás seguro?</DialogTitle>
-            <DialogDescription>
-                Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del cliente{' '}
-                <span className="font-semibold">{client?.nomSujeto}</span> y todas sus unidades asociadas.
-            </DialogDescription>
-            </DialogHeader>
+            <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+                <h2 className="text-lg font-semibold leading-none tracking-tight">¿Estás seguro?</h2>
+                <p className="text-sm text-muted-foreground">
+                    Esta acción no se puede deshacer. Esto eliminará permanentemente el registro del cliente{' '}
+                    <span className="font-semibold">{client?.nomSujeto}</span> y todas sus unidades asociadas.
+                </p>
+            </div>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction asChild>
