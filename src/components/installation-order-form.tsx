@@ -55,7 +55,8 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
-import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 import { Switch } from './ui/switch';
 import { Card, CardContent, CardDescription } from './ui/card';
 
@@ -773,12 +774,12 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         contentLabel="Confirmar Completar Orden"
       >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Terminar sin observación?</AlertDialogTitle>
-                <AlertDialogDescription>
+            <DialogHeader>
+                <DialogTitle>¿Terminar sin observación?</DialogTitle>
+                <DialogDescription>
                     Se recomienda añadir una observación detallando el trabajo realizado antes de terminar la orden. ¿Desea continuar de todas formas?
-                </AlertDialogDescription>
-            </AlertDialogHeader>
+                </DialogDescription>
+            </DialogHeader>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel onClick={() => setIsConfirmingComplete(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleConfirmComplete}>

@@ -6,7 +6,8 @@ import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import type { WorkOrder } from '@/lib/work-order-schema';
-import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 
 type DeleteWorkOrderDialogProps = {
@@ -49,13 +50,13 @@ export default function DeleteWorkOrderDialog({
         contentLabel="Confirmar Eliminación"
     >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
+            <DialogHeader>
+                <DialogTitle>¿Estás seguro?</DialogTitle>
+                <DialogDescription>
                     Esta acción no se puede deshacer. Esto eliminará permanentemente la orden de soporte para el cliente{' '}
                     <span className="font-semibold">{order?.nombreCliente}</span> (Placa: {order?.placaVehiculo}).
-                </AlertDialogDescription>
-            </AlertDialogHeader>
+                </DialogDescription>
+            </DialogHeader>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction asChild>

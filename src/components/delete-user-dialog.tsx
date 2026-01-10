@@ -6,7 +6,8 @@ import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import type { User } from '@/lib/user-schema';
-import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 
 type DeleteUserDialogProps = {
@@ -49,13 +50,13 @@ export default function DeleteUserDialog({
         contentLabel="Confirmar Eliminación"
     >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás realmente seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
+            <DialogHeader>
+                <DialogTitle>¿Estás realmente seguro?</DialogTitle>
+                <DialogDescription>
                     Esta acción no se puede deshacer. Esto eliminará permanentemente al usuario{' '}
                     <span className="font-semibold">{user?.username}</span> y todos sus datos asociados.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
+                </DialogDescription>
+            </DialogHeader>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction asChild>

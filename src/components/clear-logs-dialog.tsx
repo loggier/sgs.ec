@@ -5,7 +5,8 @@ import * as React from 'react';
 import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
-import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 type ClearLogsDialogProps = {
   isOpen: boolean;
@@ -45,13 +46,13 @@ export default function ClearLogsDialog({
         contentLabel="Confirmar Eliminación"
     >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <DialogHeader>
+            <DialogTitle>¿Estás absolutamente seguro?</DialogTitle>
+            <DialogDescription>
                 Esta acción no se puede deshacer. Esto eliminará permanentemente todos los registros
                 de notificaciones enviadas. Esta información es útil para auditorías y no se podrá recuperar.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
+            </DialogDescription>
+            </DialogHeader>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel disabled={isClearing} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction asChild>

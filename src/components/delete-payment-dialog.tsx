@@ -6,7 +6,8 @@ import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
-import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
+import { DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 type DeletePaymentDialogProps = {
   isOpen: boolean;
@@ -47,14 +48,14 @@ export default function DeletePaymentDialog({
         contentLabel="Confirmar Eliminación"
     >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás realmente seguro?</AlertDialogTitle>
-                <AlertDialogDescription>
+            <DialogHeader>
+                <DialogTitle>¿Estás realmente seguro?</DialogTitle>
+                <DialogDescription>
                     Esta acción no se puede deshacer. Esto eliminará permanentemente el pago con factura{' '}
                     <span className="font-semibold">{payment?.numeroFactura}</span> para la unidad{' '}
                     <span className="font-semibold">{payment?.unitPlaca}</span>. El estado de la unidad se revertirá a su estado anterior.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
+                </DialogDescription>
+            </DialogHeader>
             <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction asChild>
