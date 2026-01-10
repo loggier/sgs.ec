@@ -2,39 +2,31 @@
 'use client';
 
 import * as React from 'react';
+import Modal from 'react-modal';
 import { useToast } from '@/hooks/use-toast';
 import type { ClientDisplay } from '@/lib/schema';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from './ui/button';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Textarea } from './ui/textarea';
-import { z } from 'zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { QyvooMessageSchema, type QyvooMessageFormInput } from '@/lib/notification-schema';
 import { getNotificationUrlForUser } from '@/lib/settings-actions';
 import { sendNotificationMessage } from '@/lib/notification-actions';
 import { type NotificationSettings } from '@/lib/settings-schema';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
+import { DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 
 type SendMessageDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   client: ClientDisplay | null;
 };
+
+if (typeof window !== 'undefined') {
+  Modal.setAppElement('body');
+}
 
 export default function SendMessageDialog({
   isOpen,
@@ -173,16 +165,22 @@ export default function SendMessageDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Enviar mensaje a {client.nomSujeto}</DialogTitle>
-          <DialogDescription>
-            El mensaje se enviará al número {client.telefono} a través del servicio de notificaciones configurado.
-          </DialogDescription>
-        </DialogHeader>
-        {renderContent()}
-      </DialogContent>
-    </Dialog>
+    <Modal
+        isOpen={isOpen}
+        onRequestClose={() => onOpenChange(false)}
+        className="fixed inset-0 flex items-center justify-center p-4"
+        overlayClassName="fixed inset-0 bg-black/50"
+        contentLabel="Enviar Mensaje"
+    >
+        <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Enviar mensaje a {client.nomSujeto}</DialogTitle>
+                <DialogDescription>
+                    El mensaje se enviará al número {client.telefono} a través del servicio de notificaciones configurado.
+                </DialogDescription>
+            </DialogHeader>
+            {renderContent()}
+        </div>
+    </Modal>
   );
 }

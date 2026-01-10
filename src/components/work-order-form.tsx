@@ -2,9 +2,10 @@
 'use client';
 
 import * as React from 'react';
+import Modal from 'react-modal';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
-import { Loader2, Calendar as CalendarIcon, ExternalLink, ArrowRight } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -42,8 +43,11 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog';
+import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
+if (typeof window !== 'undefined') {
+  Modal.setAppElement('body');
+}
 
 type WorkOrderFormProps = {
   order: WorkOrder | null;
@@ -551,22 +555,28 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
           )}
         </div>
       </form>
-      <AlertDialog open={isConfirmingComplete} onOpenChange={setIsConfirmingComplete}>
-        <AlertDialogContent>
+      <Modal
+        isOpen={isConfirmingComplete}
+        onRequestClose={() => setIsConfirmingComplete(false)}
+        className="fixed inset-0 flex items-center justify-center p-4"
+        overlayClassName="fixed inset-0 bg-black/50"
+        contentLabel="Confirmar Completar Orden"
+      >
+        <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Completar sin observación?</AlertDialogTitle>
                 <AlertDialogDescription>
                     Se recomienda añadir una observación detallando el trabajo realizado antes de completar la orden. ¿Desea completarla de todas formas?
                 </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="mt-4">
                 <AlertDialogCancel onClick={() => setIsConfirmingComplete(false)}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleConfirmComplete}>
                     Sí, completar sin observación
                 </AlertDialogAction>
             </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </div>
+      </Modal>
     </FormProvider>
   );
 }

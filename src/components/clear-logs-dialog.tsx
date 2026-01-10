@@ -2,24 +2,21 @@
 'use client';
 
 import * as React from 'react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
+import { AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 type ClearLogsDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => Promise<void>;
 };
+
+// Set the app element for react-modal
+if (typeof window !== 'undefined') {
+  Modal.setAppElement('body');
+}
 
 export default function ClearLogsDialog({
   isOpen,
@@ -31,11 +28,8 @@ export default function ClearLogsDialog({
   const handleConfirm = async () => {
     setIsClearing(true);
     await onConfirm();
-    // The parent component will handle closing the dialog
-    // and resetting the state.
   };
 
-  // Reset state when dialog is closed from outside
   React.useEffect(() => {
     if (!isOpen) {
       setIsClearing(false);
@@ -43,29 +37,35 @@ export default function ClearLogsDialog({
   }, [isOpen]);
 
   return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Esta acción no se puede deshacer. Esto eliminará permanentemente todos los registros
-            de notificaciones enviadas. Esta información es útil para auditorías y no se podrá recuperar.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isClearing}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-                variant="destructive"
-                onClick={handleConfirm}
-                disabled={isClearing}
-            >
-                {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isClearing ? "Eliminando..." : "Sí, eliminar todo"}
-            </Button>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <Modal
+        isOpen={isOpen}
+        onRequestClose={() => onOpenChange(false)}
+        className="fixed inset-0 flex items-center justify-center p-4 bg-black/50"
+        overlayClassName="fixed inset-0 bg-black/50"
+        contentLabel="Confirmar Eliminación"
+    >
+        <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
+            <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta acción no se puede deshacer. Esto eliminará permanentemente todos los registros
+                de notificaciones enviadas. Esta información es útil para auditorías y no se podrá recuperar.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="mt-4">
+                <AlertDialogCancel disabled={isClearing} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction asChild>
+                    <Button
+                        variant="destructive"
+                        onClick={handleConfirm}
+                        disabled={isClearing}
+                    >
+                        {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isClearing ? "Eliminando..." : "Sí, eliminar todo"}
+                    </Button>
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </div>
+    </Modal>
   );
 }
