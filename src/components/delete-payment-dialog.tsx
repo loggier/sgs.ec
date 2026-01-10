@@ -6,7 +6,6 @@ import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
-import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 type DeletePaymentDialogProps = {
   isOpen: boolean;
@@ -55,19 +54,17 @@ export default function DeletePaymentDialog({
                     <span className="font-semibold">{payment?.unitPlaca}</span>. El estado de la unidad se revertirá a su estado anterior.
                 </p>
             </div>
-            <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction asChild>
-                    <Button
-                        variant="destructive"
-                        onClick={handleConfirm}
-                        disabled={isDeleting}
-                    >
-                        {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isDeleting ? "Eliminando..." : "Confirmar Eliminación"}
-                    </Button>
-                </AlertDialogAction>
-            </AlertDialogFooter>
+            <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                <Button variant="outline" disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <Button
+                    variant="destructive"
+                    onClick={handleConfirm}
+                    disabled={isDeleting}
+                >
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isDeleting ? "Eliminando..." : "Confirmar Eliminación"}
+                </Button>
+            </div>
         </div>
     </Modal>
   );

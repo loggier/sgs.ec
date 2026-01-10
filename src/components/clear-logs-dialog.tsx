@@ -5,7 +5,6 @@ import * as React from 'react';
 import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
-import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 type ClearLogsDialogProps = {
   isOpen: boolean;
@@ -52,19 +51,17 @@ export default function ClearLogsDialog({
                     de notificaciones enviadas. Esta información es útil para auditorías y no se podrá recuperar.
                 </p>
             </div>
-            <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel disabled={isClearing} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction asChild>
-                    <Button
-                        variant="destructive"
-                        onClick={handleConfirm}
-                        disabled={isClearing}
-                    >
-                        {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isClearing ? "Eliminando..." : "Sí, eliminar todo"}
-                    </Button>
-                </AlertDialogAction>
-            </AlertDialogFooter>
+            <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                <Button variant="outline" disabled={isClearing} onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <Button
+                    variant="destructive"
+                    onClick={handleConfirm}
+                    disabled={isClearing}
+                >
+                    {isClearing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isClearing ? "Eliminando..." : "Sí, eliminar todo"}
+                </Button>
+            </div>
         </div>
     </Modal>
   );

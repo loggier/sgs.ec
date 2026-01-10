@@ -43,7 +43,6 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { ScrollArea } from './ui/scroll-area';
 import Link from 'next/link';
-import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 if (typeof window !== 'undefined') {
   Modal.setAppElement('body');
@@ -569,12 +568,12 @@ export default function WorkOrderForm({ order, onSave, onCancel }: WorkOrderForm
                     Se recomienda añadir una observación detallando el trabajo realizado antes de completar la orden. ¿Desea completarla de todas formas?
                 </p>
             </div>
-            <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel onClick={() => setIsConfirmingComplete(false)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmComplete}>
+            <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                <Button variant="outline" onClick={() => setIsConfirmingComplete(false)}>Cancelar</Button>
+                <Button onClick={handleConfirmComplete}>
                     Sí, completar sin observación
-                </AlertDialogAction>
-            </AlertDialogFooter>
+                </Button>
+            </div>
         </div>
       </Modal>
     </FormProvider>

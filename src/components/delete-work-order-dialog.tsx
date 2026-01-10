@@ -6,7 +6,6 @@ import Modal from 'react-modal';
 import { Button } from './ui/button';
 import { Loader2 } from 'lucide-react';
 import type { WorkOrder } from '@/lib/work-order-schema';
-import { AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from './ui/alert-dialog';
 
 
 type DeleteWorkOrderDialogProps = {
@@ -56,19 +55,17 @@ export default function DeleteWorkOrderDialog({
                     <span className="font-semibold">{order?.nombreCliente}</span> (Placa: {order?.placaVehiculo}).
                 </p>
             </div>
-            <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction asChild>
-                    <Button
-                        variant="destructive"
-                        onClick={handleConfirm}
-                        disabled={isDeleting}
-                    >
-                        {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isDeleting ? "Eliminando..." : "Eliminar"}
-                    </Button>
-                </AlertDialogAction>
-            </AlertDialogFooter>
+            <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                <Button variant="outline" disabled={isDeleting} onClick={() => onOpenChange(false)}>Cancelar</Button>
+                <Button
+                    variant="destructive"
+                    onClick={handleConfirm}
+                    disabled={isDeleting}
+                >
+                    {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isDeleting ? "Eliminando..." : "Eliminar"}
+                </Button>
+            </div>
         </div>
     </Modal>
   );
