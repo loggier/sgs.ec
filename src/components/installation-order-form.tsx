@@ -524,7 +524,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                 )}
                 />
                 
-                {estado === 'terminado' && (
+                {(estado === 'en-curso' || estado === 'terminado') && (
                   <Card className="p-4 border rounded-lg bg-secondary/50">
                     <CardContent className="p-0 space-y-4">
                         <FormField
