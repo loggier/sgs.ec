@@ -57,6 +57,30 @@ const convertTimestamps = (data: any): any => {
     return data;
 };
 
+export async function uploadContractAction(formData: FormData): Promise<{ success: boolean; url?: string; message: string }> {
+    try {
+        const response = await fetch('https://storage.gpsplataforma.net/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: 'Error desconocido en el servidor de subida.' }));
+            throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        if (responseData?.urls?.[0]) {
+            return { success: true, url: responseData.urls[0], message: 'Archivo subido con éxito.' };
+        } else {
+            throw new Error('La respuesta del servicio de subida no contenía una URL.');
+        }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error al subir el contrato.';
+        return { success: false, message };
+    }
+}
+
 
 export async function saveContractUrl(
     clientId: string,

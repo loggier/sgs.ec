@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 import { UnitFormSchema, type Unit, type UnitFormInput, UnitCategory, type SerializableUnit } from '@/lib/unit-schema';
-import { saveUnit, saveContractUrl } from '@/lib/unit-actions';
+import { saveUnit, saveContractUrl, uploadContractAction } from '@/lib/unit-actions';
 import { getClients } from '@/lib/actions';
 import type { ClientDisplay } from '@/lib/schema';
 import { useToast } from '@/hooks/use-toast';
@@ -92,27 +92,15 @@ function ContractUploader({ unit }: { unit: Unit }) {
         const formData = new FormData();
         formData.append('files', file);
 
-        // Upload directly to the storage service, bypassing our Next.js server
-        const response = await fetch('https://storage.gpsplataforma.net/upload', {
-            method: 'POST',
-            body: formData,
-        });
+        const result = await uploadContractAction(formData);
 
-        if (!response.ok) {
-            const errorBody = await response.json().catch(() => ({ error: 'Error desconocido en el servidor de subida.' }));
-            throw new Error(errorBody.error || `Error del servidor: ${response.statusText}`);
-        }
-
-        const responseData = await response.json();
-        
-        if (responseData && responseData.urls && responseData.urls.length > 0) {
-            const newUrl = responseData.urls[0];
-            setValue('urlContrato', newUrl, { shouldValidate: true });
+        if (result.success && result.url) {
+            setValue('urlContrato', result.url, { shouldValidate: true });
             toast({ title: 'Éxito', description: 'Contrato subido correctamente.' });
 
             // If we are editing an existing unit, save the URL immediately via Server Action.
             if (unit && unit.id && unit.clientId) {
-                const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, newUrl);
+                const saveUrlResult = await saveContractUrl(unit.clientId, unit.id, result.url);
                 if (!saveUrlResult.success) {
                     toast({ title: 'Error al Guardar URL', description: saveUrlResult.message, variant: 'destructive'});
                 } else {
@@ -120,7 +108,7 @@ function ContractUploader({ unit }: { unit: Unit }) {
                 }
             }
         } else {
-             throw new Error('La respuesta del servicio de subida no contenía una URL.');
+             throw new Error(result.message);
         }
 
     } catch (error) {
