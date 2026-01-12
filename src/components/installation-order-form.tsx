@@ -134,17 +134,22 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   
   React.useEffect(() => {
     async function fetchData() {
-        if (user && !isTechnician) {
-            const [techUsers, clientData, countryData, cityData] = await Promise.all([
-                getUsers(user),
-                getClients(user.id, user.role, user.creatorId),
+        if (user) {
+             const [countryData, cityData] = await Promise.all([
                 getCountries(),
                 getCities()
             ]);
-            setTechnicians(techUsers.filter(u => u.role === 'tecnico'));
-            setClients(clientData);
             setCountries(countryData);
             setCities(cityData);
+            
+            if (!isTechnician) {
+                const [techUsers, clientData] = await Promise.all([
+                    getUsers(user),
+                    getClients(user.id, user.role, user.creatorId),
+                ]);
+                setTechnicians(techUsers.filter(u => u.role === 'tecnico'));
+                setClients(clientData);
+            }
         }
     }
     fetchData();
