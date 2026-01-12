@@ -96,6 +96,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
       accesorioBotonPanico: order.accesorioBotonPanico || false,
       accesorioAperturaSeguro: order.accesorioAperturaSeguro || false,
       pais: order.pais || 'Ecuador',
+      ciudad: order.ciudad || '',
     } : {
         placaVehiculo: '',
         nombreCliente: '',
@@ -164,6 +165,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             accesorioBotonPanico: order.accesorioBotonPanico || false,
             accesorioAperturaSeguro: order.accesorioAperturaSeguro || false,
             pais: order.pais || 'Ecuador',
+            ciudad: order.ciudad || '',
         });
         const client = clients.find(c => c.nomSujeto === order.nombreCliente);
         if (client) {
@@ -772,9 +774,9 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         contentLabel="Confirmar Completar Orden"
       >
         <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-lg">
-            <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+            <div className="text-center sm:text-left">
                 <h2 className="text-lg font-semibold leading-none tracking-tight">¿Terminar sin observación?</h2>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mt-2">
                     Se recomienda añadir una observación detallando el trabajo realizado antes de terminar la orden. ¿Desea continuar de todas formas?
                 </p>
             </div>
