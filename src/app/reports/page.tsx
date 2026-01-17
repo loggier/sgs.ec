@@ -36,35 +36,16 @@ function InstallationReportsDashboard() {
   const [orders, setOrders] = React.useState<InstallationOrder[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedYears, setSelectedYears] = React.useState<string[]>([]);
-  const [hiddenCities, setHiddenCities] = React.useState<string[]>([]);
-  const [hiddenLineYears, setHiddenLineYears] = React.useState<string[]>([]);
-
-  const toggleCity = (data: any) => {
-    const name = data.value;
-    if (name) {
-      setHiddenCities(prev =>
-        prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]
-      );
-    }
-  };
-  
-  const toggleLineYear = (data: any) => {
-    const name = data.value;
-    if(name) {
-      setHiddenLineYears(prev => 
-        prev.includes(name) ? prev.filter(y => y !== name) : [...prev, name]
-      );
-    }
-  }
   
   React.useEffect(() => {
     if (user) {
       setIsLoading(true);
       getInstallationOrders(user)
         .then(data => {
-          setOrders(data);
+          const validData = data.filter(o => o.fechaProgramada && !isNaN(new Date(o.fechaProgramada).getTime()));
+          setOrders(validData);
           // Get unique years from data and select latest 2 by default
-          const years = [...new Set(data.map(o => new Date(o.fechaProgramada).getFullYear().toString()))]
+          const years = [...new Set(validData.map(o => new Date(o.fechaProgramada).getFullYear().toString()))]
             .sort((a, b) => Number(b) - Number(a));
           setSelectedYears(years.slice(0, 2));
         })
@@ -111,15 +92,12 @@ function InstallationReportsDashboard() {
 
   const monthlyInstallations = React.useMemo(() => {
     const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
-    const activeYears = selectedYears.filter(y => !hiddenLineYears.includes(y));
     const dataByMonth: { month: string; [year: string]: number | string }[] = months.map(m => ({ month: m.charAt(0).toUpperCase() + m.slice(1) }));
 
     filteredOrders.forEach(order => {
         const date = new Date(order.fechaProgramada);
         const year = date.getFullYear().toString();
         
-        if (!activeYears.includes(year)) return; // Skip data for hidden years
-
         const monthIndex = date.getMonth();
         const monthName = months[monthIndex].charAt(0).toUpperCase() + months[monthIndex].slice(1);
         
@@ -131,7 +109,7 @@ function InstallationReportsDashboard() {
     });
     
     dataByMonth.forEach(monthEntry => {
-        activeYears.forEach(year => {
+        selectedYears.forEach(year => {
             if (!monthEntry[year]) {
                 monthEntry[year] = 0;
             }
@@ -139,7 +117,7 @@ function InstallationReportsDashboard() {
     });
 
     return dataByMonth;
-  }, [filteredOrders, selectedYears, hiddenLineYears]);
+  }, [filteredOrders, selectedYears]);
 
   const installationsByVehicle = React.useMemo(() => {
     const counts = filteredOrders.reduce((acc, order) => {
@@ -293,12 +271,8 @@ function InstallationReportsDashboard() {
 
  const renderPieChart = (
     chartData: {name: string, value: number}[],
-    title: string,
-    hiddenItems: string[],
-    onLegendClick: (data: any) => void
+    title: string
   ) => {
-    const activeData = chartData.filter(entry => !hiddenItems.includes(entry.name));
-
     return (
         <Card>
             <CardHeader>
@@ -308,7 +282,7 @@ function InstallationReportsDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <Pie
-                            data={activeData}
+                            data={chartData}
                             cx="50%"
                             cy="50%"
                             labelLine={false}
@@ -322,7 +296,7 @@ function InstallationReportsDashboard() {
                             ))}
                         </Pie>
                         <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                        <Legend onClick={onLegendClick} />
+                        <Legend />
                     </PieChart>
                 </ResponsiveContainer>
             </CardContent>
@@ -400,7 +374,7 @@ function InstallationReportsDashboard() {
                         <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                         <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                        <Legend onClick={toggleLineYear} />
+                        <Legend />
                         {selectedYears.map((year, index) => (
                             <Line key={year} type="monotone" dataKey={year} stroke={lineColors[index % lineColors.length]} activeDot={{ r: 8 }} />
                         ))}
@@ -419,7 +393,7 @@ function InstallationReportsDashboard() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             {renderVerticalBarChart(annualInstallations, "Instalaciones Anuales")}
-            {renderPieChart(installationsByCity, "Instalaciones por Ciudad", hiddenCities, toggleCity)}
+            {renderPieChart(installationsByCity, "Instalaciones por Ciudad")}
         </div>
       </div>
     </>
@@ -433,3 +407,5 @@ export default function ReportsPage() {
         </AppContent>
     )
 }
+
+    
