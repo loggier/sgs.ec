@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -33,6 +34,16 @@ function InstallationReportsDashboard() {
   const [orders, setOrders] = React.useState<InstallationOrder[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedYears, setSelectedYears] = React.useState<string[]>([]);
+  const [hiddenCities, setHiddenCities] = React.useState<string[]>([]);
+
+  const toggleCity = (data: any) => {
+    const name = data.value;
+    if (name) {
+      setHiddenCities(prev =>
+        prev.includes(name) ? prev.filter(c => c !== name) : [...prev, name]
+      );
+    }
+  };
   
   React.useEffect(() => {
     if (user) {
@@ -134,12 +145,31 @@ function InstallationReportsDashboard() {
   }, [filteredOrders]);
 
   const installationsByCity = React.useMemo(() => {
-      const counts = filteredOrders.reduce((acc, order) => {
-          const city = order.ciudad || 'Desconocida';
-          acc[city] = (acc[city] || 0) + 1;
-          return acc;
-      }, {} as Record<string, number>);
-      return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    const counts = filteredOrders.reduce((acc, order) => {
+        const city = order.ciudad || 'Desconocida';
+        acc[city] = (acc[city] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const sortedCities = Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    if (sortedCities.length <= 10) {
+      return sortedCities;
+    }
+
+    const top10 = sortedCities.slice(0, 10);
+    const othersCount = sortedCities.slice(10).reduce((sum, city) => sum + city.value, 0);
+
+    if (othersCount > 0) {
+        return [
+            ...top10,
+            { name: 'Otras', value: othersCount },
+        ];
+    }
+    
+    return top10;
   }, [filteredOrders]);
   
   const installationsByTechnician = React.useMemo(() => {
@@ -171,7 +201,7 @@ function InstallationReportsDashboard() {
     );
   }
   
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9c", "#ffc658", "#fa8072", "#7ce38c", "#a4de6c"];
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9c", "#ffc658", "#fa8072", "#7ce38c", "#a4de6c", "#d0ed57"];
 
   const renderHorizontalBarChart = (chartData: {name: string, total: number}[], title: string, dataKey: string = "total") => (
      <Card>
@@ -225,35 +255,44 @@ function InstallationReportsDashboard() {
    </Card>
  );
 
- const renderPieChart = (chartData: {name: string, value: number}[], title: string) => (
-    <Card>
-        <CardHeader>
-            <CardTitle>{title}</CardTitle>
-        </CardHeader>
-        <CardContent className="h-[350px] w-full flex justify-center items-center">
-            <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                    >
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                    <Legend />
-                </PieChart>
-            </ResponsiveContainer>
-        </CardContent>
-    </Card>
- );
+ const renderPieChart = (
+    chartData: {name: string, value: number}[],
+    title: string,
+    hiddenItems: string[],
+    onLegendClick: (data: any) => void
+  ) => {
+    const activeData = chartData.filter(entry => !hiddenItems.includes(entry.name));
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[350px] w-full flex justify-center items-center">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={activeData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="value"
+                        >
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
+                        <Legend onClick={onLegendClick} />
+                    </PieChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+    );
+ };
 
   const lineColors = ["#8884d8", "#82ca9c", "#ffc658", "#ff8042"];
 
@@ -320,7 +359,7 @@ function InstallationReportsDashboard() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             {renderVerticalBarChart(annualInstallations, "Instalaciones Anuales")}
-            {renderPieChart(installationsByCity, "Instalaciones por Ciudad")}
+            {renderPieChart(installationsByCity, "Instalaciones por Ciudad", hiddenCities, toggleCity)}
         </div>
       </div>
     </>
