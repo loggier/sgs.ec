@@ -553,6 +553,7 @@ export async function bulkUpdateUnitPgpsStatus(
             if (pgpsDeviceId) {
                 const pgpsResult = await setPgpsDeviceStatus(pgpsDeviceId, !suspend);
                 if (!pgpsResult.success) {
+                    console.error(`Fallo en la actualización en lote para la unidad ${unitId} (P. GPS ID: ${pgpsDeviceId}): ${pgpsResult.message}`);
                     failureCount++;
                     continue; // Skip to next unit if P. GPS update fails
                 }

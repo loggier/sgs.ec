@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { getPgpsSettings } from './settings-actions';
@@ -216,7 +217,7 @@ export async function setPgpsDeviceStatus(
       return { success: false, message: 'La configuración de P. GPS no está completa.' };
     }
 
-    const apiUrl = new URL(`/api/admin/device/${deviceId}/status`, settings.url);
+    const apiUrl = new URL(`/api/device/${deviceId}/status`, settings.url);
     apiUrl.searchParams.append('user_api_hash', settings.apiKey);
     
     const response = await fetch(apiUrl.toString(), {
@@ -231,15 +232,16 @@ export async function setPgpsDeviceStatus(
     });
     
     if (!response.ok) {
-        const errorBody = await response.json();
-        const errorMessage = errorBody?.errors?.[0]?.message || response.statusText;
-        console.error(`Error setting device status in P. GPS API: ${response.status} ${errorMessage}`, errorBody);
-        return { success: false, message: `Error de la API de P. GPS: ${errorMessage}` };
+        const errorBody = await response.json().catch(() => response.text());
+        const errorMessage = (typeof errorBody === 'object' && errorBody?.errors?.[0]?.message) || response.statusText;
+        console.error(`Error al cambiar estado en P. GPS. URL: ${apiUrl.toString()}, Estado: ${response.status}, Respuesta:`, errorBody);
+        return { success: false, message: `Error de la API de P. GPS (${response.status}): ${errorMessage}. URL consultada: ${apiUrl.toString()}` };
     }
 
     const jsonResponse = await response.json();
     if (jsonResponse.status !== 1) {
-        return { success: false, message: 'La API de P. GPS indicó un error al cambiar el estado.' };
+        const apiErrorMessage = jsonResponse.message || 'La API de P. GPS indicó un error sin mensaje específico.';
+        return { success: false, message: apiErrorMessage };
     }
 
     return { success: true, message: 'El estado del dispositivo se actualizó con éxito en P. GPS.' };
