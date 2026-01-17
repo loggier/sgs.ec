@@ -8,7 +8,7 @@ import { useAuth } from '@/context/auth-context';
 import { getInstallationOrders } from '@/lib/installation-order-actions';
 import type { InstallationOrder } from '@/lib/installation-order-schema';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, HardHat } from 'lucide-react';
+import { Loader2, HardHat, Calendar, CalendarDays } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MultiSelectCombobox, type ComboboxOption } from '@/components/ui/multi-select-combobox';
 import {
@@ -27,6 +27,8 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // New component for the reports dashboard
 function InstallationReportsDashboard() {
@@ -35,6 +37,7 @@ function InstallationReportsDashboard() {
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedYears, setSelectedYears] = React.useState<string[]>([]);
   const [hiddenCities, setHiddenCities] = React.useState<string[]>([]);
+  const [hiddenLineYears, setHiddenLineYears] = React.useState<string[]>([]);
 
   const toggleCity = (data: any) => {
     const name = data.value;
@@ -44,6 +47,15 @@ function InstallationReportsDashboard() {
       );
     }
   };
+  
+  const toggleLineYear = (data: any) => {
+    const name = data.value;
+    if(name) {
+      setHiddenLineYears(prev => 
+        prev.includes(name) ? prev.filter(y => y !== name) : [...prev, name]
+      );
+    }
+  }
   
   React.useEffect(() => {
     if (user) {
@@ -76,16 +88,38 @@ function InstallationReportsDashboard() {
     value: year,
     label: year,
   }));
+  
+  const currentPeriodTotals = React.useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const totalCurrentYear = orders.filter(o => {
+        const orderDate = new Date(o.fechaProgramada);
+        return orderDate.getFullYear() === currentYear;
+    }).length;
+
+    const totalCurrentMonth = orders.filter(o => {
+        const orderDate = new Date(o.fechaProgramada);
+        return orderDate.getFullYear() === currentYear && orderDate.getMonth() === currentMonth;
+    }).length;
+
+    return { totalCurrentYear, totalCurrentMonth };
+  }, [orders]);
 
   // --- Chart Data Calculations ---
 
   const monthlyInstallations = React.useMemo(() => {
     const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const activeYears = selectedYears.filter(y => !hiddenLineYears.includes(y));
     const dataByMonth: { month: string; [year: string]: number | string }[] = months.map(m => ({ month: m.charAt(0).toUpperCase() + m.slice(1) }));
 
     filteredOrders.forEach(order => {
         const date = new Date(order.fechaProgramada);
         const year = date.getFullYear().toString();
+        
+        if (!activeYears.includes(year)) return; // Skip data for hidden years
+
         const monthIndex = date.getMonth();
         const monthName = months[monthIndex].charAt(0).toUpperCase() + months[monthIndex].slice(1);
         
@@ -97,7 +131,7 @@ function InstallationReportsDashboard() {
     });
     
     dataByMonth.forEach(monthEntry => {
-        selectedYears.forEach(year => {
+        activeYears.forEach(year => {
             if (!monthEntry[year]) {
                 monthEntry[year] = 0;
             }
@@ -105,7 +139,7 @@ function InstallationReportsDashboard() {
     });
 
     return dataByMonth;
-  }, [filteredOrders, selectedYears]);
+  }, [filteredOrders, selectedYears, hiddenLineYears]);
 
   const installationsByVehicle = React.useMemo(() => {
     const counts = filteredOrders.reduce((acc, order) => {
@@ -188,7 +222,9 @@ function InstallationReportsDashboard() {
             <Header title="Reportes y Estadísticas" />
             <div className="p-4 md:p-6 space-y-6">
                 <Skeleton className="h-8 w-64" />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <Skeleton className="h-28 w-full" />
+                  <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
                 </div>
                 <Skeleton className="h-80 w-full" />
@@ -314,7 +350,7 @@ function InstallationReportsDashboard() {
             </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Instalaciones</CardTitle>
@@ -324,6 +360,30 @@ function InstallationReportsDashboard() {
                     <div className="text-2xl font-bold">{filteredOrders.length}</div>
                     <p className="text-xs text-muted-foreground">
                         {selectedYears.length > 0 ? `Para los años: ${selectedYears.join(', ')}` : 'De todos los años'}
+                    </p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total (Año Actual)</CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{currentPeriodTotals.totalCurrentYear}</div>
+                    <p className="text-xs text-muted-foreground">
+                        Instalaciones en {new Date().getFullYear()}
+                    </p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total (Mes Actual)</CardTitle>
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{currentPeriodTotals.totalCurrentMonth}</div>
+                    <p className="text-xs text-muted-foreground">
+                        Instalaciones en {format(new Date(), 'LLLL', { locale: es })}
                     </p>
                 </CardContent>
             </Card>
@@ -340,7 +400,7 @@ function InstallationReportsDashboard() {
                         <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                         <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}/>
-                        <Legend />
+                        <Legend onClick={toggleLineYear} />
                         {selectedYears.map((year, index) => (
                             <Line key={year} type="monotone" dataKey={year} stroke={lineColors[index % lineColors.length]} activeDot={{ r: 8 }} />
                         ))}
