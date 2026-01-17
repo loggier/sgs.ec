@@ -187,7 +187,11 @@ function InstallationReportsDashboard() {
                         cursor={{fill: 'transparent'}}
                         contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                     />
-                    <Bar dataKey={dataKey} fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey={dataKey} radius={[0, 4, 4, 0]}>
+                        {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Bar>
                 </BarChart>
             </ResponsiveContainer>
         </CardContent>
@@ -208,7 +212,11 @@ function InstallationReportsDashboard() {
                         cursor={{fill: 'transparent'}}
                        contentStyle={{ backgroundColor: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }}
                    />
-                   <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                   <Bar dataKey="total" radius={[4, 4, 0, 0]}>
+                        {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                   </Bar>
                </BarChart>
            </ResponsiveContainer>
        </CardContent>
