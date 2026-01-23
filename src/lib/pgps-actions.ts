@@ -217,7 +217,7 @@ export async function setPgpsDeviceStatus(
       return { success: false, message: 'La configuración de P. GPS no está completa.' };
     }
 
-    const apiUrl = new URL(`/api/device/${deviceId}/status`, settings.url);
+    const apiUrl = new URL(`/api/admin/device/${deviceId}/status`, settings.url);
     apiUrl.searchParams.append('user_api_hash', settings.apiKey);
     
     const response = await fetch(apiUrl.toString(), {
