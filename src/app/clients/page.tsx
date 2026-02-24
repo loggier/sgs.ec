@@ -1,4 +1,3 @@
-
 'use client';
  
 import * as React from 'react';
@@ -16,6 +15,7 @@ import AppContent from '@/components/app-content';
 import { Button } from '@/components/ui/button';
 import { BellRing, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import SendRemindersDialog from '@/components/send-reminders-dialog';
 
 type UnitWithClient = Unit & { clientName: string; ownerName?: string };
 
@@ -26,6 +26,7 @@ function ClientsPageContent() {
   const [units, setUnits] = React.useState<UnitWithClient[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isNotifying, setIsNotifying] = React.useState(false);
+  const [isRemindersDialogOpen, setIsRemindersDialogOpen] = React.useState(false);
 
   const fetchData = React.useCallback(async () => {
     if (user) {
@@ -89,7 +90,10 @@ function ClientsPageContent() {
   
   const handleManualNotifications = async () => {
       if (!user) return;
+      
+      setIsRemindersDialogOpen(false);
       setIsNotifying(true);
+
       toast({
           title: 'Iniciando proceso...',
           description: 'Buscando unidades y enviando recordatorios. Esto puede tardar un momento.',
@@ -128,7 +132,7 @@ function ClientsPageContent() {
     <>
       <Header title="Clientes">
          {user && ['master', 'manager'].includes(user.role) && (
-            <Button onClick={handleManualNotifications} disabled={isNotifying}>
+            <Button onClick={() => setIsRemindersDialogOpen(true)} disabled={isNotifying}>
                 {isNotifying ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -142,6 +146,13 @@ function ClientsPageContent() {
         <ClientSummary {...summaryData} />
         <ClientList initialClients={clientsWithDynamicStatus} onDataChange={fetchData} />
       </div>
+
+      <SendRemindersDialog
+        isOpen={isRemindersDialogOpen}
+        onOpenChange={setIsRemindersDialogOpen}
+        onConfirm={handleManualNotifications}
+        isSending={isNotifying}
+      />
     </>
   );
 }
