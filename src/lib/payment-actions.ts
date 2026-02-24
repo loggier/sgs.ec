@@ -312,6 +312,82 @@ export async function getPayments(
     }
 }
 
+export async function getAllPayments(user: User): Promise<PaymentHistoryEntry[]> {
+    if (!user) {
+        return [];
+    }
+
+    try {
+        const paymentsCollectionRef = collection(db, 'payments');
+        const q = query(paymentsCollectionRef, orderBy('fechaPago', 'desc'));
+        
+        const paymentsSnapshot = await getDocs(q);
+        
+        let allPaymentDocs = paymentsSnapshot.docs;
+        
+        // Apply permission filtering in the server-side logic
+        if (user.role !== 'master') {
+            const ownerIdToFilter = user.role === 'analista' && user.creatorId ? user.creatorId : user.id;
+            allPaymentDocs = allPaymentDocs.filter(doc => doc.data().ownerId === ownerIdToFilter);
+        }
+
+        if (allPaymentDocs.length === 0) {
+            return [];
+        }
+
+        const clientMap = new Map<string, Client>();
+        const userMap = new Map<string, User>();
+
+        const allClientDocsPromise = getDocs(query(collection(db, 'clients')));
+        const allUserDocsPromise = getDocs(query(collection(db, 'users')));
+        
+        const [allClientDocs, allUserDocs] = await Promise.all([allClientDocsPromise, allUserDocsPromise]);
+        
+        allClientDocs.forEach(doc => clientMap.set(doc.id, doc.data() as Client));
+        allUserDocs.forEach(doc => userMap.set(doc.id, doc.data() as User));
+
+
+        const payments = await Promise.all(allPaymentDocs.map(async (pDoc) => {
+            const data = convertTimestamps(pDoc.data()) as Payment;
+
+            let clientName = data.clientName;
+            let unitPlaca = data.unitPlaca;
+            const ownerName = data.ownerId ? userMap.get(data.ownerId)?.nombre : undefined;
+
+            if (!clientName) {
+                clientName = clientMap.get(data.clientId)?.nomSujeto || 'Cliente no encontrado';
+            }
+
+            if (!unitPlaca) {
+                 try {
+                    const unitDocRef = doc(db, 'clients', data.clientId, 'units', data.unitId);
+                    const unitDoc = await getDoc(unitDocRef);
+                    if (unitDoc.exists()) {
+                         const unitData = convertTimestamps(unitDoc.data());
+                         unitPlaca = unitData.placa || 'Placa no encontrada';
+                    }
+                } catch (e) {
+                    console.error(`Could not fetch plate for unit ${data.unitId}:`, e);
+                }
+            }
+
+            return {
+                id: pDoc.id,
+                ...data,
+                clientName: clientName,
+                unitPlaca: unitPlaca || 'Placa no encontrada',
+                ownerName: ownerName,
+            };
+        }));
+
+        return payments;
+
+    } catch (error) {
+        console.error("Error fetching all payments:", error);
+        throw new Error(`Error al cargar todos los pagos: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    }
+}
+
 
 export async function deletePayment(paymentId: string, clientId: string, unitId: string): Promise<{ success: boolean; message: string }> {
     try {

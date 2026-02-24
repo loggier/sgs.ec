@@ -3,10 +3,11 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Trash2, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { MoreHorizontal, Trash2, Loader2, ArrowLeft, ArrowRight, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 import type { PaymentHistoryEntry } from '@/lib/payment-schema';
 import { useAuth } from '@/context/auth-context';
@@ -25,7 +26,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Button } from './ui/button';
 import DeletePaymentDialog from './delete-payment-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { deletePayment } from '@/lib/payment-actions';
+import { deletePayment, getAllPayments } from '@/lib/payment-actions';
 
 type PaymentHistoryListProps = {
   initialPayments: PaymentHistoryEntry[];
@@ -68,6 +69,7 @@ export default function PaymentHistoryList({
   const [payments, setPayments] = React.useState(initialPayments);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedPayment, setSelectedPayment] = React.useState<PaymentHistoryEntry | null>(null);
+  const [isExporting, setIsExporting] = React.useState(false);
   
   React.useEffect(() => {
     setPayments(initialPayments);
@@ -103,6 +105,66 @@ export default function PaymentHistoryList({
     }
   }
 
+  const handleExport = async () => {
+    if (!user) {
+        toast({
+            title: 'Error de autenticación',
+            description: 'Debe iniciar sesión para exportar datos.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    setIsExporting(true);
+
+    try {
+        const allPayments = await getAllPayments(user);
+        
+        const dataToExport = allPayments.map(payment => {
+            const record: {[key: string]: any} = {
+                'Fecha de Pago': formatDate(payment.fechaPago),
+                'Cliente': payment.clientName,
+                'Placa': payment.unitPlaca,
+                'Monto': payment.monto,
+                'Meses Pagados': payment.mesesPagados,
+                'Forma de Pago': payment.formaPago,
+                'Factura No.': payment.numeroFactura || 'N/A',
+                'ID de Pago': payment.id,
+                'ID Cliente': payment.clientId,
+                'ID Unidad': payment.unitId,
+            };
+            
+            if (user.role === 'master') {
+                record['Propietario'] = payment.ownerName || 'N/A';
+            }
+            
+            return record;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Pagos');
+        
+        XLSX.writeFile(workbook, `Reporte_Pagos_${new Date().toISOString().split('T')[0]}.xlsx`);
+        
+        toast({
+            title: 'Exportación completada',
+            description: 'El archivo de historial de pagos ha sido descargado.',
+        });
+
+    } catch (error) {
+        console.error("Error exporting payments:", error);
+        toast({
+            title: 'Error de exportación',
+            description: 'No se pudo generar el archivo de Excel.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsExporting(false);
+    }
+  };
+
+
   return (
     <>
       <Card>
@@ -112,6 +174,10 @@ export default function PaymentHistoryList({
               <CardTitle>Historial de Pagos</CardTitle>
               <CardDescription>Todos los pagos registrados en el sistema.</CardDescription>
             </div>
+            <Button onClick={handleExport} size="sm" variant="outline" disabled={isExporting}>
+              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              {isExporting ? 'Exportando...' : 'Exportar a Excel'}
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
