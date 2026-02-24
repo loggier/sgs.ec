@@ -90,6 +90,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
       tecnicoId: order.tecnicoId || undefined,
       observacion: order.observacion || '',
       metodoPago: order.metodoPago || undefined,
+      montoEfectivo: order.montoEfectivo || undefined,
       corteDeMotor: order.corteDeMotor || false,
       lugarCorteMotor: order.lugarCorteMotor || undefined,
       instalacionAccesorios: order.instalacionAccesorios || false,
@@ -114,6 +115,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
         horaProgramada: '09:00',
         estado: 'pendiente',
         metodoPago: undefined,
+        montoEfectivo: undefined,
         corteDeMotor: false,
         lugarCorteMotor: undefined,
         instalacionAccesorios: false,
@@ -127,6 +129,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
   const corteDeMotor = form.watch('corteDeMotor');
   const instalacionAccesorios = form.watch('instalacionAccesorios');
   const selectedCountryName = form.watch('pais');
+  const metodoPago = form.watch('metodoPago');
   const isCompleted = estado === 'terminado';
 
   const selectedCountry = countries.find(c => c.name === selectedCountryName);
@@ -164,6 +167,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             tecnicoId: order.tecnicoId || undefined,
             observacion: order.observacion || '',
             metodoPago: order.metodoPago || undefined,
+            montoEfectivo: order.montoEfectivo || undefined,
             corteDeMotor: order.corteDeMotor || false,
             lugarCorteMotor: order.lugarCorteMotor || undefined,
             instalacionAccesorios: order.instalacionAccesorios || false,
@@ -194,6 +198,7 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
             horaProgramada: '09:00',
             estado: 'pendiente',
             metodoPago: undefined,
+            montoEfectivo: undefined,
             corteDeMotor: false,
             lugarCorteMotor: undefined,
             instalacionAccesorios: false,
@@ -549,6 +554,28 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                 </FormItem>
                             )}
                         />
+
+                        {metodoPago === 'efectivo' && (
+                            <FormField
+                                control={form.control}
+                                name="montoEfectivo"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Monto en Efectivo Recibido</FormLabel>
+                                        <FormControl>
+                                            <Input 
+                                                type="number" 
+                                                placeholder="0.00" 
+                                                {...field} 
+                                                onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                                                disabled={isCompleted}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
 
                        <FormField
                           control={form.control}

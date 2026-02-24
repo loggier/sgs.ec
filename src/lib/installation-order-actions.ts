@@ -142,6 +142,11 @@ export async function saveInstallationOrder(
         
         if (validation.data.estado === 'terminado') {
             technicianUpdatableFields.metodoPago = validation.data.metodoPago;
+            if (validation.data.metodoPago === 'efectivo') {
+                technicianUpdatableFields.montoEfectivo = validation.data.montoEfectivo;
+            } else {
+                technicianUpdatableFields.montoEfectivo = null; // Clear if not cash
+            }
             technicianUpdatableFields.corteDeMotor = validation.data.corteDeMotor;
             if (validation.data.corteDeMotor) {
               technicianUpdatableFields.lugarCorteMotor = validation.data.lugarCorteMotor;
@@ -162,10 +167,16 @@ export async function saveInstallationOrder(
             return { success: false, message: 'No tiene permiso para crear o editar esta orden.' };
         }
         ownerIdForNotification = currentUser.id;
+
+        const dataFromValidation = { ...validation.data };
+        if (dataFromValidation.metodoPago !== 'efectivo') {
+            dataFromValidation.montoEfectivo = undefined;
+        }
+
         dataToSave = { 
-            ...validation.data,
+            ...dataFromValidation,
             ownerId: currentUser.id,
-            fechaProgramada: Timestamp.fromDate(new Date(validation.data.fechaProgramada)),
+            fechaProgramada: Timestamp.fromDate(new Date(dataFromValidation.fechaProgramada)),
         };
     }
     

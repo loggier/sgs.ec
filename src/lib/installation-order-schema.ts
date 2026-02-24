@@ -66,6 +66,7 @@ export const InstallationOrderSchema = z.object({
   
   // Fields for completion
   metodoPago: PaymentMethod.optional(),
+  montoEfectivo: z.coerce.number().optional(),
   corteDeMotor: z.boolean().optional(),
   lugarCorteMotor: LugarCorteMotor.optional(),
   
@@ -100,6 +101,14 @@ export const InstallationOrderFormSchema = InstallationOrderSchema.omit({
 }, {
     message: 'Debe seleccionar el lugar del corte de motor.',
     path: ['lugarCorteMotor'],
+}).refine(data => {
+    if (data.estado === 'terminado' && data.metodoPago === 'efectivo') {
+        return data.montoEfectivo !== undefined && data.montoEfectivo !== null;
+    }
+    return true;
+}, {
+    message: 'Debe ingresar el monto en efectivo recibido.',
+    path: ['montoEfectivo']
 });
 
 
