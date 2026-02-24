@@ -177,7 +177,12 @@ export default function LoginForm() {
                     render={({ field }) => (
                         <FormItem className="flex flex-col items-center">
                             <FormControl>
-                                <InputOTP maxLength={6} {...field}>
+                                <InputOTP
+                                    maxLength={6}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    autoComplete="one-time-code"
+                                >
                                     <InputOTPGroup>
                                         <InputOTPSlot index={0} />
                                         <InputOTPSlot index={1} />
