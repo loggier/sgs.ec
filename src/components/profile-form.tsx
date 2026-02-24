@@ -16,9 +16,11 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/auth-context';
+import { Switch } from './ui/switch';
 
 type ProfileFormProps = {
   user: User;
@@ -37,6 +39,7 @@ export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps
       nombre: user.nombre || '',
       telefono: user.telefono || '',
       empresa: user.empresa || '',
+      otpEnabled: user.otpEnabled || false,
       password: '',
       confirmPassword: '',
     },
@@ -45,6 +48,15 @@ export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps
   async function onSubmit(values: ProfileFormInput) {
     setIsSubmitting(true);
     try {
+       if (values.otpEnabled && !user.telefono) {
+          toast({
+              title: 'Error',
+              description: 'Debe registrar un número de teléfono para habilitar la autenticación de dos pasos.',
+              variant: 'destructive',
+          });
+          setIsSubmitting(false);
+          return;
+      }
       const result = await updateUser(user.id, values);
       if (result.success && result.user) {
         toast({
@@ -130,6 +142,28 @@ export default function ProfileForm({ user, onSave, onCancel }: ProfileFormProps
             )}
           />
         </div>
+        
+        <FormField
+            control={form.control}
+            name="otpEnabled"
+            render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                        <FormLabel>Autenticación de dos pasos (OTP)</FormLabel>
+                        <FormDescription>
+                            Recibirá un código por WhatsApp al iniciar sesión.
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={!user.telefono}
+                        />
+                    </FormControl>
+                </FormItem>
+            )}
+        />
         
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField

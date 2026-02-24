@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { loginUser, verifyOtpAndLogin } from '@/lib/user-actions';
+import { useRouter } from 'next/navigation';
 
 const LoginSchema = z.object({
   username: z.string().min(1, 'El nombre de usuario es requerido.'),
@@ -25,12 +27,21 @@ const LoginSchema = z.object({
 });
 type LoginFormInput = z.infer<typeof LoginSchema>;
 
+const OtpSchema = z.object({
+    code: z.string().length(6, 'El código debe tener 6 dígitos.'),
+});
+type OtpFormInput = z.infer<typeof OtpSchema>;
+
+
 export default function LoginForm() {
-  const { login } = useAuth();
+  const { updateUserContext } = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [view, setView] = React.useState<'credentials' | 'otp'>('credentials');
+  const [otpUserId, setOtpUserId] = React.useState<string | null>(null);
 
-  const form = useForm<LoginFormInput>({
+  const credentialsForm = useForm<LoginFormInput>({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
       username: '',
@@ -38,10 +49,36 @@ export default function LoginForm() {
     },
   });
 
-  async function onSubmit(values: LoginFormInput) {
+  const otpForm = useForm<OtpFormInput>({
+      resolver: zodResolver(OtpSchema),
+      defaultValues: {
+          code: '',
+      },
+  });
+
+  async function onCredentialsSubmit(values: LoginFormInput) {
     setIsSubmitting(true);
     try {
-      await login(values.username, values.password);
+      const result = await loginUser(values);
+      if (result.success) {
+          if (result.otpRequired && result.userId) {
+              setOtpUserId(result.userId);
+              setView('otp');
+              toast({
+                  title: 'Verificación Requerida',
+                  description: 'Se ha enviado un código de 6 dígitos a su número de teléfono.',
+              });
+          } else if (result.user) {
+              updateUserContext(result.user);
+              router.push('/');
+          }
+      } else {
+        toast({
+            title: 'Error de inicio de sesión',
+            description: result.message,
+            variant: 'destructive',
+        });
+      }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         toast({
@@ -54,6 +91,74 @@ export default function LoginForm() {
     }
   }
 
+  async function onOtpSubmit(values: OtpFormInput) {
+      if (!otpUserId) return;
+      setIsSubmitting(true);
+      try {
+          const result = await verifyOtpAndLogin(otpUserId, values.code);
+          if (result.success && result.user) {
+              updateUserContext(result.user);
+              router.push('/');
+          } else {
+              toast({
+                  title: 'Error de Verificación',
+                  description: result.message,
+                  variant: 'destructive',
+              });
+          }
+      } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+          toast({
+              title: 'Error de Verificación',
+              description: errorMessage,
+              variant: 'destructive',
+          });
+      } finally {
+          setIsSubmitting(false);
+      }
+  }
+
+  if (view === 'otp') {
+      return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Verificación de Dos Pasos</CardTitle>
+                <CardDescription>
+                Ingrese el código de 6 dígitos enviado a su teléfono.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <FormProvider {...otpForm}>
+                <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6">
+                    <FormField
+                    control={otpForm.control}
+                    name="code"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Código de Verificación</FormLabel>
+                        <FormControl>
+                            <Input placeholder="123456" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" className="w-full" onClick={() => setView('credentials')}>
+                            Regresar
+                        </Button>
+                        <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSubmitting ? 'Verificando...' : 'Verificar'}
+                        </Button>
+                    </div>
+                </form>
+                </FormProvider>
+            </CardContent>
+        </Card>
+      )
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -63,10 +168,10 @@ export default function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <FormProvider {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormProvider {...credentialsForm}>
+          <form onSubmit={credentialsForm.handleSubmit(onCredentialsSubmit)} className="space-y-6">
             <FormField
-              control={form.control}
+              control={credentialsForm.control}
               name="username"
               render={({ field }) => (
                 <FormItem>
@@ -79,7 +184,7 @@ export default function LoginForm() {
               )}
             />
             <FormField
-              control={form.control}
+              control={credentialsForm.control}
               name="password"
               render={({ field }) => (
                 <FormItem>

@@ -11,7 +11,6 @@ type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   updateUserContext: (newUser: User) => void;
   updateUser: (userId: string, data: ProfileFormInput) => Promise<{success: boolean; message: string; user?: User;}>;
@@ -45,17 +44,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const result = await loginUser({ username, password });
-    if (result.success && result.user) {
-      setUser(result.user);
-      localStorage.setItem('user', JSON.stringify(result.user));
-      router.push('/');
-    } else {
-      throw new Error(result.message);
-    }
-  };
-
   const logout = async () => {
     setUser(null);
     localStorage.removeItem('user');
@@ -80,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isAuthenticated: !!user,
     isLoading,
-    login,
     logout,
     updateUserContext,
     updateUser: handleUpdateUser,

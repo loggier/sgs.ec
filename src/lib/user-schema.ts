@@ -1,5 +1,4 @@
 
-
 import { z } from 'zod';
 
 export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario', 'tecnico']);
@@ -24,6 +23,7 @@ export const UserSchema = z.object({
   creatorId: z.string().optional(), // ID of the manager who created this user (if role is 'analista' or 'tecnico')
   notificationUrl: z.string().url().optional(),
   unitCount: z.number().optional(), // Added field for unit count
+  otpEnabled: z.boolean().optional(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -53,6 +53,7 @@ export const ProfileFormSchema = z.object({
   nombre: z.string().optional(),
   telefono: z.string().optional(),
   empresa: z.string().optional(),
+  otpEnabled: z.boolean().optional(),
   password: z.string().optional().refine(val => !val || val.length >= 6, {
     message: 'La nueva contraseña debe tener al menos 6 caracteres.',
   }),

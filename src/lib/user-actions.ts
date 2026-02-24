@@ -13,6 +13,8 @@ import {
   query,
   where,
   limit,
+  Timestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { UserFormSchema, type User, type UserFormInput, ProfileFormSchema, type ProfileFormInput, UserRole } from './user-schema';
@@ -20,6 +22,8 @@ import bcrypt from 'bcryptjs';
 import { setSessionCookie, deleteSessionCookie, getCurrentUser as getCurrentUserFromCookie } from './auth';
 import { getClients } from './actions';
 import type { Client } from './schema';
+import { getNotificationUrlForUser } from './settings-actions';
+import { sendNotificationMessage } from './notification-actions';
 
 // Use bcrypt for secure password hashing.
 const hashPassword = async (password: string) => {
@@ -38,7 +42,49 @@ const fetchUsersFromFirestore = async (): Promise<User[]> => {
     return userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 };
 
-export async function loginUser(credentials: {username: string; password: string;}): Promise<{success: boolean; message: string; user?: User}> {
+async function createAndSendOtp(user: User): Promise<boolean> {
+    if (!user.telefono) return false;
+
+    try {
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = Timestamp.fromDate(new Date(Date.now() + 10 * 60 * 1000)); // 10 minutes expiry
+
+        const otpCollection = collection(db, 'otps');
+        
+        const oldOtpsQuery = query(otpCollection, where("userId", "==", user.id));
+        const oldOtpsSnapshot = await getDocs(oldOtpsQuery);
+        if (!oldOtpsSnapshot.empty) {
+            const batch = writeBatch(db);
+            oldOtpsSnapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+        }
+
+        await addDoc(otpCollection, {
+            userId: user.id,
+            code: otpCode,
+            expiresAt,
+        });
+
+        const ownerId = (user.role === 'analista' || user.role === 'tecnico') && user.creatorId ? user.creatorId : user.id;
+        const notificationSettings = await getNotificationUrlForUser(ownerId);
+        
+        if (notificationSettings?.notificationUrl) {
+            const message = `Su código de verificación para SGI es: ${otpCode}`;
+            await sendNotificationMessage(user.telefono, message, notificationSettings, {
+                ownerId,
+                clientId: 'N/A',
+                clientName: user.nombre || user.username
+            });
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error("Error creating and sending OTP:", error);
+        return false;
+    }
+}
+
+export async function loginUser(credentials: {username: string; password: string;}): Promise<{success: boolean; message: string; user?: User; otpRequired?: boolean; userId?: string;}> {
     try {
         const { username, password } = credentials;
 
@@ -52,6 +98,7 @@ export async function loginUser(credentials: {username: string; password: string
 
         const userDoc = userSnapshot.docs[0];
         const userData = userDoc.data() as User;
+        const userWithId = { id: userDoc.id, ...userData };
 
         if (!userData.password) {
              return { success: false, message: 'La cuenta de usuario está mal configurada. Contacte al administrador.' };
@@ -63,16 +110,60 @@ export async function loginUser(credentials: {username: string; password: string
             return { success: false, message: 'Usuario o contraseña incorrectos.' };
         }
         
-        const { password: _, ...userWithoutPassword } = { id: userDoc.id, ...userData };
+        if (userData.otpEnabled && userData.telefono) {
+            const otpSent = await createAndSendOtp(userWithId);
+            if (otpSent) {
+                return { success: true, message: 'Se requiere verificación de dos pasos.', otpRequired: true, userId: userDoc.id };
+            } else {
+                 return { success: false, message: 'No se pudo enviar el código de verificación. Verifique la configuración de notificaciones.' };
+            }
+        }
         
+        const { password: _, ...userWithoutPassword } = userWithId;
         await setSessionCookie(userWithoutPassword);
-
-
         return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
 
     } catch (error) {
         console.error("Error during login:", error);
         return { success: false, message: 'Ocurrió un error en el servidor.' };
+    }
+}
+
+export async function verifyOtpAndLogin(userId: string, code: string): Promise<{success: boolean; message: string; user?: User}> {
+    try {
+        const otpsCollection = collection(db, 'otps');
+        const q = query(otpsCollection, where("userId", "==", userId), where("code", "==", code));
+        const otpSnapshot = await getDocs(q);
+
+        if (otpSnapshot.empty) {
+            return { success: false, message: 'Código OTP inválido.' };
+        }
+
+        const otpDoc = otpSnapshot.docs[0];
+        const otpData = otpDoc.data();
+
+        if (otpData.expiresAt.toMillis() < Date.now()) {
+            await deleteDoc(otpDoc.ref);
+            return { success: false, message: 'El código OTP ha expirado.' };
+        }
+
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+             return { success: false, message: 'Usuario no encontrado.' };
+        }
+        
+        const { password, ...userWithoutPassword } = { id: userDoc.id, ...userDoc.data() } as User;
+        
+        await setSessionCookie(userWithoutPassword);
+        await deleteDoc(otpDoc.ref);
+
+        return { success: true, message: 'Inicio de sesión exitoso.', user: userWithoutPassword };
+        
+    } catch (error) {
+        console.error("Error verifying OTP:", error);
+        return { success: false, message: 'Ocurrió un error en el servidor al verificar el código.' };
     }
 }
 
@@ -95,13 +186,11 @@ export async function getUsers(currentUser: User | null): Promise<User[]> {
     if (currentUser.role === 'master') {
       usersToReturn = usersWithoutPassword;
     } else if (currentUser.role === 'manager') {
-      // A manager sees the analysts and technicians they have created
       usersToReturn = usersWithoutPassword.filter(user => user.creatorId === currentUser.id);
     } else {
         return [];
     }
     
-    // To correctly calculate unit counts, fetch all clients with their unit counts.
     const clientsWithData = await getClients(currentUser.id, currentUser.role, currentUser.creatorId);
     
     const unitCountsByManager: Record<string, number> = {};
@@ -147,21 +236,18 @@ export async function saveUser(
 
   const { username, password, role, ...userData } = validation.data;
 
-  // Permission checks for role assignment
   if (currentUser.role === 'manager' && !['analista', 'tecnico'].includes(role)) {
       return { success: false, message: 'Los managers solo pueden crear usuarios de tipo analista o técnico.' };
   }
   
   try {
     const usersCollection = collection(db, 'users');
-    // Check for unique username
     const usernameQuery = query(usersCollection, where("username", "==", username), limit(1));
     const usernameSnapshot = await getDocs(usernameQuery);
     if (!usernameSnapshot.empty && usernameSnapshot.docs[0].id !== id) {
       return { success: false, message: 'El nombre de usuario ya existe.' };
     }
 
-    // Check for unique email
     const emailQuery = query(usersCollection, where("correo", "==", userData.correo), limit(1));
     const emailSnapshot = await getDocs(emailQuery);
     if (!emailSnapshot.empty && emailSnapshot.docs[0].id !== id) {
@@ -169,7 +255,6 @@ export async function saveUser(
     }
 
     if (isEditing) {
-      // Update existing user
       const userDocRef = doc(db, 'users', id);
       const userDataToUpdate: Partial<User> = { username, role, ...userData };
 
@@ -184,7 +269,6 @@ export async function saveUser(
       revalidatePath('/users');
       return { success: true, message: 'Usuario actualizado con éxito.', user: userWithoutPassword };
     } else {
-      // Create new user
       const hashedPassword = await hashPassword(password);
       
       const newUser: Omit<User, 'id'| 'password'> & {password: string} = { 
@@ -231,7 +315,6 @@ export async function deleteUser(id: string): Promise<{ success: boolean; messag
         return { success: false, message: 'No tiene permiso para eliminar a este usuario.' };
     }
 
-    // Prevent deleting the last master user
     if (userToDelete.role === 'master') {
       const masterQuery = query(collection(db, 'users'), where("role", "==", "master"));
       const masterSnapshot = await getDocs(masterQuery);
@@ -274,7 +357,6 @@ export async function updateProfile(
 
         await updateDoc(userDocRef, userDataToUpdate as Record<string, any>);
         
-        // Fetch the updated user to get the complete object
         const updatedUserDoc = await getDoc(userDocRef);
         if (!updatedUserDoc.exists()) {
             return { success: false, message: 'No se pudo encontrar el usuario actualizado.' };
