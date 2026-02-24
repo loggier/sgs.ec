@@ -170,7 +170,7 @@ export default function LoginForm() {
             </CardHeader>
             <CardContent>
                 <FormProvider {...otpForm}>
-                <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6" autoComplete="off">
+                <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6">
                     <FormField
                     control={otpForm.control}
                     name="otp"
@@ -181,7 +181,8 @@ export default function LoginForm() {
                                 <div className="relative">
                                     <InputOTP
                                         maxLength={6}
-                                        {...field}
+                                        value={field.value}
+                                        onChange={field.onChange}
                                         autoComplete="one-time-code"
                                         containerClassName="justify-center"
                                     >
