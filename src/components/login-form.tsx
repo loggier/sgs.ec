@@ -1,11 +1,10 @@
-
 'use client';
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -20,11 +19,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { loginUser, verifyOtpAndLogin, resendOtp } from '@/lib/user-actions';
 import { useRouter } from 'next/navigation';
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp"
 
 const LoginSchema = z.object({
   username: z.string().min(1, 'El nombre de usuario es requerido.'),
@@ -178,36 +172,15 @@ export default function LoginForm() {
                         <FormItem>
                             <FormLabel className="sr-only">Código de Verificación</FormLabel>
                             <FormControl>
-                                <div className="relative">
-                                    <InputOTP
-                                        maxLength={6}
-                                        value={field.value}
-                                        onChange={field.onChange}
-                                        autoComplete="one-time-code"
-                                        containerClassName="justify-center"
-                                    >
-                                        <InputOTPGroup>
-                                            <InputOTPSlot index={0} />
-                                            <InputOTPSlot index={1} />
-                                            <InputOTPSlot index={2} />
-                                            <InputOTPSlot index={3} />
-                                            <InputOTPSlot index={4} />
-                                            <InputOTPSlot index={5} />
-                                        </InputOTPGroup>
-                                    </InputOTP>
-                                    {field.value && field.value.length > 0 && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
-                                            onClick={() => field.onChange('')} // Clear the field
-                                        >
-                                            <X className="h-4 w-4" />
-                                            <span className="sr-only">Limpiar campo</span>
-                                        </Button>
-                                    )}
-                                </div>
+                                <Input
+                                    {...field}
+                                    maxLength={6}
+                                    placeholder="------"
+                                    className="h-14 text-center text-2xl tracking-[0.5em]"
+                                    autoComplete="one-time-code"
+                                    inputMode="numeric"
+                                    pattern="\d{6}"
+                                />
                             </FormControl>
                             <FormMessage className="text-center"/>
                         </FormItem>
