@@ -43,6 +43,9 @@ export default function LoginForm() {
   const [resendCooldown, setResendCooldown] = React.useState(0);
   const [isResending, setIsResending] = React.useState(false);
 
+  // This will manage the OTP input value directly to avoid conflicts
+  const [otpInput, setOtpInput] = React.useState('');
+
   // Timer effect for cooldown
   React.useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -153,6 +156,17 @@ export default function LoginForm() {
     }
   };
 
+  const handleOtpInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    // Allow only numeric input and limit to 6 characters
+    const numericValue = value.replace(/[^0-9]/g, '');
+    if (numericValue.length <= 6) {
+        setOtpInput(numericValue);
+        // Manually set the value for react-hook-form validation
+        otpForm.setValue('otp', numericValue, { shouldValidate: true });
+    }
+  };
+
   if (view === 'otp') {
       return (
         <Card>
@@ -165,27 +179,21 @@ export default function LoginForm() {
             <CardContent>
                 <FormProvider {...otpForm}>
                 <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6">
-                    <FormField
-                    control={otpForm.control}
-                    name="otp"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="sr-only">Código de Verificación</FormLabel>
-                            <FormControl>
-                                <Input
-                                    {...field}
-                                    maxLength={6}
-                                    placeholder="------"
-                                    className="h-14 text-center text-2xl tracking-[0.5em]"
-                                    autoComplete="one-time-code"
-                                    inputMode="numeric"
-                                    pattern="\d{6}"
-                                />
-                            </FormControl>
-                            <FormMessage className="text-center"/>
-                        </FormItem>
-                    )}
-                    />
+                    <FormItem>
+                        <FormLabel className="sr-only">Código de Verificación</FormLabel>
+                        <FormControl>
+                            <Input
+                                value={otpInput}
+                                onChange={handleOtpInputChange}
+                                maxLength={6}
+                                placeholder="------"
+                                className="h-14 text-center text-2xl tracking-[0.5em]"
+                                autoComplete="one-time-code"
+                                inputMode="numeric"
+                            />
+                        </FormControl>
+                        <FormMessage className="text-center">{otpForm.formState.errors.otp?.message}</FormMessage>
+                    </FormItem>
                     <div className="flex items-center gap-2">
                         <Button type="button" variant="outline" className="w-full" onClick={() => setView('credentials')}>
                             Regresar
