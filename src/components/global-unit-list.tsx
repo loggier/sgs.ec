@@ -3,11 +3,12 @@
 'use client';
 
 import * as React from 'react';
-import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2, CalendarClock, FileText } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard, PlusCircle, ShieldCheck, ShieldOff, Link2, CalendarClock, FileText, Download, Loader2 } from 'lucide-react';
 import { format, startOfDay, isSameDay, isThisWeek, isThisMonth, isWithinInterval, differenceInDays, isBefore, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { DateRange } from 'react-day-picker';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 import type { Unit } from '@/lib/unit-schema';
 import { useAuth } from '@/context/auth-context';
@@ -40,6 +41,7 @@ import SetPgpsStatusDialog from './set-pgps-status-dialog';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import type { Timestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 type GlobalUnit = Unit & { clientName: string; ownerName?: string; };
 
@@ -80,12 +82,14 @@ function formatDateSafe(date: Date | string | null | undefined): string {
 
 export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUnitListProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const { searchTerm } = useSearch();
   const [units, setUnits] = React.useState(initialUnits);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = React.useState(false);
   const [isUnitStatusDialogOpen, setIsUnitStatusDialogOpen] = React.useState(false);
   const [selectedUnit, setSelectedUnit] = React.useState<GlobalUnit | null>(null);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   const [filter, setFilter] = React.useState('all');
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
@@ -247,6 +251,80 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
     );
   }, [searchTerm, filteredUnitsByDate]);
 
+  const handleExport = () => {
+    if (!user) {
+        toast({
+            title: 'Error de autenticación',
+            description: 'Debe iniciar sesión para exportar datos.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    setIsExporting(true);
+
+    try {
+        const dataToExport = initialUnits.map(unit => {
+            const cutoffDate = getCutoffDate(unit);
+            const overdueAmount = calculateOverdueAmount(unit);
+
+            const record: {[key: string]: any} = {
+                'Placa': unit.placa,
+                'IMEI': unit.imei,
+                'Cliente': unit.clientName,
+                'Estado': unit.estaSuspendido ? 'Suspendido' : 'Activo',
+                'Fecha Siguiente Pago': formatDateSafe(unit.fechaSiguientePago),
+                'Fecha de Corte': formatDateSafe(cutoffDate),
+                'Fecha Suspensión': formatDateSafe(unit.fechaSuspension),
+                'Plan': planDisplayNames[unit.tipoPlan] || unit.tipoPlan,
+                'Tipo de Contrato': unit.tipoContrato === 'con_contrato' ? 'Con Contrato' : 'Sin Contrato',
+                'Costo Mensual': unit.tipoContrato === 'sin_contrato' ? unit.costoMensual : ((unit.costoTotalContrato ?? 0) / (unit.mesesContrato ?? 1)),
+                'Costo Total Contrato': unit.tipoContrato === 'con_contrato' ? unit.costoTotalContrato : null,
+                'Saldo Contrato': unit.tipoContrato === 'con_contrato' ? (unit.saldoContrato ?? unit.costoTotalContrato) : null,
+                'Meses Contrato': unit.tipoContrato === 'con_contrato' ? unit.mesesContrato : null,
+                'Monto Vencido': overdueAmount,
+                'Modelo': unit.modelo,
+                'Categoría Vehículo': unit.categoriaVehiculo,
+                'Fecha Instalación': formatDateSafe(unit.fechaInstalacion),
+                'Fecha Inicio Contrato': formatDateSafe(unit.fechaInicioContrato),
+                'Fecha Vencimiento Contrato': formatDateSafe(unit.fechaVencimiento),
+                'Observación': unit.observacion,
+                'ID P. GPS': unit.pgpsDeviceId,
+                'Estado P. GPS': unit.pgpsDeviceId ? (unit.pgpsDeviceActive ? 'Activo' : 'Inactivo') : 'N/A',
+                'URL Contrato': unit.urlContrato,
+                'Número Operación': unit.numeroOperacion,
+            };
+
+            if (user.role === 'master') {
+                record['Propietario'] = unit.ownerName || '';
+            }
+
+            return record;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Unidades');
+        
+        XLSX.writeFile(workbook, `Reporte_Unidades_${new Date().toISOString().split('T')[0]}.xlsx`);
+        
+        toast({
+            title: 'Exportación completada',
+            description: 'El archivo de unidades ha sido descargado.',
+        });
+
+    } catch (error) {
+        console.error("Error exporting units:", error);
+        toast({
+            title: 'Error de exportación',
+            description: 'No se pudo generar el archivo de Excel.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsExporting(false);
+    }
+};
+
   return (
     <>
     <Card>
@@ -263,6 +341,10 @@ export default function GlobalUnitList({ initialUnits, onDataChange }: GlobalUni
                   dateRange={dateRange}
                   setDateRange={setDateRange}
                 />
+                <Button onClick={handleExport} size="sm" variant="outline" className="w-full sm:w-auto" disabled={isExporting}>
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {isExporting ? 'Exportando...' : 'Exportar a Excel'}
+                </Button>
                 {user && ['master', 'manager'].includes(user.role) && (
                 <Button asChild size="sm" className="w-full sm:w-auto">
                     <Link href="/units/new">
