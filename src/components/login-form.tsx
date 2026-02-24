@@ -5,7 +5,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ const LoginSchema = z.object({
 type LoginFormInput = z.infer<typeof LoginSchema>;
 
 const OtpSchema = z.object({
-    code: z.string().length(6, 'El código debe tener 6 dígitos.'),
+    otp: z.string().length(6, 'El código debe tener 6 dígitos.'),
 });
 type OtpFormInput = z.infer<typeof OtpSchema>;
 
@@ -69,7 +69,7 @@ export default function LoginForm() {
   const otpForm = useForm<OtpFormInput>({
       resolver: zodResolver(OtpSchema),
       defaultValues: {
-          code: '',
+          otp: '',
       },
   });
 
@@ -113,7 +113,7 @@ export default function LoginForm() {
       if (!otpUserId) return;
       setIsSubmitting(true);
       try {
-          const result = await verifyOtpAndLogin(otpUserId, values.code);
+          const result = await verifyOtpAndLogin(otpUserId, values.otp);
           if (result.success && result.user) {
               updateUserContext(result.user);
               router.push('/');
@@ -170,30 +170,45 @@ export default function LoginForm() {
             </CardHeader>
             <CardContent>
                 <FormProvider {...otpForm}>
-                <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6">
+                <form onSubmit={otpForm.handleSubmit(onOtpSubmit)} className="space-y-6" autoComplete="off">
                     <FormField
                     control={otpForm.control}
-                    name="code"
+                    name="otp"
                     render={({ field }) => (
-                        <FormItem className="flex flex-col items-center">
+                        <FormItem>
+                            <FormLabel className="sr-only">Código de Verificación</FormLabel>
                             <FormControl>
-                                <InputOTP
-                                    maxLength={6}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    autoComplete="one-time-code"
-                                >
-                                    <InputOTPGroup>
-                                        <InputOTPSlot index={0} />
-                                        <InputOTPSlot index={1} />
-                                        <InputOTPSlot index={2} />
-                                        <InputOTPSlot index={3} />
-                                        <InputOTPSlot index={4} />
-                                        <InputOTPSlot index={5} />
-                                    </InputOTPGroup>
-                                </InputOTP>
+                                <div className="relative">
+                                    <InputOTP
+                                        maxLength={6}
+                                        {...field}
+                                        autoComplete="one-time-code"
+                                        containerClassName="justify-center"
+                                    >
+                                        <InputOTPGroup>
+                                            <InputOTPSlot index={0} />
+                                            <InputOTPSlot index={1} />
+                                            <InputOTPSlot index={2} />
+                                            <InputOTPSlot index={3} />
+                                            <InputOTPSlot index={4} />
+                                            <InputOTPSlot index={5} />
+                                        </InputOTPGroup>
+                                    </InputOTP>
+                                    {field.value && field.value.length > 0 && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                                            onClick={() => field.onChange('')} // Clear the field
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span className="sr-only">Limpiar campo</span>
+                                        </Button>
+                                    )}
+                                </div>
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage className="text-center"/>
                         </FormItem>
                     )}
                     />
