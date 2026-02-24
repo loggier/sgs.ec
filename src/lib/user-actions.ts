@@ -167,6 +167,35 @@ export async function verifyOtpAndLogin(userId: string, code: string): Promise<{
     }
 }
 
+export async function resendOtp(userId: string): Promise<{ success: boolean; message: string }> {
+    try {
+        const userDocRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+            return { success: false, message: 'Usuario no encontrado.' };
+        }
+
+        const userWithId = { id: userDoc.id, ...userDoc.data() } as User;
+
+        if (!userWithId.otpEnabled || !userWithId.telefono) {
+            return { success: false, message: 'La autenticación de dos pasos no está habilitada o no hay un teléfono registrado.' };
+        }
+
+        const otpSent = await createAndSendOtp(userWithId);
+
+        if (otpSent) {
+            return { success: true, message: 'Se ha reenviado un nuevo código de verificación a su número de teléfono.' };
+        } else {
+            return { success: false, message: 'No se pudo reenviar el código. Verifique la configuración de notificaciones del sistema.' };
+        }
+
+    } catch (error) {
+        console.error("Error resending OTP:", error);
+        return { success: false, message: 'Ocurrió un error en el servidor al intentar reenviar el código.' };
+    }
+}
+
 export async function logoutUser() {
     await deleteSessionCookie();
 }

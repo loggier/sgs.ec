@@ -18,8 +18,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { loginUser, verifyOtpAndLogin } from '@/lib/user-actions';
+import { loginUser, verifyOtpAndLogin, resendOtp } from '@/lib/user-actions';
 import { useRouter } from 'next/navigation';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp"
 
 const LoginSchema = z.object({
   username: z.string().min(1, 'El nombre de usuario es requerido.'),
@@ -40,6 +45,18 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [view, setView] = React.useState<'credentials' | 'otp'>('credentials');
   const [otpUserId, setOtpUserId] = React.useState<string | null>(null);
+
+  const [resendCooldown, setResendCooldown] = React.useState(0);
+  const [isResending, setIsResending] = React.useState(false);
+
+  // Timer effect for cooldown
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const credentialsForm = useForm<LoginFormInput>({
     resolver: zodResolver(LoginSchema),
@@ -64,6 +81,7 @@ export default function LoginForm() {
           if (result.otpRequired && result.userId) {
               setOtpUserId(result.userId);
               setView('otp');
+              setResendCooldown(60); // Start 60 second cooldown
               toast({
                   title: 'Verificación Requerida',
                   description: 'Se ha enviado un código de 6 dígitos a su número de teléfono.',
@@ -118,10 +136,33 @@ export default function LoginForm() {
       }
   }
 
+  const handleResendCode = async () => {
+    if (!otpUserId || resendCooldown > 0) return;
+    setIsResending(true);
+    try {
+      const result = await resendOtp(otpUserId);
+      if (result.success) {
+        toast({
+          title: 'Código Reenviado',
+          description: result.message,
+        });
+        setResendCooldown(60); // Restart cooldown
+      } else {
+        toast({
+          title: 'Error',
+          description: result.message,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   if (view === 'otp') {
       return (
         <Card>
-            <CardHeader>
+            <CardHeader className="text-center">
                 <CardTitle>Verificación de Dos Pasos</CardTitle>
                 <CardDescription>
                 Ingrese el código de 6 dígitos enviado a su teléfono.
@@ -134,12 +175,20 @@ export default function LoginForm() {
                     control={otpForm.control}
                     name="code"
                     render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Código de Verificación</FormLabel>
-                        <FormControl>
-                            <Input placeholder="123456" {...field} />
-                        </FormControl>
-                        <FormMessage />
+                        <FormItem className="flex flex-col items-center">
+                            <FormControl>
+                                <InputOTP maxLength={6} {...field}>
+                                    <InputOTPGroup>
+                                        <InputOTPSlot index={0} />
+                                        <InputOTPSlot index={1} />
+                                        <InputOTPSlot index={2} />
+                                        <InputOTPSlot index={3} />
+                                        <InputOTPSlot index={4} />
+                                        <InputOTPSlot index={5} />
+                                    </InputOTPGroup>
+                                </InputOTP>
+                            </FormControl>
+                            <FormMessage />
                         </FormItem>
                     )}
                     />
@@ -150,6 +199,22 @@ export default function LoginForm() {
                         <Button type="submit" className="w-full" disabled={isSubmitting}>
                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isSubmitting ? 'Verificando...' : 'Verificar'}
+                        </Button>
+                    </div>
+                     <div className="text-center">
+                        <Button
+                            type="button"
+                            variant="link"
+                            className="text-sm h-auto p-0"
+                            onClick={handleResendCode}
+                            disabled={resendCooldown > 0 || isResending}
+                        >
+                            {isResending 
+                                ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reenviando...</>
+                                : resendCooldown > 0
+                                    ? `Reenviar código en ${resendCooldown}s`
+                                    : '¿No recibiste el código? Reenviar'
+                            }
                         </Button>
                     </div>
                 </form>
