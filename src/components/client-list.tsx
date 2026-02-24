@@ -3,8 +3,9 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2, MessageSquare, Building, Mail, Phone } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, Car, CreditCard, Link2, MessageSquare, Building, Mail, Phone, Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
 
 import type { ClientDisplay } from '@/lib/schema';
 import { useAuth } from '@/context/auth-context';
@@ -58,6 +59,7 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
   const [isMessageDialogOpen, setIsMessageDialogOpen] = React.useState(false);
   const [selectedClient, setSelectedClient] = React.useState<ClientDisplay | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   React.useEffect(() => {
     setClients(initialClients);
@@ -141,6 +143,68 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
     'retirado': 'Retirado'
   }
 
+  const handleExport = () => {
+    if (!user) {
+        toast({
+            title: 'Error de autenticación',
+            description: 'Debe iniciar sesión para exportar datos.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    
+    setIsExporting(true);
+
+    try {
+        const dataToExport = initialClients.map(client => {
+            const record: {[key: string]: any} = {
+                'ID Cliente': client.id,
+                'Nombre': client.nomSujeto,
+                'Tipo ID': client.codTipoId === 'C' ? 'Cédula' : 'RUC',
+                'Número ID': client.codIdSujeto,
+                'Tipo Cliente': client.tipoCliente,
+                'Estado': displayStatus[client.estado] || client.estado,
+                'Email (Login P. GPS)': client.usuario || '',
+                'Teléfono': client.telefono || '',
+                'Dirección': client.direccion || '',
+                'Ciudad': client.ciudad || '',
+                'Unidades': client.unitCount || 0,
+                'Pago Mensual': client.totalMonthlyPayment || 0,
+                'Monto Contratos': client.totalContractAmount || 0,
+                'Saldo Contratos': client.totalContractBalance || 0,
+                'ID Cliente (P. GPS)': client.pgpsId || '',
+            };
+            
+            if (user.role === 'master') {
+                record['Propietario'] = client.ownerName || '';
+            }
+            
+            return record;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Clientes');
+        
+        XLSX.writeFile(workbook, `Reporte_Clientes_${new Date().toISOString().split('T')[0]}.xlsx`);
+        
+        toast({
+            title: 'Exportación completada',
+            description: 'El archivo de clientes ha sido descargado.',
+        });
+
+    } catch (error) {
+        console.error("Error exporting clients:", error);
+        toast({
+            title: 'Error de exportación',
+            description: 'No se pudo generar el archivo de Excel.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsExporting(false);
+    }
+};
+
   const filteredClients = React.useMemo(() => {
     if (!searchTerm) return clients;
     const lowercasedTerm = searchTerm.toLowerCase();
@@ -213,12 +277,18 @@ export default function ClientList({ initialClients, onDataChange }: ClientListP
                   <CardTitle>Gestión Integrar</CardTitle>
                   <CardDescription>Agregue, edite o elimine clientes.</CardDescription>
                 </div>
-                {user && ['master', 'manager', 'analista'].includes(user.role) && (
-                  <Button onClick={handleAddClient} size="sm" className="w-full sm:w-auto">
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Nuevo Cliente
-                  </Button>
-                )}
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {user && ['master', 'manager', 'analista'].includes(user.role) && (
+                    <Button onClick={handleAddClient} size="sm" className="w-full sm:w-auto">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nuevo Cliente
+                    </Button>
+                    )}
+                    <Button onClick={handleExport} size="sm" variant="outline" className="w-full sm:w-auto" disabled={isExporting}>
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                        {isExporting ? 'Exportando...' : 'Exportar a Excel'}
+                    </Button>
+                </div>
             </div>
           </CardHeader>
           <CardContent>
