@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, HardHat, User, Calendar } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, HardHat, User, Calendar, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -37,6 +37,11 @@ type InstallationOrderListProps = {
   initialOrders: InstallationOrder[];
   onDataChange: () => void;
 };
+
+function formatCurrency(amount?: number | null) {
+  if (amount === undefined || amount === null) return '$0.00';
+  return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(amount);
+}
 
 export default function InstallationOrderList({ initialOrders, onDataChange }: InstallationOrderListProps) {
   const { searchTerm } = useSearch();
@@ -165,6 +170,15 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                                 <User className="h-4 w-4" />
                                 <span>{order.tecnicoNombre || 'No asignado'}</span>
                             </div>
+                             {order.metodoPago && (
+                                <div className="flex items-center gap-2 text-muted-foreground pt-1">
+                                    <CreditCard className="h-4 w-4" />
+                                    <span className="capitalize">{order.metodoPago}</span>
+                                    {order.metodoPago === 'efectivo' && (
+                                        <span className="font-semibold text-foreground">{formatCurrency(order.montoEfectivo)}</span>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )) : (
@@ -185,6 +199,8 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                   <TableHead>Fecha Programada</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Método Pago</TableHead>
+                  <TableHead>Monto Efectivo</TableHead>
                   <TableHead>
                     <span className="sr-only">Acciones</span>
                   </TableHead>
@@ -214,13 +230,19 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                         <Badge variant={statusVariants[order.estado]} className="capitalize">{order.estado.replace('-', ' ')}</Badge>
                       </TableCell>
                       <TableCell>
+                        {order.metodoPago ? <Badge variant="secondary" className="capitalize">{order.metodoPago}</Badge> : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        {order.metodoPago === 'efectivo' ? formatCurrency(order.montoEfectivo) : 'N/A'}
+                      </TableCell>
+                      <TableCell>
                         <OrderActions order={order} />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center h-24">
+                    <TableCell colSpan={9} className="text-center h-24">
                       No se encontraron órdenes de instalación.
                     </TableCell>
                   </TableRow>
