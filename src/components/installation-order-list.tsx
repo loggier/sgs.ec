@@ -56,6 +56,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   const [selectedOrder, setSelectedOrder] = React.useState<InstallationOrder | null>(null);
 
   const [statusFilter, setStatusFilter] = React.useState('todos');
+  const [paymentMethodFilter, setPaymentMethodFilter] = React.useState('todos');
   const [currentPage, setCurrentPage] = React.useState(1);
 
   React.useEffect(() => {
@@ -64,7 +65,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, searchTerm]);
+  }, [statusFilter, paymentMethodFilter, searchTerm]);
 
   const handleOpenDeleteDialog = (order: InstallationOrder) => {
     setSelectedOrder(order);
@@ -108,6 +109,11 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
     if (statusFilter !== 'todos') {
         tempOrders = tempOrders.filter(order => order.estado === statusFilter);
     }
+    
+    // Filter by payment method
+    if (paymentMethodFilter !== 'todos') {
+        tempOrders = tempOrders.filter(order => order.metodoPago === paymentMethodFilter);
+    }
 
     // Filter by search term
     if (!searchTerm) return tempOrders;
@@ -119,7 +125,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
       order.ciudad.toLowerCase().includes(lowercasedTerm) ||
       (order.tecnicoNombre && order.tecnicoNombre.toLowerCase().includes(lowercasedTerm))
     );
-  }, [searchTerm, orders, statusFilter]);
+  }, [searchTerm, orders, statusFilter, paymentMethodFilter]);
 
   const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
   const startIndex = (currentPage - 1) * ORDERS_PER_PAGE;
@@ -163,7 +169,7 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                 <CardTitle>Listado de Instalaciones</CardTitle>
                 <CardDescription>Cree y gestione las tareas de instalación.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                     <Button variant="outline">
@@ -177,6 +183,27 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                         <DropdownMenuRadioItem value="pendiente">Pendiente</DropdownMenuRadioItem>
                         <DropdownMenuRadioItem value="en-curso">En Curso</DropdownMenuRadioItem>
                         <DropdownMenuRadioItem value="terminado">Terminado</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        <span>{
+                            paymentMethodFilter === 'todos' ? 'Todos los pagos' :
+                            paymentMethodFilter === 'efectivo' ? 'Pago: Efectivo' :
+                            paymentMethodFilter === 'transferencia' ? 'Pago: Transferencia' :
+                            'Método de Pago'
+                        }</span>
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                    <DropdownMenuRadioGroup value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                        <DropdownMenuRadioItem value="todos">Todos</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="efectivo">Efectivo</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="transferencia">Transferencia</DropdownMenuRadioItem>
                     </DropdownMenuRadioGroup>
                     </DropdownMenuContent>
                 </DropdownMenu>
