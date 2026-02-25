@@ -566,7 +566,8 @@ export default function InstallationOrderForm({ order }: InstallationOrderFormPr
                                             <Input 
                                                 type="number" 
                                                 placeholder="0.00" 
-                                                {...field} 
+                                                {...field}
+                                                value={field.value ?? ''}
                                                 onChange={e => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
                                                 disabled={isCompleted}
                                             />
