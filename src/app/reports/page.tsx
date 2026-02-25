@@ -6,10 +6,15 @@ import Header from '@/components/header';
 import AppContent from '@/components/app-content';
 import { useAuth } from '@/context/auth-context';
 import { getInstallationOrders } from '@/lib/installation-order-actions';
+import { getUsers } from '@/lib/user-actions';
+import type { User } from '@/lib/user-schema';
+import * as XLSX from 'xlsx';
+import { useToast } from '@/hooks/use-toast';
 import type { InstallationOrder } from '@/lib/installation-order-schema';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, HardHat, Calendar, CalendarDays } from 'lucide-react';
+import { Loader2, HardHat, Calendar, CalendarDays, Download } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { MultiSelectCombobox, type ComboboxOption } from '@/components/ui/multi-select-combobox';
 import {
   Bar,
@@ -33,41 +38,67 @@ import { es } from 'date-fns/locale';
 // New component for the reports dashboard
 function InstallationReportsDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = React.useState<InstallationOrder[]>([]);
+  const [technicians, setTechnicians] = React.useState<User[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isExporting, setIsExporting] = React.useState(false);
+  
   const [selectedYears, setSelectedYears] = React.useState<string[]>([]);
+  const [selectedMonths, setSelectedMonths] = React.useState<string[]>([]);
+  const [selectedTechnicians, setSelectedTechnicians] = React.useState<string[]>([]);
   
   React.useEffect(() => {
     if (user) {
       setIsLoading(true);
-      getInstallationOrders(user)
-        .then(data => {
+      Promise.all([
+          getInstallationOrders(user),
+          getUsers(user)
+      ]).then(([data, allUsers]) => {
           const validData = data.filter(o => o.fechaProgramada && !isNaN(new Date(o.fechaProgramada).getTime()));
           setOrders(validData);
-          // Get unique years from data and select latest 2 by default
+          setTechnicians(allUsers.filter(u => u.role === 'tecnico'));
+          
           const years = [...new Set(validData.map(o => new Date(o.fechaProgramada).getFullYear().toString()))]
             .sort((a, b) => Number(b) - Number(a));
-          setSelectedYears(years.slice(0, 2));
+          setSelectedYears(years.slice(0, 1));
         })
         .catch(error => console.error("Failed to fetch installation orders:", error))
         .finally(() => setIsLoading(false));
     }
   }, [user]);
 
-  // Filter orders based on selected years
+  // Filter orders based on selected years, months, and technicians
   const filteredOrders = React.useMemo(() => {
-    if (selectedYears.length === 0) return orders;
-    return orders.filter(o => selectedYears.includes(new Date(o.fechaProgramada).getFullYear().toString()));
-  }, [orders, selectedYears]);
+    return orders.filter(o => {
+        const orderDate = new Date(o.fechaProgramada);
+        const year = orderDate.getFullYear().toString();
+        const month = (orderDate.getMonth() + 1).toString(); // 1-12
+        const technicianId = o.tecnicoId;
+
+        const yearMatch = selectedYears.length === 0 || selectedYears.includes(year);
+        const monthMatch = selectedMonths.length === 0 || selectedMonths.includes(month);
+        const techMatch = selectedTechnicians.length === 0 || (technicianId && selectedTechnicians.includes(technicianId));
+
+        return yearMatch && monthMatch && techMatch;
+    });
+  }, [orders, selectedYears, selectedMonths, selectedTechnicians]);
 
   const availableYears = React.useMemo(() => {
     return [...new Set(orders.map(o => new Date(o.fechaProgramada).getFullYear().toString()))]
             .sort((a, b) => Number(b) - Number(a));
   }, [orders]);
 
-  const yearOptions: ComboboxOption[] = availableYears.map(year => ({
-    value: year,
-    label: year,
+  const yearOptions: ComboboxOption[] = availableYears.map(year => ({ value: year, label: year }));
+  
+  const monthOptions: ComboboxOption[] = Array.from({ length: 12 }, (_, i) => ({
+    value: (i + 1).toString(),
+    label: format(new Date(2000, i), 'LLLL', { locale: es }).replace(/^\w/, c => c.toUpperCase()),
+  }));
+  
+  const technicianOptions: ComboboxOption[] = technicians.map(tech => ({
+      value: tech.id,
+      label: tech.nombre || tech.username,
   }));
   
   const currentPeriodTotals = React.useMemo(() => {
@@ -89,7 +120,6 @@ function InstallationReportsDashboard() {
   }, [orders]);
 
   // --- Chart Data Calculations ---
-
   const monthlyInstallations = React.useMemo(() => {
     const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
     const dataByMonth: { month: string; [year: string]: number | string }[] = months.map(m => ({ month: m.charAt(0).toUpperCase() + m.slice(1) }));
@@ -192,6 +222,59 @@ function InstallationReportsDashboard() {
       }, {} as Record<string, number>);
       return Object.entries(counts).map(([name, total]) => ({ name, total })).sort((a, b) => b.total - a.total);
   }, [filteredOrders]);
+
+  const handleExport = () => {
+    if (!filteredOrders.length) {
+        toast({
+            title: 'No hay datos para exportar',
+            description: 'Ajuste los filtros para generar un reporte.',
+            variant: 'destructive',
+        });
+        return;
+    }
+    setIsExporting(true);
+    try {
+        const dataToExport = filteredOrders.map(order => {
+            return {
+                'ID Orden': order.id,
+                'Estado': order.estado,
+                'Fecha Programada': format(new Date(order.fechaProgramada), 'yyyy-MM-dd'),
+                'Hora Programada': order.horaProgramada,
+                'Cliente': order.nombreCliente,
+                'Placa': order.placaVehiculo,
+                'Ciudad': order.ciudad,
+                'Técnico': order.tecnicoNombre || 'No Asignado',
+                'Plan': order.tipoPlan,
+                'Categoría': order.categoriaInstalacion,
+                'Tipo Vehículo': order.tipoVehiculo,
+                'Segmento': order.segmento,
+                'Método Pago': order.metodoPago || 'N/A',
+                'Monto Efectivo': order.metodoPago === 'efectivo' ? order.montoEfectivo : 'N/A',
+                'Corte de Motor': order.corteDeMotor ? 'Sí' : 'No',
+                'Lugar de Corte': order.lugarCorteMotor || 'N/A',
+                'Observación Técnico': order.observacion,
+            };
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Reporte de Instalaciones');
+        XLSX.writeFile(workbook, `Reporte_Instalaciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+        toast({
+            title: 'Exportación completada',
+            description: 'El reporte de instalaciones ha sido descargado.',
+        });
+    } catch (error) {
+        console.error("Error exporting data:", error);
+        toast({
+            title: 'Error de exportación',
+            description: 'No se pudo generar el archivo de Excel.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsExporting(false);
+    }
+  };
 
 
   if (isLoading) {
@@ -310,17 +393,40 @@ function InstallationReportsDashboard() {
     <>
       <Header title="Reporte de Instalaciones" />
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
             <h2 className="text-2xl font-bold">Dashboard de Instalaciones</h2>
-            <div className="w-72">
+            <div className="flex flex-wrap items-center gap-2">
                 <MultiSelectCombobox
                     options={yearOptions}
                     selected={selectedYears}
                     onChange={setSelectedYears}
-                    placeholder="Seleccione año(s)..."
+                    placeholder="Año(s)..."
                     searchPlaceholder="Buscar año..."
-                    emptyPlaceholder="No hay años disponibles"
+                    emptyPlaceholder="No hay años"
+                    className="w-full sm:w-auto md:w-[150px]"
                 />
+                 <MultiSelectCombobox
+                    options={monthOptions}
+                    selected={selectedMonths}
+                    onChange={setSelectedMonths}
+                    placeholder="Mes(es)..."
+                    searchPlaceholder="Buscar mes..."
+                    emptyPlaceholder="No hay meses"
+                    className="w-full sm:w-auto md:w-[180px]"
+                />
+                 <MultiSelectCombobox
+                    options={technicianOptions}
+                    selected={selectedTechnicians}
+                    onChange={setSelectedTechnicians}
+                    placeholder="Técnico(s)..."
+                    searchPlaceholder="Buscar técnico..."
+                    emptyPlaceholder="No hay técnicos"
+                    className="w-full sm:w-auto md:w-[200px]"
+                />
+                <Button onClick={handleExport} disabled={isExporting || isLoading} size="sm" variant="outline" className="w-full sm:w-auto">
+                    {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
+                    Exportar a Excel
+                </Button>
             </div>
         </div>
 
@@ -333,7 +439,7 @@ function InstallationReportsDashboard() {
                 <CardContent>
                     <div className="text-2xl font-bold">{filteredOrders.length}</div>
                     <p className="text-xs text-muted-foreground">
-                        {selectedYears.length > 0 ? `Para los años: ${selectedYears.join(', ')}` : 'De todos los años'}
+                        Para los filtros seleccionados
                     </p>
                 </CardContent>
             </Card>
@@ -407,3 +513,5 @@ export default function ReportsPage() {
         </AppContent>
     )
 }
+
+    
