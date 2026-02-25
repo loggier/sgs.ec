@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import type { InstallationOrder } from '@/lib/installation-order-schema';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Loader2, HardHat, Calendar, CalendarDays, Download } from 'lucide-react';
+import { Loader2, HardHat, Calendar, CalendarDays, Download, CircleDollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { MultiSelectCombobox, type ComboboxOption } from '@/components/ui/multi-select-combobox';
@@ -118,6 +118,16 @@ function InstallationReportsDashboard() {
 
     return { totalCurrentYear, totalCurrentMonth };
   }, [orders]);
+  
+  const totalEfectivo = React.useMemo(() => {
+    return filteredOrders.reduce((acc, order) => {
+      if (order.metodoPago === 'efectivo' && order.montoEfectivo) {
+        return acc + order.montoEfectivo;
+      }
+      return acc;
+    }, 0);
+  }, [filteredOrders]);
+
 
   // --- Chart Data Calculations ---
   const monthlyInstallations = React.useMemo(() => {
@@ -283,7 +293,8 @@ function InstallationReportsDashboard() {
             <Header title="Reportes y Estadísticas" />
             <div className="p-4 md:p-6 space-y-6">
                 <Skeleton className="h-8 w-64" />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
                   <Skeleton className="h-28 w-full" />
@@ -430,7 +441,7 @@ function InstallationReportsDashboard() {
             </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total de Instalaciones</CardTitle>
@@ -464,6 +475,20 @@ function InstallationReportsDashboard() {
                     <div className="text-2xl font-bold">{currentPeriodTotals.totalCurrentMonth}</div>
                     <p className="text-xs text-muted-foreground">
                         Instalaciones en {format(new Date(), 'LLLL', { locale: es })}
+                    </p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Efectivo</CardTitle>
+                    <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">
+                        {new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(totalEfectivo)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Para los filtros seleccionados
                     </p>
                 </CardContent>
             </Card>
@@ -514,4 +539,5 @@ export default function ReportsPage() {
     )
 }
 
+    
     
