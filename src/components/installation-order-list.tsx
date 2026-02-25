@@ -3,7 +3,7 @@
 'use client';
 
 import * as React from 'react';
-import { PlusCircle, MoreHorizontal, Edit, Trash2, HardHat, User, Calendar, CreditCard } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Edit, Trash2, HardHat, User, Calendar, CreditCard, ListFilter } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
@@ -12,7 +12,7 @@ import type { InstallationOrder } from '@/lib/installation-order-schema';
 import { useSearch } from '@/context/search-context';
 import { useAuth } from '@/context/auth-context';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import {
   Table,
   TableHeader,
@@ -27,6 +27,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import DeleteInstallationOrderDialog from './delete-installation-order-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -37,6 +39,8 @@ type InstallationOrderListProps = {
   initialOrders: InstallationOrder[];
   onDataChange: () => void;
 };
+
+const ORDERS_PER_PAGE = 10;
 
 function formatCurrency(amount?: number | null) {
   if (amount === undefined || amount === null) return '$0.00';
@@ -51,10 +55,17 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [selectedOrder, setSelectedOrder] = React.useState<InstallationOrder | null>(null);
 
+  const [statusFilter, setStatusFilter] = React.useState('todos');
+  const [currentPage, setCurrentPage] = React.useState(1);
+
   React.useEffect(() => {
     setOrders(initialOrders);
   }, [initialOrders]);
   
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchTerm]);
+
   const handleOpenDeleteDialog = (order: InstallationOrder) => {
     setSelectedOrder(order);
     setIsDeleteDialogOpen(true);
@@ -91,15 +102,34 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
 
 
   const filteredOrders = React.useMemo(() => {
-    if (!searchTerm) return orders;
+    let tempOrders = orders;
+
+    // Filter by status
+    if (statusFilter !== 'todos') {
+        tempOrders = tempOrders.filter(order => order.estado === statusFilter);
+    }
+
+    // Filter by search term
+    if (!searchTerm) return tempOrders;
+
     const lowercasedTerm = searchTerm.toLowerCase();
-    return orders.filter(order =>
+    return tempOrders.filter(order =>
       order.nombreCliente.toLowerCase().includes(lowercasedTerm) ||
       order.placaVehiculo.toLowerCase().includes(lowercasedTerm) ||
       order.ciudad.toLowerCase().includes(lowercasedTerm) ||
       (order.tecnicoNombre && order.tecnicoNombre.toLowerCase().includes(lowercasedTerm))
     );
-  }, [searchTerm, orders]);
+  }, [searchTerm, orders, statusFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ORDERS_PER_PAGE;
+  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + ORDERS_PER_PAGE);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
   
   const OrderActions = ({ order }: { order: InstallationOrder }) => (
     <DropdownMenu>
@@ -133,20 +163,39 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                 <CardTitle>Listado de Instalaciones</CardTitle>
                 <CardDescription>Cree y gestione las tareas de instalación.</CardDescription>
             </div>
-            {currentUser?.role !== 'tecnico' && (
-                <Button asChild size="sm" className="w-full sm:w-auto">
-                  <Link href="/installations/new">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Nueva Orden de Instalación
-                  </Link>
-                </Button>
-            )}
+            <div className="flex items-center gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        <ListFilter className="mr-2 h-4 w-4" />
+                        <span>{statusFilter === 'todos' ? 'Todos los estados' : `Estado: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1).replace('-', ' ')}`}</span>
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                    <DropdownMenuRadioGroup value={statusFilter} onValueChange={setStatusFilter}>
+                        <DropdownMenuRadioItem value="todos">Todos</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="pendiente">Pendiente</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="en-curso">En Curso</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="terminado">Terminado</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                {currentUser?.role !== 'tecnico' && (
+                    <Button asChild size="sm" className="w-full sm:w-auto">
+                    <Link href="/installations/new">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Nueva Orden de Instalación
+                    </Link>
+                    </Button>
+                )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {/* Mobile View */}
            <div className="md:hidden space-y-4">
-                {filteredOrders.length > 0 ? filteredOrders.map(order => (
+                {paginatedOrders.length > 0 ? paginatedOrders.map(order => (
                     <Card key={order.id} className="w-full">
                         <CardHeader>
                              <div className="flex justify-between items-start">
@@ -207,8 +256,8 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map(order => (
+                {paginatedOrders.length > 0 ? (
+                  paginatedOrders.map(order => (
                     <TableRow key={order.id}>
                       <TableCell>
                         <div className="font-medium">{order.nombreCliente}</div>
@@ -251,6 +300,32 @@ export default function InstallationOrderList({ initialOrders, onDataChange }: I
             </Table>
           </div>
         </CardContent>
+        <CardFooter>
+            <div className="flex w-full flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+              <span>
+                Mostrando {Math.min(startIndex + 1, filteredOrders.length)} - {Math.min(startIndex + ORDERS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length} órdenes.
+              </span>
+              <div className="flex items-center gap-2">
+                 <span>Página {currentPage} de {totalPages > 0 ? totalPages : 1}</span>
+                 <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || totalPages === 0}
+                  >
+                    Siguiente
+                  </Button>
+              </div>
+            </div>
+          </CardFooter>
       </Card>
       
       <DeleteInstallationOrderDialog
