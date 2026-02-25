@@ -87,6 +87,48 @@ export async function getWorkOrders(currentUser: User): Promise<WorkOrder[]> {
   }
 }
 
+export async function getAllWorkOrders(currentUser: User): Promise<WorkOrder[]> {
+  try {
+    if (!currentUser) {
+      return [];
+    }
+
+    const ordersCollectionRef = collection(db, WORK_ORDERS_COLLECTION);
+    let ordersQuery;
+
+    if (currentUser.role === 'master') {
+        ordersQuery = query(ordersCollectionRef);
+    } else if (currentUser.role === 'manager') {
+        ordersQuery = query(ordersCollectionRef, where("ownerId", "==", currentUser.id));
+    } else if (currentUser.role === 'tecnico') {
+        ordersQuery = query(ordersCollectionRef, where("tecnicoId", "==", currentUser.id));
+    } else {
+        return []; // Other roles see nothing
+    }
+    
+    const orderSnapshot = await getDocs(ordersQuery);
+    
+    const techniciansSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'tecnico')));
+    const techniciansMap = new Map(techniciansSnapshot.docs.map(doc => [doc.id, doc.data() as User]));
+
+    const orders = orderSnapshot.docs.map(doc => {
+      const data = convertTimestamps(doc.data()) as Omit<WorkOrder, 'id'>;
+      const tecnico = data.tecnicoId ? techniciansMap.get(data.tecnicoId) : null;
+      return {
+        id: doc.id,
+        ...data,
+        tecnicoNombre: tecnico?.nombre || tecnico?.username,
+      } as WorkOrder;
+    });
+
+    return orders.sort((a, b) => new Date(b.fechaProgramada).getTime() - new Date(a.fechaProgramada).getTime());
+
+  } catch (error) {
+    console.error("Error getting all work orders:", error);
+    return [];
+  }
+}
+
 export async function getWorkOrderById(orderId: string): Promise<WorkOrder | null> {
     try {
         const orderDocRef = doc(db, WORK_ORDERS_COLLECTION, orderId);
