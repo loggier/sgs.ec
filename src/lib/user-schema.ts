@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export const UserRole = z.enum(['master', 'manager', 'analista', 'usuario', 'tecnico']);
@@ -43,6 +42,7 @@ export const UserFormSchema = (isEditing: boolean) => z.object({
   ciudad: z.string().optional().default(''),
   empresa: z.string().optional(),
   nota: z.string().optional(),
+  otpEnabled: z.boolean().optional(),
 });
 
 export type UserFormInput = z.infer<ReturnType<typeof UserFormSchema>>;

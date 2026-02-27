@@ -1,10 +1,8 @@
-
-
 'use client';
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, FormProvider, Control } from 'react-hook-form';
+import { useForm, FormProvider, Control, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
 
@@ -20,6 +18,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from './ui/textarea';
+import { Switch } from './ui/switch';
 
 type UserFormProps = {
   user: User | null;
@@ -40,6 +40,7 @@ type UserFormProps = {
 
 function UserFormFields({ isEditing, control }: { isEditing: boolean, control: Control<UserFormInput> }) {
   const { user: currentUser } = useAuth();
+  const telefono = useWatch({ control, name: 'telefono' });
 
   const availableRoles: { value: UserRole, label: string }[] = React.useMemo(() => {
     if (currentUser?.role === 'master') {
@@ -159,6 +160,35 @@ function UserFormFields({ isEditing, control }: { isEditing: boolean, control: C
           </FormItem>
         )}
       />
+
+      <FormField
+          control={control}
+          name="otpEnabled"
+          render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                      <FormLabel>Autenticación de dos pasos (OTP)</FormLabel>
+                      <FormDescription>
+                          Exigir código por WhatsApp al iniciar sesión.
+                      </FormDescription>
+                  </div>
+                  <FormControl>
+                      <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={!telefono}
+                      />
+                  </FormControl>
+              </FormItem>
+          )}
+      />
+
+      {!telefono && (
+          <p className="text-xs text-destructive mt-1">
+              * Debe ingresar un teléfono para habilitar OTP.
+          </p>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={control}
@@ -218,6 +248,7 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
       ciudad: '',
       empresa: '',
       nota: '',
+      otpEnabled: false,
     }
   });
   
@@ -233,6 +264,7 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
         ciudad: user.ciudad || '',
         role: user.role,
         password: '',
+        otpEnabled: user.otpEnabled || false,
       });
     } else {
       form.reset({
@@ -245,12 +277,22 @@ export default function UserForm({ user, onSave, onCancel }: UserFormProps) {
         ciudad: '',
         empresa: '',
         nota: '',
+        otpEnabled: false,
       });
     }
   }, [user, form]);
 
   async function onSubmit(values: UserFormInput) {
     if (!currentUser) return;
+
+    if (values.otpEnabled && !values.telefono) {
+        toast({
+            title: 'Error de Configuración',
+            description: 'Debe registrar un número de teléfono para habilitar la autenticación de dos pasos.',
+            variant: 'destructive',
+        });
+        return;
+    }
 
     setIsSubmitting(true);
     try {
