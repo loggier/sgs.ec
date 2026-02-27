@@ -19,8 +19,7 @@ export const InstallationPlan = z.enum([
 export const InstallationCategory = z.enum([
     'pesado', 
     'liviano',
-    'moto lineal',
-    'mototaxi'
+    'moto'
 ]);
 
 export const InstallationVehicle = z.enum([
@@ -28,7 +27,9 @@ export const InstallationVehicle = z.enum([
     'camioneta',
     'camion',
     'furgón',
-    'trailer'
+    'trailer',
+    'moto lineal',
+    'mototaxi'
 ]);
 
 export const InstallationSegment = z.enum([
