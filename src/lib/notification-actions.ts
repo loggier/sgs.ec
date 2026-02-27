@@ -1,4 +1,3 @@
-
 'use server';
 
 import { getMessageTemplatesForUser, getNotificationUrlForUser } from './settings-actions';
@@ -256,6 +255,9 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
             for (const unit of units) {
                 if (!unit.fechaSiguientePago) continue;
                 
+                // Omitir unidades que ya están suspendidas
+                if (unit.estaSuspendido) continue;
+                
                 const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
                 if (!unitsToNotify[unit.clientId]) {
@@ -310,7 +312,7 @@ export async function triggerManualNotificationCheck(user: User): Promise<{ succ
         if (sentCount === 0 && errorCount === 0) {
              return {
                 success: true,
-                message: "Proceso finalizado. Ningún cliente tenía unidades que cumplieran con los criterios para enviar notificaciones hoy."
+                message: "Proceso finalizado. Ningún cliente tenía unidades activas que cumplieran con los criterios para enviar notificaciones hoy."
             };
         }
 

@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Funciones de nube para tareas programadas y de fondo.
  */
@@ -68,6 +67,9 @@ export const dailyNotificationCheck = functions
                 const unit = { id: doc.id, clientId: doc.ref.parent.parent!.id, ...unitData } as Unit;
 
                 if (!unit.fechaSiguientePago) continue;
+                
+                // Omitir unidades que ya están suspendidas
+                if (unit.estaSuspendido) continue;
                 
                 const nextPaymentDate = startOfDay(new Date(unit.fechaSiguientePago));
 
